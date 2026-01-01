@@ -12,7 +12,8 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { Zap, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { RFNode, RFEdge, RFNodeData, ConnectFrom, COLOR_HEX, SidebarTab } from "./types";
+import { toast } from "sonner";
+import { RFNode, RFEdge, RFNodeData, ConnectFrom, COLOR_HEX, SidebarTab, NodeLibraryItem, BuilderNodeType } from "./types";
 import { WorkflowNodeCard } from "./WorkflowNodeCard";
 
 interface WorkflowCanvasProps {
@@ -44,6 +45,18 @@ const minimapNodeColor = (n: RFNode) => {
   return COLOR_HEX[key];
 };
 
+function normalizeBuilderType(maybe: any, actionType: string): BuilderNodeType {
+  if (actionType === "if_else" || actionType === "business_hours_gate") return "condition";
+  if (["wait", "wait_until", "wait_for_event", "goal_event"].includes(actionType)) return "delay";
+  if (["trigger", "action", "condition", "delay"].includes(maybe)) return maybe;
+  return "action";
+}
+
+function normalizeActionType(rawActionType: string): string {
+  if (rawActionType === "goal_event") return "wait_for_event";
+  return rawActionType;
+}
+
 export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   nodes,
   edges,
@@ -67,6 +80,62 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   reactFlowRef,
   canvasWrapRef,
 }) => {
+  // Handle drop from sidebar
+  const onDragOver = useCallback((event: React.DragEvent) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+  }, []);
+
+  const onDrop = useCallback(
+    (event: React.DragEvent) => {
+      event.preventDefault();
+
+      const data = event.dataTransfer.getData("application/reactflow");
+      if (!data) return;
+
+      const item: NodeLibraryItem = JSON.parse(data);
+      const reactFlowBounds = canvasWrapRef.current?.getBoundingClientRect();
+      const instance = reactFlowRef.current;
+
+      if (!reactFlowBounds || !instance) return;
+
+      // Check for duplicate trigger
+      if (item.kind === "trigger" && nodes.some((n) => n.data.builderType === "trigger")) {
+        toast.error("This workflow already has a trigger. Delete it first.");
+        return;
+      }
+
+      // Calculate drop position in flow coordinates
+      const position = instance.screenToFlowPosition({
+        x: event.clientX - reactFlowBounds.left,
+        y: event.clientY - reactFlowBounds.top,
+      });
+
+      const nodeId = crypto.randomUUID();
+      const builderType = normalizeBuilderType(item.kind, item.id);
+
+      const newNode: RFNode = {
+        id: nodeId,
+        type: "workflowNode",
+        position,
+        data: {
+          builderType,
+          actionType: normalizeActionType(item.id),
+          label: item.label,
+          icon: item.icon,
+          color: item.color,
+          config: {},
+        },
+      };
+
+      setNodes((nds) => [...nds, newNode]);
+      setSelectedNodeId(nodeId);
+      setSidebarTab("settings");
+      toast.success(`Added: ${item.label}`);
+    },
+    [nodes, setNodes, setSelectedNodeId, setSidebarTab, canvasWrapRef, reactFlowRef]
+  );
+
   const nodeTypes = React.useMemo(() => {
     return {
       workflowNode: (p: NodeProps<RFNodeData>) => (
@@ -94,7 +163,12 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   const hasTrigger = nodes.some((n) => n.data.builderType === "trigger");
 
   return (
-    <div ref={canvasWrapRef} className="relative flex-1 min-h-0 bg-workflow-canvas">
+    <div 
+      ref={canvasWrapRef} 
+      className="relative flex-1 min-h-0 bg-workflow-canvas"
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}

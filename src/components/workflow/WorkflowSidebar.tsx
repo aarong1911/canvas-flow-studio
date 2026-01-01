@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { Search, X, Settings, Link2Off, ChevronRight } from "lucide-react";
+import { Search, X, Settings, Link2Off, ChevronRight, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,6 +72,12 @@ function insertAtCursor(el: HTMLInputElement | HTMLTextAreaElement, text: string
   const end = el.selectionEnd ?? el.value.length;
   el.setRangeText(text, start, end, "end");
   el.focus();
+}
+
+// Drag handler for sidebar items
+function onDragStart(event: React.DragEvent, item: NodeLibraryItem) {
+  event.dataTransfer.setData("application/reactflow", JSON.stringify(item));
+  event.dataTransfer.effectAllowed = "move";
 }
 
 export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
@@ -162,7 +168,7 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Click a node to add it to the canvas. Use "Add Next" on cards to connect automatically.
+              <span className="font-medium">Drag</span> nodes to the canvas or <span className="font-medium">click</span> to add them.
             </p>
           </div>
 
@@ -199,12 +205,15 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                       const Icon = item.icon;
                       const cls = colorClasses(item.color);
                       return (
-                        <button
+                        <div
                           key={item.id}
+                          draggable
+                          onDragStart={(e) => onDragStart(e, item)}
                           onClick={() => onAddNode(item)}
-                          className="w-full flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors text-left group"
+                          className="w-full flex items-center gap-2 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors text-left group cursor-grab active:cursor-grabbing hover:border-primary/50 hover:shadow-sm"
                         >
-                          <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", cls.chipBg)}>
+                          <GripVertical className="w-4 h-4 text-muted-foreground/50 group-hover:text-muted-foreground flex-shrink-0" />
+                          <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", cls.chipBg)}>
                             <Icon className={cn("w-4 h-4", cls.chipText)} />
                           </div>
                           <div className="flex-1 min-w-0">
@@ -213,7 +222,7 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                             </div>
                             <div className="text-xs text-muted-foreground">{kindLabel(item.kind)}</div>
                           </div>
-                        </button>
+                        </div>
                       );
                     })}
                   </CollapsibleContent>
