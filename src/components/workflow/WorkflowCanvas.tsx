@@ -354,7 +354,8 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
     const updatePositions = () => {
       if (!triggerRowRef.current || !canvasWrapRef.current) return;
 
-      const cards = triggerRowRef.current.querySelectorAll('[data-trigger-card="true"][data-configured="true"]');
+      // Get ALL trigger cards (not just configured ones)
+      const cards = triggerRowRef.current.querySelectorAll('[data-trigger-card="true"]');
       const canvasRect = canvasWrapRef.current.getBoundingClientRect();
       
       const positions: number[] = [];
@@ -411,8 +412,8 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         </div>
       </div>
 
-      {/* Connector lines from triggers to flow - SVG - ALWAYS show when triggers exist */}
-      {hasTriggers && (
+      {/* Connector lines from ALL triggers to flow - SVG */}
+      {hasTriggers && triggerPositions.length > 0 && (
         <svg 
           className="absolute left-0 right-0 pointer-events-none z-[5]"
           style={{ 
@@ -421,30 +422,22 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
             width: '100%'
           }}
         >
-          {/* When we have configured triggers, draw from their positions */}
-          {hasConfiguredTriggers && triggerPositions.length > 0 ? (
+          {triggerPositions.length === 1 ? (
+            // Single trigger: straight vertical line down
+            <line
+              x1={triggerPositions[0]}
+              y1={0}
+              x2={triggerPositions[0]}
+              y2={svgHeight}
+              stroke="hsl(var(--border))"
+              strokeWidth="2"
+            />
+          ) : (
+            // Multiple triggers: each drops and merges to center
             <>
               {triggerPositions.map((startX, index) => {
-                const isSingle = triggerPositions.length === 1;
                 const dropDistance = 40;
                 const horizontalY = dropDistance;
-                
-                if (isSingle) {
-                  // Single trigger: straight vertical line down to bottom
-                  return (
-                    <line
-                      key={index}
-                      x1={startX}
-                      y1={0}
-                      x2={startX}
-                      y2={svgHeight}
-                      stroke="hsl(var(--border))"
-                      strokeWidth="2"
-                    />
-                  );
-                }
-                
-                // Multiple triggers: vertical drop + horizontal to center + vertical down
                 const isLeftOfCenter = startX < mergePointX;
                 const cornerRadius = 8;
                 
@@ -470,28 +463,16 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 );
               })}
               
-              {/* Center vertical line (merge line) - only when multiple triggers */}
-              {triggerPositions.length > 1 && (
-                <line
-                  x1={mergePointX}
-                  y1={40 + 8} 
-                  x2={mergePointX}
-                  y2={svgHeight}
-                  stroke="hsl(var(--border))"
-                  strokeWidth="2"
-                />
-              )}
+              {/* Center vertical line (merge line) continues down */}
+              <line
+                x1={mergePointX}
+                y1={40 + 8} 
+                x2={mergePointX}
+                y2={svgHeight}
+                stroke="hsl(var(--border))"
+                strokeWidth="2"
+              />
             </>
-          ) : (
-            /* No configured triggers yet - draw a single center line from first trigger area */
-            <line
-              x1={mergePointX}
-              y1={0}
-              x2={mergePointX}
-              y2={svgHeight}
-              stroke="hsl(var(--border))"
-              strokeWidth="2"
-            />
           )}
         </svg>
       )}
