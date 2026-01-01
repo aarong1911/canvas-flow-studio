@@ -113,13 +113,13 @@ export const WorkflowHeader: React.FC<WorkflowHeaderProps> = ({
               size="sm"
               className={cn(
                 "relative px-4 transition-all",
-                showSavedMessage 
-                  ? "bg-blue-100 hover:bg-blue-100 text-blue-600" 
-                  : "bg-blue-600 hover:bg-blue-700 text-white"
+                hasUnsavedChanges && !isSaving
+                  ? "bg-blue-600 hover:bg-blue-700 text-white"
+                  : "bg-blue-100 hover:bg-blue-100 text-blue-600"
               )}
-              disabled={isSaving}
+              disabled={isSaving || !hasUnsavedChanges}
             >
-              {hasUnsavedChanges && !isSaving && !showSavedMessage && (
+              {hasUnsavedChanges && !isSaving && (
                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full" />
               )}
               {isSaving ? (
@@ -127,10 +127,10 @@ export const WorkflowHeader: React.FC<WorkflowHeaderProps> = ({
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                   Saving
                 </>
-              ) : showSavedMessage ? (
-                "Saved"
-              ) : (
+              ) : hasUnsavedChanges ? (
                 "Save"
+              ) : (
+                "Saved"
               )}
             </Button>
           </div>
