@@ -419,295 +419,108 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       className="relative flex-1 min-h-0 bg-workflow-canvas"
       onDragOver={onDragOver}
     >
-      {/* Trigger Row at Top */}
-      <div ref={triggerRowRef} className="absolute top-6 left-0 right-0 z-10 flex justify-center">
-        <div className="flex items-center gap-4">
-          {triggers.map((trigger) => (
-            <TriggerCard
-              key={trigger.id}
-              id={trigger.id}
-              label="Trigger"
-              sublabel={trigger.isConfigured ? trigger.config?.trigger_name || trigger.label : trigger.label}
-              icon={trigger.icon}
-              color={trigger.color}
-              isConfigured={trigger.isConfigured}
-              selected={selectedTriggerId === trigger.id}
-              onClick={() => onTriggerClick(trigger.id)}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Connector lines from ALL triggers to plus button - SVG */}
-      {hasTriggers && triggerPositions.length > 0 && (
-        <svg 
-          className="absolute left-0 right-0 pointer-events-none z-[5]"
-          style={{ 
-            top: svgTop, 
-            height: triggerMergeHeight,
-            width: '100%'
-          }}
-        >
-          {triggerPositions.length === 1 ? (
-            // Single trigger: straight vertical line down
-            <line
-              x1={triggerPositions[0]}
-              y1={0}
-              x2={triggerPositions[0]}
-              y2={triggerMergeHeight}
-              stroke="hsl(var(--border))"
-              strokeWidth="2"
-            />
-          ) : (
-            // Multiple triggers: each drops and merges to center
-            <>
-              {triggerPositions.map((startX, index) => {
-                const dropDistance = 40;
-                const horizontalY = dropDistance;
-                const isLeftOfCenter = startX < mergePointX;
-                const cornerRadius = 8;
-                
-                // Path: drop down, curve to horizontal, go to center line
-                const path = `
-                  M ${startX} 0
-                  L ${startX} ${horizontalY - cornerRadius}
-                  Q ${startX} ${horizontalY} ${isLeftOfCenter ? startX + cornerRadius : startX - cornerRadius} ${horizontalY}
-                  L ${isLeftOfCenter ? mergePointX - cornerRadius : mergePointX + cornerRadius} ${horizontalY}
-                  Q ${mergePointX} ${horizontalY} ${mergePointX} ${horizontalY + cornerRadius}
-                `;
-
-                return (
-                  <path
-                    key={index}
-                    d={path}
-                    fill="none"
-                    stroke="hsl(var(--border))"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                );
-              })}
-              
-              {/* Center vertical line (merge line) continues down */}
-              <line
-                x1={mergePointX}
-                y1={40 + 8} 
-                x2={mergePointX}
-                y2={triggerMergeHeight}
-                stroke="hsl(var(--border))"
-                strokeWidth="2"
-              />
-            </>
-          )}
-        </svg>
-      )}
-
-      {/* Flow section: Plus → Actions → Plus → END */}
-      {hasTriggers && (
-        <div 
-          className="absolute z-10 flex flex-col items-center"
-          style={{ 
-            top: svgTop + triggerMergeHeight, 
-            left: '50%',
-            transform: 'translateX(-50%)'
-          }}
-        >
-          {/* Central Plus Button */}
-          <PlusButton onClick={() => onAddActionClick()} />
-          
-          {/* Action Nodes rendered inline */}
-          {nodes.length > 0 && (
-            <div className="flex flex-col items-center">
-              {nodes.map((node, index) => {
-                const Icon = node.data.icon;
-                const isCondition = node.data.builderType === "condition";
-                
-                return (
-                  <div key={node.id} className="flex flex-col items-center">
-                    {/* Connector line to this node */}
-                    <div className="w-px h-6 bg-border" />
-                    
-                    {/* Action Node Card */}
-                    <div 
-                      className="relative group"
-                      onClick={() => {
-                        setSelectedEdgeId(null);
-                        setSelectedTriggerId(null);
-                        setSelectedNodeId(node.id);
-                        setSidebarTab("settings");
-                      }}
-                    >
-                      <div
-                        className={cn(
-                          "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200",
-                          "min-w-[220px] max-w-[280px]",
-                          "shadow-sm hover:shadow-md",
-                          selectedNodeId === node.id && "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-                            colorIconClasses[node.data.color]
-                          )}>
-                            <Icon className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-foreground truncate">
-                              {node.data.config?.action_name || node.data.label}
-                            </div>
-                          </div>
-                          
-                          {/* Three Dots Menu - Always visible */}
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <button
-                                onClick={(e) => e.stopPropagation()}
-                                className="p-1.5 hover:bg-muted rounded-lg transition-colors"
-                              >
-                                <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                              </button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48 bg-background">
-                              <DropdownMenuItem onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedNodeId(node.id);
-                                setSidebarTab("settings");
-                              }}>
-                                <Settings className="w-4 h-4 mr-2" />
-                                Configure
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => {
-                                e.stopPropagation();
-                                onDuplicateNode?.(node.id);
-                              }}>
-                                <Copy className="w-4 h-4 mr-2" />
-                                Duplicate
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  onDeleteNode(node.id);
-                                }}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="w-4 h-4 mr-2" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Plus button after each node */}
-                    {!isCondition && (
-                      <div className="flex flex-col items-center">
-                        <div className="w-px h-6 bg-border" />
-                        <PlusButton onClick={() => onAddActionClick(node.id, "default")} />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-          
-          {/* Connector line to END */}
-          <div className="w-px h-6 bg-border" />
-          <EndNode />
-        </div>
-      )}
-
-      {/* Control Buttons - Bottom Left */}
-      <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-1 bg-background border rounded-lg shadow-md p-1">
-        <button
-          onClick={handleZoomIn}
-          className="p-2 hover:bg-muted rounded transition-colors"
-          title="Zoom In"
-        >
-          <ZoomIn className="w-4 h-4 text-muted-foreground" />
-        </button>
-        <button
-          onClick={handleZoomOut}
-          className="p-2 hover:bg-muted rounded transition-colors"
-          title="Zoom Out"
-        >
-          <ZoomOut className="w-4 h-4 text-muted-foreground" />
-        </button>
-        <button
-          onClick={handleFitView}
-          className="p-2 hover:bg-muted rounded transition-colors"
-          title="Fit View"
-        >
-          <Maximize className="w-4 h-4 text-muted-foreground" />
-        </button>
-        <button
-          onClick={() => setIsInteractive(!isInteractive)}
-          className={cn(
-            "p-2 hover:bg-muted rounded transition-colors",
-            !isInteractive && "bg-muted"
-          )}
-          title={isInteractive ? "Lock Canvas" : "Unlock Canvas"}
-        >
-          {isInteractive ? (
-            <Unlock className="w-4 h-4 text-muted-foreground" />
-          ) : (
-            <Lock className="w-4 h-4 text-muted-foreground" />
-          )}
-        </button>
-      </div>
-
-      {/* Mini Map - Bottom Right */}
-      <div className="absolute bottom-4 right-4 z-20 border rounded-lg shadow-md overflow-hidden bg-background">
-        <div className="w-[180px] h-[120px] relative">
-          {/* Simple minimap visualization */}
-          <div className="absolute inset-2 border border-border/50 rounded bg-muted/20">
-            {/* Viewport indicator */}
-            <div className="absolute top-1/4 left-1/4 w-1/2 h-1/2 border-2 border-primary/50 bg-primary/10 rounded" />
-            {/* Node indicators */}
-            {triggers.map((trigger, i) => (
-              <div 
+      {/* React Flow Canvas - Main interactive canvas */}
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onConnectStart={onConnectStart}
+        onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
+        onPaneClick={onPaneClick}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        deleteKeyCode={null}
+        onInit={(instance) => {
+          reactFlowRef.current = instance;
+        }}
+        panOnDrag={isInteractive}
+        zoomOnScroll={isInteractive}
+        zoomOnPinch={isInteractive}
+        zoomOnDoubleClick={isInteractive}
+        nodesDraggable={isInteractive}
+        nodesConnectable={isInteractive}
+        elementsSelectable={true}
+        fitView
+        fitViewOptions={{ padding: 0.2 }}
+        minZoom={0.1}
+        maxZoom={2}
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+      >
+        <Background gap={20} size={1} color="hsl(var(--border))" />
+        
+        {/* Trigger Row at Top - as a Panel */}
+        <Panel position="top-center" className="!top-6">
+          <div ref={triggerRowRef} className="flex items-center gap-4">
+            {triggers.map((trigger) => (
+              <TriggerCard
                 key={trigger.id}
-                className="absolute w-3 h-2 rounded-sm"
-                style={{ 
-                  backgroundColor: COLOR_HEX[trigger.color],
-                  top: '15%',
-                  left: `${30 + i * 15}%`
-                }}
-              />
-            ))}
-            {nodes.map((node, i) => (
-              <div 
-                key={node.id}
-                className="absolute w-3 h-2 rounded-sm"
-                style={{ 
-                  backgroundColor: COLOR_HEX[node.data.color],
-                  top: `${40 + i * 12}%`,
-                  left: '45%'
-                }}
+                id={trigger.id}
+                label="Trigger"
+                sublabel={trigger.isConfigured ? trigger.config?.trigger_name || trigger.label : trigger.label}
+                icon={trigger.icon}
+                color={trigger.color}
+                isConfigured={trigger.isConfigured}
+                selected={selectedTriggerId === trigger.id}
+                onClick={() => onTriggerClick(trigger.id)}
               />
             ))}
           </div>
-        </div>
-      </div>
+        </Panel>
 
-      {/* React Flow Canvas - Hidden but kept for edge management */}
-      <div className="hidden">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onConnectStart={onConnectStart}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          deleteKeyCode={null}
+        {/* Control Buttons - Bottom Left */}
+        <Panel position="bottom-left" className="!bottom-4 !left-4">
+          <div className="flex flex-col gap-1 bg-background border rounded-lg shadow-md p-1">
+            <button
+              onClick={handleZoomIn}
+              className="p-2 hover:bg-muted rounded transition-colors"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-4 h-4 text-muted-foreground" />
+            </button>
+            <button
+              onClick={handleZoomOut}
+              className="p-2 hover:bg-muted rounded transition-colors"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-4 h-4 text-muted-foreground" />
+            </button>
+            <button
+              onClick={handleFitView}
+              className="p-2 hover:bg-muted rounded transition-colors"
+              title="Fit View"
+            >
+              <Maximize className="w-4 h-4 text-muted-foreground" />
+            </button>
+            <button
+              onClick={() => setIsInteractive(!isInteractive)}
+              className={cn(
+                "p-2 hover:bg-muted rounded transition-colors",
+                !isInteractive && "bg-muted"
+              )}
+              title={isInteractive ? "Lock Canvas" : "Unlock Canvas"}
+            >
+              {isInteractive ? (
+                <Unlock className="w-4 h-4 text-muted-foreground" />
+              ) : (
+                <Lock className="w-4 h-4 text-muted-foreground" />
+              )}
+            </button>
+          </div>
+        </Panel>
+
+        {/* Mini Map - Bottom Right */}
+        <MiniMap 
+          nodeColor={minimapNodeColor}
+          maskColor="rgba(0, 0, 0, 0.1)"
+          className="!bg-background !border !rounded-lg !shadow-md"
+          style={{ width: 180, height: 120 }}
+          zoomable
+          pannable
         />
-      </div>
+      </ReactFlow>
     </div>
   );
 };
