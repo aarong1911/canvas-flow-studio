@@ -24,6 +24,7 @@ import {
   TriggerData,
 } from "./types";
 import { TRIGGERS, ACTIONS, NODE_CONFIGS, ALL_LIBRARY_ITEMS } from "./node-library";
+import { CustomFieldInput } from "./CustomFieldInput";
 
 interface WorkflowSidebarProps {
   tab: SidebarTab;
@@ -500,35 +501,12 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                           )}
 
                           {field.type === "text" && (
-                            <>
-                              <Input
-                                ref={(el) => (inputRefs.current[field.name] = el)}
-                                value={val ?? ""}
-                                onChange={(e) => setLocalConfig((s) => ({ ...s, [field.name]: e.target.value }))}
-                                placeholder={"placeholder" in field ? field.placeholder : ""}
-                                readOnly={"readOnly" in field ? field.readOnly : false}
-                              />
-                              {showVars && (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {variables.map((v) => (
-                                    <button
-                                      key={v}
-                                      type="button"
-                                      className="px-2 py-1 text-xs rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                                      onClick={() => {
-                                        const el = inputRefs.current[field.name];
-                                        if (!el) return;
-                                        el.value = (localConfig[field.name] ?? "").toString();
-                                        insertAtCursor(el, v);
-                                        setLocalConfig((s) => ({ ...s, [field.name]: el.value }));
-                                      }}
-                                    >
-                                      {v}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </>
+                            <CustomFieldInput
+                              value={val ?? ""}
+                              onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
+                              placeholder={"placeholder" in field ? field.placeholder : ""}
+                              helperText={"helperText" in field ? field.helperText : undefined}
+                            />
                           )}
 
                           {field.type === "number" && (

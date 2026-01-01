@@ -8,6 +8,7 @@ import { RFNode, RFEdge, RFNodeData, ConnectFrom, WorkflowSettings, SidebarTab, 
 import { WorkflowHeader } from "./WorkflowHeader";
 import { WorkflowCanvas } from "./WorkflowCanvas";
 import { WorkflowSidebar } from "./WorkflowSidebar";
+import { WorkflowSettingsPage } from "./WorkflowSettingsPage";
 import { TRIGGERS } from "./node-library";
 
 // Helper functions
@@ -54,7 +55,13 @@ export const WorkflowBuilder: React.FC = () => {
   const [topTab, setTopTab] = useState<TopTab>("builder");
   const [sidebarTab, setSidebarTab] = useState<SidebarTab>("triggers");
   const [workflowName, setWorkflowName] = useState("Untitled Workflow");
+  const [workflowStatus, setWorkflowStatus] = useState<"draft" | "active">("draft");
   const [search, setSearch] = useState("");
+
+  // Track unsaved changes
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showSavedMessage, setShowSavedMessage] = useState(false);
 
   // Triggers are separate from the flow nodes
   const [triggers, setTriggers] = useState<TriggerData[]>([createEmptyTrigger()]);
@@ -74,6 +81,11 @@ export const WorkflowBuilder: React.FC = () => {
   const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedNodeId) || null, [nodes, selectedNodeId]);
   const selectedEdge = useMemo(() => edges.find((e) => e.id === selectedEdgeId) || null, [edges, selectedEdgeId]);
   const selectedTrigger = useMemo(() => triggers.find((t) => t.id === selectedTriggerId) || null, [triggers, selectedTriggerId]);
+
+  // Mark changes as unsaved when things change
+  useEffect(() => {
+    setHasUnsavedChanges(true);
+  }, [triggers, nodes, edges, wfSettings, workflowName]);
 
   // Prevent page scroll
   useEffect(() => {
@@ -378,9 +390,22 @@ export const WorkflowBuilder: React.FC = () => {
     setSelectedTriggerId(null);
   }, []);
 
-  // Stub functions for save/publish
-  const handleSave = async () => { toast.success("Draft saved (demo)"); };
-  const handlePublish = async () => { toast.success("Published (demo)"); };
+  // Save workflow
+  const handleSave = async () => {
+    setIsSaving(true);
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    setIsSaving(false);
+    setHasUnsavedChanges(false);
+    setShowSavedMessage(true);
+    setTimeout(() => setShowSavedMessage(false), 3000);
+  };
+
+  // Test workflow
+  const handleTestWorkflow = () => {
+    toast.info("Test workflow feature coming soon");
+  };
+
   const persistNodeConfig = async () => {};
   const persistWorkflowSettings = async () => {};
 
@@ -390,12 +415,16 @@ export const WorkflowBuilder: React.FC = () => {
         <WorkflowHeader
           workflowName={workflowName}
           setWorkflowName={setWorkflowName}
-          workflowStatus="draft"
+          workflowStatus={workflowStatus}
+          setWorkflowStatus={setWorkflowStatus}
           topTab={topTab}
           setTopTab={setTopTab}
-          onBack={() => navigate("/")}
+          onBack={() => navigate("/workflows")}
           onSave={handleSave}
-          onPublish={handlePublish}
+          onTestWorkflow={handleTestWorkflow}
+          hasUnsavedChanges={hasUnsavedChanges}
+          isSaving={isSaving}
+          showSavedMessage={showSavedMessage}
         />
 
         {topTab === "builder" && (
@@ -430,12 +459,22 @@ export const WorkflowBuilder: React.FC = () => {
           />
         )}
 
-        {topTab !== "builder" && (
+        {topTab === "settings" && (
+          <WorkflowSettingsPage settings={wfSettings} setSettings={setWfSettings} />
+        )}
+
+        {topTab === "history" && (
           <div className="flex-1 p-6 overflow-auto">
             <div className="text-center text-muted-foreground py-20">
-              {topTab === "settings" && "Workflow Settings (connect to Supabase)"}
-              {topTab === "history" && "Enrollment History (connect to Supabase)"}
-              {topTab === "logs" && "Execution Logs (connect to Supabase)"}
+              Enrollment History (connect to Supabase)
+            </div>
+          </div>
+        )}
+
+        {topTab === "logs" && (
+          <div className="flex-1 p-6 overflow-auto">
+            <div className="text-center text-muted-foreground py-20">
+              Execution Logs (connect to Supabase)
             </div>
           </div>
         )}
