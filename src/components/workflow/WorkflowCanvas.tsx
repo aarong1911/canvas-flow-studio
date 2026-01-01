@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -14,8 +14,7 @@ import ReactFlow, {
 import "reactflow/dist/style.css";
 import { Plus, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-import { RFNode, RFEdge, RFNodeData, ConnectFrom, COLOR_HEX, SidebarTab, NodeLibraryItem, BuilderNodeType, TriggerData, ColorKey } from "./types";
+import { RFNode, RFEdge, RFNodeData, ConnectFrom, COLOR_HEX, SidebarTab, TriggerData, ColorKey } from "./types";
 import { TriggerCard, AddTriggerCard } from "./TriggerCard";
 import { EndNode } from "./EndNode";
 import { PlusButton } from "./PlusButton";
@@ -264,6 +263,47 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   const configuredTriggers = triggers.filter(t => t.isConfigured);
   const hasConfiguredTriggers = configuredTriggers.length > 0;
 
+  // Track trigger card positions for connector lines
+  const triggerRowRef = useRef<HTMLDivElement>(null);
+  const [triggerPositions, setTriggerPositions] = useState<number[]>([]);
+  const [canvasWidth, setCanvasWidth] = useState(0);
+
+  useEffect(() => {
+    const updatePositions = () => {
+      if (!triggerRowRef.current || !canvasWrapRef.current) return;
+
+      const cards = triggerRowRef.current.querySelectorAll('[data-trigger-card="true"][data-configured="true"]');
+      const canvasRect = canvasWrapRef.current.getBoundingClientRect();
+      
+      const positions: number[] = [];
+      cards.forEach((card) => {
+        const rect = card.getBoundingClientRect();
+        // Get center X relative to canvas
+        const centerX = rect.left - canvasRect.left + rect.width / 2;
+        positions.push(centerX);
+      });
+
+      setTriggerPositions(positions);
+      setCanvasWidth(canvasRect.width);
+    };
+
+    updatePositions();
+    window.addEventListener('resize', updatePositions);
+    
+    // Update after a small delay to ensure DOM is ready
+    const timeout = setTimeout(updatePositions, 50);
+    
+    return () => {
+      window.removeEventListener('resize', updatePositions);
+      clearTimeout(timeout);
+    };
+  }, [triggers, canvasWrapRef]);
+
+  // Calculate merge point (center of canvas)
+  const mergePointX = canvasWidth / 2;
+  const svgTop = 96; // Top of trigger cards + card height
+  const svgHeight = 120; // Height for connector area
+
   return (
     <div 
       ref={canvasWrapRef} 
@@ -271,7 +311,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       onDragOver={onDragOver}
     >
       {/* Trigger Row at Top */}
-      <div className="absolute top-6 left-0 right-0 z-10 flex justify-center">
+      <div ref={triggerRowRef} className="absolute top-6 left-0 right-0 z-10 flex justify-center">
         <div className="flex items-center gap-4">
           {triggers.map((trigger) => (
             <TriggerCard
@@ -290,27 +330,77 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         </div>
       </div>
 
-      {/* Connector lines from triggers to flow - using SVG */}
-      {hasConfiguredTriggers && (
+      {/* Connector lines from triggers to flow - SVG */}
+      {hasConfiguredTriggers && triggerPositions.length > 0 && (
         <svg 
-          className="absolute top-[96px] left-0 right-0 h-32 z-0 pointer-events-none"
-          style={{ width: "100%" }}
+          className="absolute left-0 right-0 pointer-events-none"
+          style={{ 
+            top: svgTop, 
+            height: svgHeight,
+            width: '100%'
+          }}
         >
-          {configuredTriggers.map((trigger, index) => {
-            const totalTriggers = configuredTriggers.length;
-            const triggerWidth = 200;
-            const gap = 16;
-            const totalWidth = totalTriggers * triggerWidth + (totalTriggers - 1) * gap;
-            const startX = (window.innerWidth - 380) / 2 - totalWidth / 2 + index * (triggerWidth + gap) + triggerWidth / 2;
-            const centerX = (window.innerWidth - 380) / 2;
+          {triggerPositions.map((startX, index) => {
+            const isSingle = triggerPositions.length === 1;
             
+            if (isSingle) {
+              // Single trigger: straight vertical line to center
+              return (
+                <g key={index}>
+                  <line
+                    x1={startX}
+                    y1={0}
+                    x2={startX}
+                    y2={svgHeight}
+                    stroke="hsl(var(--border))"
+                    strokeWidth="2"
+                  />
+                </g>
+              );
+            }
+            
+            // Multiple triggers: curved paths that merge
+            const dropDistance = 35;
+            const curveRadius = 25;
+            const mergeY = svgHeight - 20;
+            
+            // Determine direction to merge point
+            const goingRight = startX < mergePointX;
+            const goingLeft = startX > mergePointX;
+            const isCenter = Math.abs(startX - mergePointX) < 30;
+            
+            let path: string;
+            
+            if (isCenter) {
+              // Center trigger: straight down then merge
+              path = `M ${startX} 0 L ${startX} ${dropDistance} L ${startX} ${mergeY} L ${mergePointX} ${svgHeight}`;
+            } else if (goingRight) {
+              // Left side: drop, curve right, go to merge
+              path = `M ${startX} 0 
+                      L ${startX} ${dropDistance}
+                      Q ${startX} ${dropDistance + curveRadius} ${startX + curveRadius} ${dropDistance + curveRadius}
+                      L ${mergePointX - curveRadius} ${dropDistance + curveRadius}
+                      Q ${mergePointX} ${dropDistance + curveRadius} ${mergePointX} ${dropDistance + curveRadius * 2}
+                      L ${mergePointX} ${svgHeight}`;
+            } else {
+              // Right side: drop, curve left, go to merge
+              path = `M ${startX} 0 
+                      L ${startX} ${dropDistance}
+                      Q ${startX} ${dropDistance + curveRadius} ${startX - curveRadius} ${dropDistance + curveRadius}
+                      L ${mergePointX + curveRadius} ${dropDistance + curveRadius}
+                      Q ${mergePointX} ${dropDistance + curveRadius} ${mergePointX} ${dropDistance + curveRadius * 2}
+                      L ${mergePointX} ${svgHeight}`;
+            }
+
             return (
               <path
-                key={trigger.id}
-                d={`M ${startX} 0 L ${startX} 40 Q ${startX} 60 ${centerX} 80 L ${centerX} 100`}
+                key={index}
+                d={path}
                 fill="none"
                 stroke="hsl(var(--border))"
                 strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
               />
             );
           })}
@@ -318,7 +408,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       )}
 
       {/* React Flow Canvas */}
-      <div className="absolute inset-0 pt-40">
+      <div className="absolute inset-0 pt-56">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -372,8 +462,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
 
       {/* Central Plus Button when triggers configured but no flow nodes */}
       {hasConfiguredTriggers && nodes.length === 0 && (
-        <div className="absolute top-52 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-4">
-          <div className="w-px h-8 bg-border" />
+        <div className="absolute top-[216px] left-1/2 -translate-x-1/2 z-10 flex flex-col items-center">
           <PlusButton onClick={() => onAddActionClick()} />
           <div className="w-px h-8 bg-border" />
           <EndNode />
