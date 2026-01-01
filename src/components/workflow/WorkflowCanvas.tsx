@@ -17,7 +17,7 @@ import "reactflow/dist/style.css";
 import { Plus, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RFNode, RFEdge, RFNodeData, ConnectFrom, COLOR_HEX, SidebarTab, TriggerData, ColorKey } from "./types";
-import { TriggerCard, AddTriggerCard } from "./TriggerCard";
+import { TriggerCard } from "./TriggerCard";
 import { EndNode } from "./EndNode";
 import { PlusButton } from "./PlusButton";
 
@@ -407,7 +407,6 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
               onClick={() => onTriggerClick(trigger.id)}
             />
           ))}
-          <AddTriggerCard onClick={onAddTriggerClick} />
         </div>
       </div>
 
