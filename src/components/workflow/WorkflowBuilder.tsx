@@ -448,35 +448,55 @@ export const WorkflowBuilder: React.FC = () => {
         <div className="flex-1 flex flex-col min-w-0">
           {topTab === "builder" && (
             <WorkflowCanvas
-            nodes={nodes}
-            edges={edges}
-            triggers={triggers}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onConnectStart={onConnectStart}
-            onNodeClick={onNodeClick}
-            onEdgeClick={onEdgeClick}
-            onPaneClick={onPaneClick}
-            selectedNodeId={selectedNodeId}
-            selectedTriggerId={selectedTriggerId}
-            setSelectedNodeId={setSelectedNodeId}
-            setSelectedTriggerId={setSelectedTriggerId}
-            setSelectedEdgeId={setSelectedEdgeId}
-            setSidebarTab={setSidebarTab}
-            setConnectFrom={setConnectFrom}
-            setNodes={setNodes}
-            setEdges={setEdges}
-            isInteractive={isInteractive}
-            setIsInteractive={setIsInteractive}
-            onAddTriggerClick={handleAddTriggerClick}
-            onTriggerClick={handleTriggerClick}
-            onAddActionClick={handleAddActionClick}
-            onInsertOnEdge={handleInsertOnEdge}
-            reactFlowRef={reactFlowRef}
-            canvasWrapRef={canvasWrapRef}
-          />
-        )}
+              nodes={nodes}
+              edges={edges}
+              triggers={triggers}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              onConnectStart={onConnectStart}
+              onNodeClick={onNodeClick}
+              onEdgeClick={onEdgeClick}
+              onPaneClick={onPaneClick}
+              selectedNodeId={selectedNodeId}
+              selectedTriggerId={selectedTriggerId}
+              setSelectedNodeId={setSelectedNodeId}
+              setSelectedTriggerId={setSelectedTriggerId}
+              setSelectedEdgeId={setSelectedEdgeId}
+              setSidebarTab={setSidebarTab}
+              setConnectFrom={setConnectFrom}
+              setNodes={setNodes}
+              setEdges={setEdges}
+              isInteractive={isInteractive}
+              setIsInteractive={setIsInteractive}
+              onAddTriggerClick={handleAddTriggerClick}
+              onTriggerClick={handleTriggerClick}
+              onAddActionClick={handleAddActionClick}
+              onInsertOnEdge={handleInsertOnEdge}
+              onDeleteNode={(nodeId) => {
+                setNodes((nds) => nds.filter((n) => n.id !== nodeId));
+                setEdges((eds) => eds.filter((x) => x.source !== nodeId && x.target !== nodeId));
+                setSelectedNodeId(null);
+                toast.success("Node deleted");
+              }}
+              onDuplicateNode={(nodeId) => {
+                const node = nodes.find((n) => n.id === nodeId);
+                if (node) {
+                  const newId = crypto.randomUUID();
+                  const newNode: RFNode = {
+                    ...node,
+                    id: newId,
+                    position: { x: node.position.x, y: node.position.y + 120 },
+                    data: { ...node.data },
+                  };
+                  setNodes((nds) => [...nds, newNode]);
+                  toast.success("Node duplicated");
+                }
+              }}
+              reactFlowRef={reactFlowRef}
+              canvasWrapRef={canvasWrapRef}
+            />
+          )}
 
         {topTab === "settings" && (
           <WorkflowSettingsPage settings={wfSettings} setSettings={setWfSettings} />
