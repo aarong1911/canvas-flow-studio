@@ -82,10 +82,21 @@ export const WorkflowBuilder: React.FC = () => {
   const selectedEdge = useMemo(() => edges.find((e) => e.id === selectedEdgeId) || null, [edges, selectedEdgeId]);
   const selectedTrigger = useMemo(() => triggers.find((t) => t.id === selectedTriggerId) || null, [triggers, selectedTriggerId]);
 
-  // Mark changes as unsaved when things change
+  // Track if initial load is done to avoid showing unsaved on mount
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Initialize after first render
   useEffect(() => {
-    setHasUnsavedChanges(true);
-  }, [triggers, nodes, edges, wfSettings, workflowName]);
+    const timer = setTimeout(() => setIsInitialized(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Mark changes as unsaved when things change (only after initialization)
+  useEffect(() => {
+    if (isInitialized) {
+      setHasUnsavedChanges(true);
+    }
+  }, [triggers, nodes, edges, wfSettings, workflowName, isInitialized]);
 
   // Prevent page scroll
   useEffect(() => {
@@ -414,26 +425,29 @@ export const WorkflowBuilder: React.FC = () => {
   const persistWorkflowSettings = async () => {};
 
   return (
-    <div className="h-dvh overflow-hidden bg-background flex">
-      <div className="flex-1 flex flex-col min-w-0">
-        <WorkflowHeader
-          workflowName={workflowName}
-          setWorkflowName={setWorkflowName}
-          workflowStatus={workflowStatus}
-          setWorkflowStatus={setWorkflowStatus}
-          topTab={topTab}
-          setTopTab={setTopTab}
-          onBack={() => navigate("/workflows")}
-          onSave={handleSave}
-          onTestWorkflow={handleTestWorkflow}
-          hasUnsavedChanges={hasUnsavedChanges}
-          isSaving={isSaving}
-          showSavedMessage={showSavedMessage}
-          onDismissSavedMessage={handleDismissSavedMessage}
-        />
+    <div className="h-dvh overflow-hidden bg-background flex flex-col">
+      {/* Full-width header */}
+      <WorkflowHeader
+        workflowName={workflowName}
+        setWorkflowName={setWorkflowName}
+        workflowStatus={workflowStatus}
+        setWorkflowStatus={setWorkflowStatus}
+        topTab={topTab}
+        setTopTab={setTopTab}
+        onBack={() => navigate("/workflows")}
+        onSave={handleSave}
+        onTestWorkflow={handleTestWorkflow}
+        hasUnsavedChanges={hasUnsavedChanges}
+        isSaving={isSaving}
+        showSavedMessage={showSavedMessage}
+        onDismissSavedMessage={handleDismissSavedMessage}
+      />
 
-        {topTab === "builder" && (
-          <WorkflowCanvas
+      {/* Content area with sidebar */}
+      <div className="flex-1 flex min-h-0">
+        <div className="flex-1 flex flex-col min-w-0">
+          {topTab === "builder" && (
+            <WorkflowCanvas
             nodes={nodes}
             edges={edges}
             triggers={triggers}
@@ -476,35 +490,36 @@ export const WorkflowBuilder: React.FC = () => {
           </div>
         )}
 
-        {topTab === "logs" && (
-          <div className="flex-1 p-6 overflow-auto">
-            <div className="text-center text-muted-foreground py-20">
-              Execution Logs (connect to Supabase)
+          {topTab === "logs" && (
+            <div className="flex-1 p-6 overflow-auto">
+              <div className="text-center text-muted-foreground py-20">
+                Execution Logs (connect to Supabase)
+              </div>
             </div>
-          </div>
+          )}
+        </div>
+
+        {topTab === "builder" && (
+          <WorkflowSidebar
+            tab={sidebarTab}
+            setTab={setSidebarTab}
+            search={search}
+            setSearch={setSearch}
+            selectedNode={selectedNode}
+            selectedEdge={selectedEdge}
+            selectedTrigger={selectedTrigger}
+            settings={wfSettings}
+            setSettings={setWfSettings}
+            onAddNode={handleAddNode}
+            onSelectTriggerType={handleSelectTriggerType}
+            onSaveNodeConfig={handleSaveNodeConfig}
+            onSaveTriggerConfig={handleSaveTriggerConfig}
+            onPersistNodeConfig={persistNodeConfig}
+            onPersistWorkflowSettings={persistWorkflowSettings}
+            onDisconnectEdge={handleDisconnectEdge}
+          />
         )}
       </div>
-
-      {topTab === "builder" && (
-        <WorkflowSidebar
-          tab={sidebarTab}
-          setTab={setSidebarTab}
-          search={search}
-          setSearch={setSearch}
-          selectedNode={selectedNode}
-          selectedEdge={selectedEdge}
-          selectedTrigger={selectedTrigger}
-          settings={wfSettings}
-          setSettings={setWfSettings}
-          onAddNode={handleAddNode}
-          onSelectTriggerType={handleSelectTriggerType}
-          onSaveNodeConfig={handleSaveNodeConfig}
-          onSaveTriggerConfig={handleSaveTriggerConfig}
-          onPersistNodeConfig={persistNodeConfig}
-          onPersistWorkflowSettings={persistWorkflowSettings}
-          onDisconnectEdge={handleDisconnectEdge}
-        />
-      )}
     </div>
   );
 };
