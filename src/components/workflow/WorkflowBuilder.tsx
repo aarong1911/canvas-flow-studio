@@ -240,17 +240,18 @@ export const WorkflowBuilder: React.FC = () => {
     setSelectedTriggerId(null);
   }, []);
 
-  // Get new node position - first node at center top of canvas, subsequent below last
+  // Get new node position - center nodes vertically in a column
   const getNewNodePosition = useCallback((sourceId?: string, sourceHandle?: ConnectFrom["sourceHandle"]) => {
+    // Position at center x (0 in ReactFlow coords since we use fitView)
+    // Stack nodes vertically with 120px spacing
     if (!sourceId) {
-      // First action node - position at center, below trigger connector area
-      if (nodes.length === 0) return { x: 250, y: 0 };
+      if (nodes.length === 0) return { x: 0, y: 0 };
       const last = nodes[nodes.length - 1];
-      return { x: last.position.x, y: last.position.y + 150 };
+      return { x: 0, y: last.position.y + 120 };
     }
     const src = nodes.find((n) => n.id === sourceId);
-    if (!src) return { x: 250, y: 0 };
-    const base = { x: src.position.x, y: src.position.y + 150 };
+    if (!src) return { x: 0, y: 0 };
+    const base = { x: 0, y: src.position.y + 120 };
     if (sourceHandle === "yes") return { x: base.x - 260, y: base.y };
     if (sourceHandle === "no") return { x: base.x + 260, y: base.y };
     return base;
