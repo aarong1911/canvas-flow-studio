@@ -12,14 +12,23 @@ import ReactFlow, {
   Position,
   EdgeProps,
   getSmoothStepPath,
+  useReactFlow,
+  Panel,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Plus, MoreHorizontal } from "lucide-react";
+import { Plus, MoreHorizontal, ZoomIn, ZoomOut, Maximize, Lock, Unlock, Trash2, Copy, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RFNode, RFEdge, RFNodeData, ConnectFrom, COLOR_HEX, SidebarTab, TriggerData, ColorKey } from "./types";
 import { TriggerCard } from "./TriggerCard";
 import { EndNode } from "./EndNode";
 import { PlusButton } from "./PlusButton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface WorkflowCanvasProps {
   nodes: RFNode[];
@@ -47,6 +56,8 @@ interface WorkflowCanvasProps {
   onTriggerClick: (triggerId: string) => void;
   onAddActionClick: (sourceNodeId?: string, sourceHandle?: string) => void;
   onInsertOnEdge: (edgeId: string, sourceId: string, targetId: string) => void;
+  onDeleteNode: (nodeId: string) => void;
+  onDuplicateNode?: (nodeId: string) => void;
   reactFlowRef: React.MutableRefObject<ReactFlowInstance | null>;
   canvasWrapRef: React.RefObject<HTMLDivElement>;
 }
@@ -93,6 +104,8 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   onTriggerClick,
   onAddActionClick,
   onInsertOnEdge,
+  onDeleteNode,
+  onDuplicateNode,
   reactFlowRef,
   canvasWrapRef,
 }) => {
@@ -387,6 +400,19 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   const svgTop = 96; // Top of trigger cards + card height
   const triggerMergeHeight = 120; // Height for trigger merge lines to plus button
 
+  // Handle zoom controls
+  const handleZoomIn = () => {
+    reactFlowRef.current?.zoomIn();
+  };
+
+  const handleZoomOut = () => {
+    reactFlowRef.current?.zoomOut();
+  };
+
+  const handleFitView = () => {
+    reactFlowRef.current?.fitView({ padding: 0.2 });
+  };
+
   return (
     <div 
       ref={canvasWrapRef} 
@@ -532,14 +558,46 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                               {node.data.config?.action_name || node.data.label}
                             </div>
                           </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                            }}
-                            className="p-1.5 hover:bg-muted rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                          >
-                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                          </button>
+                          
+                          {/* Three Dots Menu - Always visible */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                onClick={(e) => e.stopPropagation()}
+                                className="p-1.5 hover:bg-muted rounded-lg transition-colors"
+                              >
+                                <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48 bg-background">
+                              <DropdownMenuItem onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedNodeId(node.id);
+                                setSidebarTab("settings");
+                              }}>
+                                <Settings className="w-4 h-4 mr-2" />
+                                Configure
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => {
+                                e.stopPropagation();
+                                onDuplicateNode?.(node.id);
+                              }}>
+                                <Copy className="w-4 h-4 mr-2" />
+                                Duplicate
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteNode(node.id);
+                                }}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </div>
                     </div>
@@ -562,6 +620,79 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
           <EndNode />
         </div>
       )}
+
+      {/* Control Buttons - Bottom Left */}
+      <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-1 bg-background border rounded-lg shadow-md p-1">
+        <button
+          onClick={handleZoomIn}
+          className="p-2 hover:bg-muted rounded transition-colors"
+          title="Zoom In"
+        >
+          <ZoomIn className="w-4 h-4 text-muted-foreground" />
+        </button>
+        <button
+          onClick={handleZoomOut}
+          className="p-2 hover:bg-muted rounded transition-colors"
+          title="Zoom Out"
+        >
+          <ZoomOut className="w-4 h-4 text-muted-foreground" />
+        </button>
+        <button
+          onClick={handleFitView}
+          className="p-2 hover:bg-muted rounded transition-colors"
+          title="Fit View"
+        >
+          <Maximize className="w-4 h-4 text-muted-foreground" />
+        </button>
+        <button
+          onClick={() => setIsInteractive(!isInteractive)}
+          className={cn(
+            "p-2 hover:bg-muted rounded transition-colors",
+            !isInteractive && "bg-muted"
+          )}
+          title={isInteractive ? "Lock Canvas" : "Unlock Canvas"}
+        >
+          {isInteractive ? (
+            <Unlock className="w-4 h-4 text-muted-foreground" />
+          ) : (
+            <Lock className="w-4 h-4 text-muted-foreground" />
+          )}
+        </button>
+      </div>
+
+      {/* Mini Map - Bottom Right */}
+      <div className="absolute bottom-4 right-4 z-20 border rounded-lg shadow-md overflow-hidden bg-background">
+        <div className="w-[180px] h-[120px] relative">
+          {/* Simple minimap visualization */}
+          <div className="absolute inset-2 border border-border/50 rounded bg-muted/20">
+            {/* Viewport indicator */}
+            <div className="absolute top-1/4 left-1/4 w-1/2 h-1/2 border-2 border-primary/50 bg-primary/10 rounded" />
+            {/* Node indicators */}
+            {triggers.map((trigger, i) => (
+              <div 
+                key={trigger.id}
+                className="absolute w-3 h-2 rounded-sm"
+                style={{ 
+                  backgroundColor: COLOR_HEX[trigger.color],
+                  top: '15%',
+                  left: `${30 + i * 15}%`
+                }}
+              />
+            ))}
+            {nodes.map((node, i) => (
+              <div 
+                key={node.id}
+                className="absolute w-3 h-2 rounded-sm"
+                style={{ 
+                  backgroundColor: COLOR_HEX[node.data.color],
+                  top: `${40 + i * 12}%`,
+                  left: '45%'
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* React Flow Canvas - Hidden but kept for edge management */}
       <div className="hidden">
