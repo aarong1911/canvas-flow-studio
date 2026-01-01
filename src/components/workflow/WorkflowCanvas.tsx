@@ -383,7 +383,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   // Calculate merge point (center of canvas)
   const mergePointX = canvasWidth / 2;
   const svgTop = 96; // Top of trigger cards + card height
-  const svgHeight = 120; // Height for connector area
+  const svgHeight = nodes.length > 0 ? 160 : 120; // Extend when nodes exist
 
   return (
     <div 
