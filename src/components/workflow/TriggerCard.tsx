@@ -45,7 +45,8 @@ export const TriggerCard: React.FC<TriggerCardProps> = ({
         "min-w-[200px] max-w-[240px]",
         "shadow-sm hover:shadow-md",
         selected && "ring-2 ring-primary ring-offset-2 ring-offset-background",
-        !isConfigured && "border-dashed border-muted-foreground/30"
+        !isConfigured && "border-dashed border-muted-foreground/30",
+        isConfigured && "border-l-4 border-l-purple-500"
       )}
     >
       <div className="flex items-center gap-3">
