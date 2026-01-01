@@ -488,14 +488,17 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                   ) : (
                     nodeSchema.fields.map((field) => {
                       const val = localConfig[field.name];
+                      const showVars = !!nodeSchema.variables?.length && (field.type === "text" || field.type === "textarea");
 
                       return (
                         <div key={field.name} className="space-y-2">
-                          {field.type !== "switch" && (
-                            <Label className="text-sm font-medium uppercase">
-                              {field.label}
-                              {"required" in field && field.required && <span className="text-destructive ml-1">*</span>}
-                            </Label>
+                          <Label className="text-sm font-medium uppercase">
+                            {field.label}
+                            {"required" in field && field.required && <span className="text-destructive ml-1">*</span>}
+                          </Label>
+
+                          {"helperText" in field && field.helperText && (
+                            <div className="text-xs text-muted-foreground">{field.helperText}</div>
                           )}
 
                           {field.type === "text" && (
@@ -503,6 +506,7 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                               value={val ?? ""}
                               onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
                               placeholder={"placeholder" in field ? field.placeholder : ""}
+                              helperText={"helperText" in field ? field.helperText : undefined}
                             />
                           )}
 
@@ -515,13 +519,35 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                           )}
 
                           {field.type === "textarea" && (
-                            <CustomFieldInput
-                              value={val ?? ""}
-                              onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
-                              placeholder={"placeholder" in field ? field.placeholder : ""}
-                              multiline
-                              rows={"rows" in field ? field.rows : 5}
-                            />
+                            <>
+                              <Textarea
+                                ref={(el) => (textareaRefs.current[field.name] = el)}
+                                value={val ?? ""}
+                                onChange={(e) => setLocalConfig((s) => ({ ...s, [field.name]: e.target.value }))}
+                                rows={"rows" in field ? field.rows : 5}
+                                placeholder={"placeholder" in field ? field.placeholder : ""}
+                              />
+                              {showVars && (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {variables.map((v) => (
+                                    <button
+                                      key={v}
+                                      type="button"
+                                      className="px-2 py-1 text-xs rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                      onClick={() => {
+                                        const el = textareaRefs.current[field.name];
+                                        if (!el) return;
+                                        el.value = (localConfig[field.name] ?? "").toString();
+                                        insertAtCursor(el, v);
+                                        setLocalConfig((s) => ({ ...s, [field.name]: el.value }));
+                                      }}
+                                    >
+                                      {v}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </>
                           )}
 
                           {field.type === "select" && (
@@ -532,7 +558,7 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                               <SelectTrigger>
                                 <SelectValue placeholder={`Select ${field.label}`} />
                               </SelectTrigger>
-                              <SelectContent className="bg-background">
+                              <SelectContent>
                                 {field.options.map((opt) => (
                                   <SelectItem key={opt.value} value={opt.value}>
                                     {opt.label}
