@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Tag, X } from "lucide-react";
+import { Tag } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 // Sample custom fields - in a real app this would come from an API/context
@@ -23,6 +24,8 @@ interface CustomFieldInputProps {
   placeholder?: string;
   required?: boolean;
   helperText?: string;
+  multiline?: boolean;
+  rows?: number;
 }
 
 export const CustomFieldInput: React.FC<CustomFieldInputProps> = ({
@@ -32,11 +35,13 @@ export const CustomFieldInput: React.FC<CustomFieldInputProps> = ({
   placeholder,
   required,
   helperText,
+  multiline = false,
+  rows = 3,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -91,18 +96,29 @@ export const CustomFieldInput: React.FC<CustomFieldInputProps> = ({
       )}
       
       <div className="relative">
-        <Input
-          ref={inputRef}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className="pr-10"
-        />
+        {multiline ? (
+          <Textarea
+            ref={inputRef as React.RefObject<HTMLTextAreaElement>}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            rows={rows}
+            className="pr-10"
+          />
+        ) : (
+          <Input
+            ref={inputRef as React.RefObject<HTMLInputElement>}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            className="pr-10"
+          />
+        )}
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           className={cn(
-            "absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded hover:bg-muted transition-colors",
+            "absolute right-2 top-2 p-1.5 rounded hover:bg-muted transition-colors",
             isOpen && "bg-muted"
           )}
           title="Insert custom field"
