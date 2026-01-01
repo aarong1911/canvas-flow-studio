@@ -37,6 +37,13 @@ export type NodeConfigSchemaField =
   | {
       name: string;
       label: string;
+      type: "richtext";
+      required?: boolean;
+      helperText?: string;
+    }
+  | {
+      name: string;
+      label: string;
       type: "select";
       required?: boolean;
       options: { value: string; label: string }[];

@@ -199,7 +199,7 @@ export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
       { name: "subject", label: "Subject", type: "text", required: true, placeholder: "Quick update for {{contact.first_name}}" },
       { name: "track_opens", label: "Track Opens", type: "switch", helperText: "Enable open tracking for this email." },
       { name: "track_clicks", label: "Track Clicks", type: "switch", helperText: "Enable link tracking for this email." },
-      { name: "body", label: "Email Body", type: "textarea", required: true, rows: 10, placeholder: "Write your email..." },
+      { name: "body", label: "Email Body", type: "richtext", required: true },
     ],
   },
   send_sms: {
@@ -379,6 +379,316 @@ export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
       { name: "body_json", label: "Body (JSON)", type: "textarea", rows: 6, placeholder: '{ "contactEmail": "{{contact.email}}" }' },
       { name: "timeout_ms", label: "Timeout (ms)", type: "number", placeholder: "15000" },
       { name: "store_response_key", label: "Store Response As", type: "text", placeholder: "e.g. http.last_response" },
+    ],
+  },
+  // Assign to User
+  assign_user: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Assign to User" },
+      { name: "user_id", label: "Select User", type: "select", required: true, options: [
+        { value: "user_1", label: "John Smith" },
+        { value: "user_2", label: "Jane Doe" },
+        { value: "user_3", label: "Mike Johnson" },
+        { value: "round_robin", label: "Round Robin (Team)" },
+      ]},
+      { name: "notify_user", label: "Notify User", type: "switch", helperText: "Send notification to assigned user" },
+      { name: "notification_method", label: "Notification Method", type: "select", options: [
+        { value: "email", label: "Email" },
+        { value: "in_app", label: "In-App" },
+        { value: "sms", label: "SMS" },
+        { value: "all", label: "All Channels" },
+      ]},
+    ],
+  },
+  // Remove Tag
+  remove_tag: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Remove Tag" },
+      { name: "tag", label: "Tag Name", type: "text", required: true, placeholder: "VIP" },
+    ],
+  },
+  // Remove Assigned User
+  remove_assigned: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Remove Assigned User" },
+    ],
+  },
+  // Toggle DND
+  toggle_dnd: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Toggle DND" },
+      { name: "dnd_action", label: "Action", type: "select", required: true, options: [
+        { value: "enable_all", label: "Enable DND (All Channels)" },
+        { value: "disable_all", label: "Disable DND (All Channels)" },
+        { value: "enable_email", label: "Enable DND (Email Only)" },
+        { value: "enable_sms", label: "Enable DND (SMS Only)" },
+        { value: "enable_calls", label: "Enable DND (Calls Only)" },
+      ]},
+    ],
+  },
+  // Add Note
+  add_note: {
+    title: "Configure",
+    variables: DEFAULT_VARIABLES,
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Add Note" },
+      { name: "note_content", label: "Note Content", type: "textarea", required: true, rows: 6, placeholder: "Add your note here..." },
+    ],
+  },
+  // Call
+  call: {
+    title: "Configure",
+    variables: DEFAULT_VARIABLES,
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Call" },
+      { name: "to", label: "Phone Number", type: "text", required: true, placeholder: "{{contact.phone}}" },
+      { name: "from_number", label: "From Number", type: "select", options: [
+        { value: "default", label: "Default Number" },
+        { value: "sales", label: "Sales Line" },
+        { value: "support", label: "Support Line" },
+      ]},
+      { name: "record_call", label: "Record Call", type: "switch" },
+      { name: "voicemail_enabled", label: "Enable Voicemail Drop", type: "switch" },
+    ],
+  },
+  // WhatsApp
+  whatsapp: {
+    title: "Configure",
+    variables: DEFAULT_VARIABLES,
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "WhatsApp" },
+      { name: "to", label: "Phone Number", type: "text", required: true, placeholder: "{{contact.phone}}" },
+      { name: "template", label: "Message Template", type: "select", options: [
+        { value: "welcome", label: "Welcome Message" },
+        { value: "follow_up", label: "Follow Up" },
+        { value: "reminder", label: "Appointment Reminder" },
+        { value: "custom", label: "Custom Message" },
+      ]},
+      { name: "message", label: "Message", type: "textarea", rows: 5, placeholder: "Enter your WhatsApp message..." },
+    ],
+  },
+  // Review Request
+  review_request: {
+    title: "Configure",
+    variables: DEFAULT_VARIABLES,
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Send Review Request" },
+      { name: "channel", label: "Send Via", type: "select", required: true, options: [
+        { value: "sms", label: "SMS" },
+        { value: "email", label: "Email" },
+        { value: "both", label: "Both" },
+      ]},
+      { name: "platform", label: "Review Platform", type: "select", required: true, options: [
+        { value: "google", label: "Google" },
+        { value: "facebook", label: "Facebook" },
+        { value: "yelp", label: "Yelp" },
+        { value: "custom", label: "Custom Link" },
+      ]},
+      { name: "custom_link", label: "Custom Review Link", type: "text", placeholder: "https://..." },
+    ],
+  },
+  // Live Chat
+  live_chat: {
+    title: "Configure",
+    variables: DEFAULT_VARIABLES,
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Send Live Chat Message" },
+      { name: "message", label: "Message", type: "textarea", required: true, rows: 5, placeholder: "Enter your message..." },
+    ],
+  },
+  // Conversation AI
+  conversation_ai: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Conversation AI" },
+      { name: "bot_id", label: "Select Bot", type: "select", required: true, options: [
+        { value: "sales_bot", label: "Sales Assistant" },
+        { value: "support_bot", label: "Support Bot" },
+        { value: "booking_bot", label: "Booking Assistant" },
+      ]},
+      { name: "max_messages", label: "Max Messages", type: "number", placeholder: "10" },
+      { name: "handoff_enabled", label: "Enable Human Handoff", type: "switch", helperText: "Transfer to human agent when needed" },
+    ],
+  },
+  // Delete Contact
+  delete_contact: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Delete Contact" },
+      { name: "confirm_delete", label: "Confirm Deletion", type: "switch", helperText: "This action is irreversible" },
+    ],
+  },
+  // Create Contact
+  create_contact: {
+    title: "Configure",
+    variables: DEFAULT_VARIABLES,
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Create Contact" },
+      { name: "email", label: "Email", type: "text", required: true, placeholder: "{{contact.email}}" },
+      { name: "first_name", label: "First Name", type: "text", placeholder: "{{contact.first_name}}" },
+      { name: "last_name", label: "Last Name", type: "text", placeholder: "{{contact.last_name}}" },
+      { name: "phone", label: "Phone", type: "text", placeholder: "{{contact.phone}}" },
+      { name: "company", label: "Company", type: "text", placeholder: "{{contact.company}}" },
+    ],
+  },
+  // Find Contact
+  find_contact: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Find Contact" },
+      { name: "lookup_by", label: "Lookup By", type: "select", required: true, options: [
+        { value: "email", label: "Email" },
+        { value: "phone", label: "Phone" },
+        { value: "id", label: "Contact ID" },
+      ]},
+      { name: "lookup_value", label: "Lookup Value", type: "text", required: true, placeholder: "{{contact.email}}" },
+    ],
+  },
+  // Update Contact
+  update_contact: {
+    title: "Configure",
+    variables: DEFAULT_VARIABLES,
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Update Contact Field" },
+      { name: "field", label: "Field to Update", type: "select", required: true, options: [
+        { value: "first_name", label: "First Name" },
+        { value: "last_name", label: "Last Name" },
+        { value: "email", label: "Email" },
+        { value: "phone", label: "Phone" },
+        { value: "company", label: "Company" },
+        { value: "custom", label: "Custom Field" },
+      ]},
+      { name: "custom_field_key", label: "Custom Field Key", type: "text", placeholder: "e.g. lead_source" },
+      { name: "value", label: "New Value", type: "text", required: true, placeholder: "Enter new value..." },
+    ],
+  },
+  // Webhook
+  webhook: {
+    title: "Configure",
+    variables: DEFAULT_VARIABLES,
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Webhook" },
+      { name: "url", label: "Webhook URL", type: "text", required: true, placeholder: "https://api.example.com/webhook" },
+      { name: "method", label: "Method", type: "select", required: true, options: [
+        { value: "POST", label: "POST" },
+        { value: "GET", label: "GET" },
+      ]},
+    ],
+  },
+  // AI Prompt
+  ai_prompt: {
+    title: "Configure",
+    variables: DEFAULT_VARIABLES,
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "AI Prompt" },
+      { name: "model", label: "Model", type: "select", required: true, options: [
+        { value: "gpt-4", label: "GPT-4" },
+        { value: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
+      ]},
+      { name: "prompt", label: "Prompt", type: "textarea", required: true, rows: 8, placeholder: "Enter your AI prompt..." },
+      { name: "store_as", label: "Store Response As", type: "text", placeholder: "{{ai.response}}" },
+    ],
+  },
+  // Split (A/B Test)
+  split: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "A/B Split" },
+      { name: "split_ratio", label: "Split Ratio (A %)", type: "number", required: true, placeholder: "50" },
+    ],
+  },
+  // Go To
+  go_to: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Go To" },
+      { name: "target_step", label: "Target Step", type: "text", required: true, placeholder: "Step ID or name" },
+    ],
+  },
+  // Remove from Workflow
+  remove_from_workflow: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Remove from Workflow" },
+      { name: "workflow_id", label: "Workflow", type: "select", options: [
+        { value: "current", label: "Current Workflow" },
+        { value: "all", label: "All Workflows" },
+      ]},
+    ],
+  },
+  // Create Opportunity
+  create_opportunity: {
+    title: "Configure",
+    variables: DEFAULT_VARIABLES,
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Create/Update Opportunity" },
+      { name: "pipeline_id", label: "Pipeline", type: "select", required: true, options: [
+        { value: "sales", label: "Sales Pipeline" },
+        { value: "onboarding", label: "Onboarding Pipeline" },
+      ]},
+      { name: "stage_id", label: "Stage", type: "select", required: true, options: [
+        { value: "new", label: "New" },
+        { value: "qualified", label: "Qualified" },
+        { value: "proposal", label: "Proposal" },
+        { value: "won", label: "Won" },
+      ]},
+      { name: "opportunity_name", label: "Opportunity Name", type: "text", placeholder: "{{contact.company}} - Deal" },
+      { name: "value", label: "Value", type: "number", placeholder: "1000" },
+    ],
+  },
+  // Send Invoice
+  send_invoice: {
+    title: "Configure",
+    variables: DEFAULT_VARIABLES,
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Send Invoice" },
+      { name: "amount", label: "Amount", type: "number", required: true, placeholder: "100.00" },
+      { name: "description", label: "Description", type: "text", required: true, placeholder: "Invoice for services" },
+      { name: "due_days", label: "Due In (Days)", type: "number", placeholder: "30" },
+    ],
+  },
+  // Stripe Charge
+  stripe_charge: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Stripe Charge" },
+      { name: "amount", label: "Amount (cents)", type: "number", required: true, placeholder: "10000" },
+      { name: "description", label: "Description", type: "text", required: true, placeholder: "One-time charge" },
+      { name: "currency", label: "Currency", type: "select", options: [
+        { value: "usd", label: "USD" },
+        { value: "eur", label: "EUR" },
+        { value: "gbp", label: "GBP" },
+      ]},
+    ],
+  },
+  // Update Appointment
+  update_appointment: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Update Appointment" },
+      { name: "status", label: "New Status", type: "select", required: true, options: [
+        { value: "confirmed", label: "Confirmed" },
+        { value: "cancelled", label: "Cancelled" },
+        { value: "completed", label: "Completed" },
+        { value: "no_show", label: "No Show" },
+      ]},
+    ],
+  },
+  // Booking Link
+  booking_link: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Generate Booking Link" },
+      { name: "calendar_id", label: "Calendar", type: "select", required: true, options: [
+        { value: "default", label: "Default Calendar" },
+        { value: "sales", label: "Sales Meetings" },
+        { value: "support", label: "Support Calls" },
+      ]},
+      { name: "store_as", label: "Store Link As", type: "text", placeholder: "{{booking.link}}" },
     ],
   },
 };

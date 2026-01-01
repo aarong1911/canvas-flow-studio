@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ChevronLeft, Pencil, Clock, Check } from "lucide-react";
+import { ChevronLeft, Pencil, Clock, Check, X, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -19,6 +19,7 @@ interface WorkflowHeaderProps {
   hasUnsavedChanges: boolean;
   isSaving?: boolean;
   showSavedMessage?: boolean;
+  onDismissSavedMessage?: () => void;
 }
 
 export const WorkflowHeader: React.FC<WorkflowHeaderProps> = ({
@@ -34,6 +35,7 @@ export const WorkflowHeader: React.FC<WorkflowHeaderProps> = ({
   hasUnsavedChanges,
   isSaving,
   showSavedMessage,
+  onDismissSavedMessage,
 }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [tempName, setTempName] = useState(workflowName);
@@ -105,32 +107,52 @@ export const WorkflowHeader: React.FC<WorkflowHeaderProps> = ({
             <Clock className="w-5 h-5 text-muted-foreground" />
           </button>
           
-          <div className="relative flex items-center gap-2">
+          <div className="relative">
             <Button
               onClick={onSave}
               size="sm"
-              className="relative bg-green-600 hover:bg-green-700 text-white px-4"
+              className={cn(
+                "relative px-4 transition-all",
+                showSavedMessage 
+                  ? "bg-blue-100 hover:bg-blue-100 text-blue-600" 
+                  : "bg-blue-600 hover:bg-blue-700 text-white"
+              )}
               disabled={isSaving}
             >
-              {hasUnsavedChanges && (
+              {hasUnsavedChanges && !isSaving && !showSavedMessage && (
                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full" />
               )}
-              {isSaving ? "Saving..." : "Saved"}
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving
+                </>
+              ) : showSavedMessage ? (
+                "Saved"
+              ) : (
+                "Save"
+              )}
             </Button>
-            
-            {showSavedMessage && (
-              <div className="flex items-center gap-2 px-3 py-2 bg-background border rounded-lg shadow-sm animate-in fade-in slide-in-from-right-2">
-                <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center">
-                  <Check className="w-3 h-3 text-green-600" />
-                </div>
-                <div className="text-sm">
-                  <div className="font-medium">Saved!</div>
-                  <div className="text-muted-foreground text-xs">Workflow has been saved.</div>
-                </div>
-                <button className="ml-2 text-muted-foreground hover:text-foreground">×</button>
-              </div>
-            )}
           </div>
+
+          {/* Saved message toast */}
+          {showSavedMessage && (
+            <div className="absolute top-16 right-4 flex items-center gap-3 px-4 py-3 bg-background border rounded-lg shadow-lg animate-in fade-in slide-in-from-top-2 z-50">
+              <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                <Check className="w-4 h-4 text-green-600" />
+              </div>
+              <div className="text-sm">
+                <div className="font-medium">Saved!</div>
+                <div className="text-muted-foreground">Workflow has been saved.</div>
+              </div>
+              <button 
+                onClick={onDismissSavedMessage}
+                className="ml-2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
