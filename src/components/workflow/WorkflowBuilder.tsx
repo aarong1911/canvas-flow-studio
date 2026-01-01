@@ -389,28 +389,6 @@ export const WorkflowBuilder: React.FC = () => {
     toast.success("Disconnected");
   }, [setEdges]);
 
-  const handleDeleteNode = useCallback((nodeId: string) => {
-    setNodes((nds) => nds.filter((n) => n.id !== nodeId));
-    setEdges((eds) => eds.filter((x) => x.source !== nodeId && x.target !== nodeId));
-    setSelectedNodeId(null);
-    toast.success("Node deleted");
-    setHasUnsavedChanges(true);
-  }, [setNodes, setEdges]);
-
-  const handleDuplicateNode = useCallback((nodeId: string) => {
-    const node = nodes.find((n) => n.id === nodeId);
-    if (!node) return;
-    const newNode: RFNode = {
-      ...node,
-      id: crypto.randomUUID(),
-      position: { x: node.position.x + 50, y: node.position.y + 50 },
-      data: { ...node.data, config: { ...node.data.config } },
-    };
-    setNodes((nds) => [...nds, newNode]);
-    toast.success("Node duplicated");
-    setHasUnsavedChanges(true);
-  }, [nodes, setNodes]);
-
   // Handle inserting a node on an edge (clicking plus button on edge)
   const handleInsertOnEdge = useCallback((edgeId: string, sourceId: string, targetId: string) => {
     // Store the edge info for inserting a node
@@ -495,8 +473,6 @@ export const WorkflowBuilder: React.FC = () => {
             onTriggerClick={handleTriggerClick}
             onAddActionClick={handleAddActionClick}
             onInsertOnEdge={handleInsertOnEdge}
-            onDeleteNode={handleDeleteNode}
-            onDuplicateNode={handleDuplicateNode}
             reactFlowRef={reactFlowRef}
             canvasWrapRef={canvasWrapRef}
           />
