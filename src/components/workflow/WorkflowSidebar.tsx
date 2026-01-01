@@ -25,6 +25,7 @@ import {
 } from "./types";
 import { TRIGGERS, ACTIONS, NODE_CONFIGS, ALL_LIBRARY_ITEMS } from "./node-library";
 import { CustomFieldInput } from "./CustomFieldInput";
+import { RichTextEditor } from "./RichTextEditor";
 
 interface WorkflowSidebarProps {
   tab: SidebarTab;
@@ -565,6 +566,13 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                                 ))}
                               </SelectContent>
                             </Select>
+                          )}
+
+                          {field.type === "richtext" && (
+                            <RichTextEditor
+                              value={val ?? ""}
+                              onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
+                            />
                           )}
 
                           {field.type === "switch" && (

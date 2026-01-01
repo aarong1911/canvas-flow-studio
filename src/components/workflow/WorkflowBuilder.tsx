@@ -394,11 +394,15 @@ export const WorkflowBuilder: React.FC = () => {
   const handleSave = async () => {
     setIsSaving(true);
     // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
     setIsSaving(false);
     setHasUnsavedChanges(false);
     setShowSavedMessage(true);
-    setTimeout(() => setShowSavedMessage(false), 3000);
+    setTimeout(() => setShowSavedMessage(false), 4000);
+  };
+
+  const handleDismissSavedMessage = () => {
+    setShowSavedMessage(false);
   };
 
   // Test workflow
@@ -425,6 +429,7 @@ export const WorkflowBuilder: React.FC = () => {
           hasUnsavedChanges={hasUnsavedChanges}
           isSaving={isSaving}
           showSavedMessage={showSavedMessage}
+          onDismissSavedMessage={handleDismissSavedMessage}
         />
 
         {topTab === "builder" && (
