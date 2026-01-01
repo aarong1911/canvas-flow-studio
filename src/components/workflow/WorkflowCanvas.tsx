@@ -385,7 +385,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   // Calculate merge point (center of canvas)
   const mergePointX = canvasWidth / 2;
   const svgTop = 96; // Top of trigger cards + card height
-  const svgHeight = nodes.length > 0 ? 160 : 120; // Extend when nodes exist
+  const triggerMergeHeight = 120; // Height for trigger merge lines to plus button
 
   return (
     <div 
@@ -412,13 +412,13 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         </div>
       </div>
 
-      {/* Connector lines from ALL triggers to flow - SVG */}
+      {/* Connector lines from ALL triggers to plus button - SVG */}
       {hasTriggers && triggerPositions.length > 0 && (
         <svg 
           className="absolute left-0 right-0 pointer-events-none z-[5]"
           style={{ 
             top: svgTop, 
-            height: svgHeight,
+            height: triggerMergeHeight,
             width: '100%'
           }}
         >
@@ -428,7 +428,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
               x1={triggerPositions[0]}
               y1={0}
               x2={triggerPositions[0]}
-              y2={svgHeight}
+              y2={triggerMergeHeight}
               stroke="hsl(var(--border))"
               strokeWidth="2"
             />
@@ -468,7 +468,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 x1={mergePointX}
                 y1={40 + 8} 
                 x2={mergePointX}
-                y2={svgHeight}
+                y2={triggerMergeHeight}
                 stroke="hsl(var(--border))"
                 strokeWidth="2"
               />
@@ -477,75 +477,106 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         </svg>
       )}
 
-      {/* React Flow Canvas */}
-      <div className="absolute inset-0 pt-56">
+      {/* Flow section: Plus → Actions → Plus → END */}
+      {hasTriggers && (
+        <div 
+          className="absolute z-10 flex flex-col items-center"
+          style={{ 
+            top: svgTop + triggerMergeHeight, 
+            left: '50%',
+            transform: 'translateX(-50%)'
+          }}
+        >
+          {/* Central Plus Button */}
+          <PlusButton onClick={() => onAddActionClick()} />
+          
+          {/* Action Nodes rendered inline */}
+          {nodes.length > 0 && (
+            <div className="flex flex-col items-center">
+              {nodes.map((node, index) => {
+                const Icon = node.data.icon;
+                const isCondition = node.data.builderType === "condition";
+                
+                return (
+                  <div key={node.id} className="flex flex-col items-center">
+                    {/* Connector line to this node */}
+                    <div className="w-px h-6 bg-border" />
+                    
+                    {/* Action Node Card */}
+                    <div 
+                      className="relative group"
+                      onClick={() => {
+                        setSelectedEdgeId(null);
+                        setSelectedTriggerId(null);
+                        setSelectedNodeId(node.id);
+                        setSidebarTab("settings");
+                      }}
+                    >
+                      <div
+                        className={cn(
+                          "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200",
+                          "min-w-[220px] max-w-[280px]",
+                          "shadow-sm hover:shadow-md",
+                          selectedNodeId === node.id && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                        )}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={cn(
+                            "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
+                            colorIconClasses[node.data.color]
+                          )}>
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-foreground truncate">
+                              {node.data.config?.action_name || node.data.label}
+                            </div>
+                          </div>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
+                            className="p-1.5 hover:bg-muted rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                          >
+                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Plus button after each node */}
+                    {!isCondition && (
+                      <div className="flex flex-col items-center">
+                        <div className="w-px h-6 bg-border" />
+                        <PlusButton onClick={() => onAddActionClick(node.id, "default")} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          
+          {/* Connector line to END */}
+          <div className="w-px h-6 bg-border" />
+          <EndNode />
+        </div>
+      )}
+
+      {/* React Flow Canvas - Hidden but kept for edge management */}
+      <div className="hidden">
         <ReactFlow
           nodes={nodes}
-          edges={edges.map(e => ({ ...e, type: "plusEdge" }))}
+          edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onConnectStart={onConnectStart}
-          onNodeClick={onNodeClick}
-          onEdgeClick={onEdgeClick}
-          onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
           edgeTypes={edgeTypes}
           deleteKeyCode={null}
-          nodesDraggable={isInteractive}
-          nodesConnectable={isInteractive}
-          elementsSelectable={isInteractive}
-          panOnDrag={isInteractive}
-          zoomOnScroll={isInteractive}
-          zoomOnPinch={isInteractive}
-          zoomOnDoubleClick={isInteractive}
-          fitViewOptions={{ padding: 0.6, maxZoom: 0.75, minZoom: 0.08 }}
-          defaultEdgeOptions={{
-            type: "plusEdge",
-            markerEnd: { type: MarkerType.ArrowClosed },
-            style: { strokeWidth: 2, stroke: "hsl(var(--border))" },
-          }}
-          onInit={(inst) => {
-            reactFlowRef.current = inst;
-          }}
-          className="bg-transparent"
-        >
-          <Background gap={20} size={1} color="hsl(var(--border) / 0.5)" />
-          <Controls
-            position="bottom-left"
-            showInteractive
-            onInteractiveChange={setIsInteractive}
-            className="!left-4 !bottom-20 !bg-card !border !border-border !rounded-lg !shadow-lg"
-          />
-          <MiniMap
-            position="bottom-right"
-            style={{ bottom: 80, right: 16 }}
-            nodeStrokeWidth={2}
-            nodeColor={minimapNodeColor}
-            nodeStrokeColor={() => "#94a3b8"}
-            maskColor="rgba(0,0,0,0.06)"
-            pannable
-            zoomable
-            className="!bg-card !border !border-border !rounded-lg"
-          />
-        </ReactFlow>
+        />
       </div>
-
-      {/* Central Plus Button and END - show whenever triggers exist (configured or not) */}
-      {hasTriggers && nodes.length === 0 && (
-        <div className="absolute top-[216px] left-1/2 -translate-x-1/2 z-10 flex flex-col items-center">
-          <PlusButton onClick={() => onAddActionClick()} />
-          <div className="w-px h-8 bg-border" />
-          <EndNode />
-        </div>
-      )}
-
-      {/* END node when there are flow nodes - shown after the last node in the flow */}
-      {hasTriggers && nodes.length > 0 && (
-        <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center pointer-events-auto">
-          <EndNode />
-        </div>
-      )}
     </div>
   );
 };
