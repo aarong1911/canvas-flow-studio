@@ -1,8 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
 import ReactFlow, {
   Background,
-  Controls,
-  MiniMap,
   Connection,
   MarkerType,
   NodeProps,
@@ -14,12 +12,18 @@ import ReactFlow, {
   getSmoothStepPath,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Plus, MoreHorizontal } from "lucide-react";
+import { Plus, MoreHorizontal, ZoomIn, ZoomOut, Maximize, Lock, Unlock, Trash2, Copy, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RFNode, RFEdge, RFNodeData, ConnectFrom, COLOR_HEX, SidebarTab, TriggerData, ColorKey } from "./types";
 import { TriggerCard } from "./TriggerCard";
-import { EndNode } from "./EndNode";
 import { PlusButton } from "./PlusButton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface WorkflowCanvasProps {
   nodes: RFNode[];
@@ -47,6 +51,8 @@ interface WorkflowCanvasProps {
   onTriggerClick: (triggerId: string) => void;
   onAddActionClick: (sourceNodeId?: string, sourceHandle?: string) => void;
   onInsertOnEdge: (edgeId: string, sourceId: string, targetId: string) => void;
+  onDeleteNode: (nodeId: string) => void;
+  onDuplicateNode?: (nodeId: string) => void;
   reactFlowRef: React.MutableRefObject<ReactFlowInstance | null>;
   canvasWrapRef: React.RefObject<HTMLDivElement>;
 }
@@ -93,6 +99,8 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   onTriggerClick,
   onAddActionClick,
   onInsertOnEdge,
+  onDeleteNode,
+  onDuplicateNode,
   reactFlowRef,
   canvasWrapRef,
 }) => {
@@ -107,12 +115,10 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       workflowNode: (p: NodeProps<RFNodeData>) => {
         const Icon = p.data.icon;
         const isCondition = p.data.builderType === "condition";
-        // Check if this node has outgoing edges (is it a leaf node?)
         const hasOutgoingEdge = edges.some(e => e.source === p.id);
         
         return (
           <div className="relative group">
-            {/* Target Handle */}
             <Handle
               type="target"
               position={Position.Top}
@@ -120,7 +126,6 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
               className="!w-3 !h-3 !bg-muted-foreground !border-2 !border-background"
             />
 
-            {/* Node Card */}
             <div
               onClick={() => {
                 setSelectedEdgeId(null);
@@ -158,41 +163,16 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
               </div>
             </div>
 
-            {/* Source Handles */}
             {isCondition ? (
               <>
-                <Handle
-                  type="source"
-                  position={Position.Bottom}
-                  id="yes"
-                  className="!w-3 !h-3 !bg-green-500 !border-2 !border-background"
-                  style={{ left: "25%" }}
-                />
-                <Handle
-                  type="source"
-                  position={Position.Bottom}
-                  id="no"
-                  className="!w-3 !h-3 !bg-red-500 !border-2 !border-background"
-                  style={{ left: "50%" }}
-                />
-                <Handle
-                  type="source"
-                  position={Position.Bottom}
-                  id="none"
-                  className="!w-3 !h-3 !bg-gray-500 !border-2 !border-background"
-                  style={{ left: "75%" }}
-                />
+                <Handle type="source" position={Position.Bottom} id="yes" className="!w-3 !h-3 !bg-green-500 !border-2 !border-background" style={{ left: "25%" }} />
+                <Handle type="source" position={Position.Bottom} id="no" className="!w-3 !h-3 !bg-red-500 !border-2 !border-background" style={{ left: "50%" }} />
+                <Handle type="source" position={Position.Bottom} id="none" className="!w-3 !h-3 !bg-gray-500 !border-2 !border-background" style={{ left: "75%" }} />
               </>
             ) : (
-              <Handle
-                type="source"
-                position={Position.Bottom}
-                id="default"
-                className="!w-3 !h-3 !bg-muted-foreground !border-2 !border-background"
-              />
+              <Handle type="source" position={Position.Bottom} id="default" className="!w-3 !h-3 !bg-muted-foreground !border-2 !border-background" />
             )}
 
-            {/* Plus button below leaf nodes (nodes without outgoing edges) */}
             {!hasOutgoingEdge && !isCondition && (
               <div className="absolute -bottom-14 left-1/2 -translate-x-1/2 flex flex-col items-center">
                 <div className="w-px h-4 bg-border" />
@@ -215,15 +195,9 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
           </div>
         );
       },
-      // Placeholder node for "Please select action"
       placeholderNode: (p: NodeProps<{ onAddAction: () => void }>) => (
         <div className="relative">
-          <Handle
-            type="target"
-            position={Position.Top}
-            id="in"
-            className="!w-3 !h-3 !bg-muted-foreground !border-2 !border-background"
-          />
+          <Handle type="target" position={Position.Top} id="in" className="!w-3 !h-3 !bg-muted-foreground !border-2 !border-background" />
           <div
             onClick={() => p.data.onAddAction()}
             className={cn(
@@ -237,15 +211,9 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
           </div>
         </div>
       ),
-      // Plus button node
       plusNode: (p: NodeProps<{ onAdd: () => void }>) => (
         <div className="relative">
-          <Handle
-            type="target"
-            position={Position.Top}
-            id="in"
-            className="!w-0 !h-0 !opacity-0"
-          />
+          <Handle type="target" position={Position.Top} id="in" className="!w-0 !h-0 !opacity-0" />
           <button
             onClick={() => p.data.onAdd()}
             className={cn(
@@ -257,23 +225,12 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
           >
             <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
           </button>
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="default"
-            className="!w-0 !h-0 !opacity-0"
-          />
+          <Handle type="source" position={Position.Bottom} id="default" className="!w-0 !h-0 !opacity-0" />
         </div>
       ),
-      // End node
       endNode: () => (
         <div className="relative">
-          <Handle
-            type="target"
-            position={Position.Top}
-            id="in"
-            className="!w-3 !h-3 !bg-muted-foreground !border-2 !border-background"
-          />
+          <Handle type="target" position={Position.Top} id="in" className="!w-3 !h-3 !bg-muted-foreground !border-2 !border-background" />
           <div className={cn(
             "bg-muted border border-border rounded-full px-4 py-1.5",
             "text-xs font-medium text-muted-foreground uppercase tracking-wide",
@@ -286,7 +243,6 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
     };
   }, [edges, setSelectedNodeId, setSelectedEdgeId, setSelectedTriggerId, setSidebarTab, onAddActionClick]);
 
-  // Custom edge with plus button
   const edgeTypes = useMemo(() => {
     return {
       plusEdge: (props: EdgeProps) => {
@@ -301,22 +257,8 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
 
         return (
           <>
-            <path
-              id={props.id}
-              style={props.style}
-              className="react-flow__edge-path"
-              d={edgePath}
-              markerEnd={props.markerEnd}
-            />
-            {/* Plus button in the middle of the edge */}
-            <foreignObject
-              width={24}
-              height={24}
-              x={labelX - 12}
-              y={labelY - 12}
-              className="overflow-visible"
-              requiredExtensions="http://www.w3.org/1999/xhtml"
-            >
+            <path id={props.id} style={props.style} className="react-flow__edge-path" d={edgePath} markerEnd={props.markerEnd} />
+            <foreignObject width={24} height={24} x={labelX - 12} y={labelY - 12} className="overflow-visible" requiredExtensions="http://www.w3.org/1999/xhtml">
               <div className="flex items-center justify-center w-6 h-6">
                 <button
                   onClick={(e) => {
@@ -340,12 +282,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
     };
   }, [onInsertOnEdge]);
 
-  // Check triggers
-  const configuredTriggers = triggers.filter(t => t.isConfigured);
-  const hasConfiguredTriggers = configuredTriggers.length > 0;
   const hasTriggers = triggers.length > 0;
-
-  // Track trigger card positions for connector lines
   const triggerRowRef = useRef<HTMLDivElement>(null);
   const [triggerPositions, setTriggerPositions] = useState<number[]>([]);
   const [canvasWidth, setCanvasWidth] = useState(0);
@@ -353,64 +290,46 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   useEffect(() => {
     const updatePositions = () => {
       if (!triggerRowRef.current || !canvasWrapRef.current) return;
-
-      // Get ALL trigger cards (not just configured ones)
       const cards = triggerRowRef.current.querySelectorAll('[data-trigger-card="true"]');
       const canvasRect = canvasWrapRef.current.getBoundingClientRect();
-      
       const positions: number[] = [];
       cards.forEach((card) => {
         const rect = card.getBoundingClientRect();
-        // Get center X relative to canvas
         const centerX = rect.left - canvasRect.left + rect.width / 2;
         positions.push(centerX);
       });
-
       setTriggerPositions(positions);
       setCanvasWidth(canvasRect.width);
     };
 
     updatePositions();
     window.addEventListener('resize', updatePositions);
-    
-    // Update after a small delay to ensure DOM is ready
     const timeout = setTimeout(updatePositions, 50);
-    
     return () => {
       window.removeEventListener('resize', updatePositions);
       clearTimeout(timeout);
     };
   }, [triggers, canvasWrapRef]);
 
-  // Calculate merge point (center of canvas)
   const mergePointX = canvasWidth / 2;
-  const svgTop = 96; // Top of trigger cards + card height
-  const triggerMergeHeight = 120; // Height for trigger merge lines to plus button
+  const svgTop = 96;
+  const triggerMergeHeight = 120;
+
+  const handleZoomIn = () => {
+    reactFlowRef.current?.zoomIn();
+  };
+
+  const handleZoomOut = () => {
+    reactFlowRef.current?.zoomOut();
+  };
+
+  const handleFitView = () => {
+    reactFlowRef.current?.fitView({ padding: 0.2 });
+  };
 
   return (
-    <div 
-      ref={canvasWrapRef} 
-      className="relative flex-1 min-h-0 bg-workflow-canvas"
-      onDragOver={onDragOver}
-    >
-      {/* MiniMap */}
-      <MiniMap 
-        nodeColor={minimapNodeColor}
-        className="!absolute !bottom-4 !right-4 !bg-card/90 !border !border-border !rounded-lg !shadow-sm"
-        style={{ width: 150, height: 100 }}
-        maskColor="rgba(0,0,0,0.1)"
-        zoomable
-        pannable
-      />
-      
-      {/* Controls */}
-      <Controls 
-        className="!absolute !bottom-4 !left-4 !bg-card !border !border-border !rounded-lg !shadow-sm [&>button]:!bg-card [&>button]:!border-border [&>button]:!text-foreground [&>button:hover]:!bg-muted [&>button]:!w-7 [&>button]:!h-7"
-        showZoom
-        showFitView
-        showInteractive={false}
-      />
-      {/* Trigger Row at Top */}
+    <div ref={canvasWrapRef} className="relative flex-1 min-h-0 bg-workflow-canvas" onDragOver={onDragOver}>
+      {/* Trigger Row */}
       <div ref={triggerRowRef} className="absolute top-6 left-0 right-0 z-10 flex justify-center">
         <div className="flex items-center gap-4">
           {triggers.map((trigger) => (
@@ -429,99 +348,48 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         </div>
       </div>
 
-      {/* Connector lines from ALL triggers to plus button - SVG */}
+      {/* Connector lines */}
       {hasTriggers && triggerPositions.length > 0 && (
-        <svg 
-          className="absolute left-0 right-0 pointer-events-none z-[5]"
-          style={{ 
-            top: svgTop, 
-            height: triggerMergeHeight,
-            width: '100%'
-          }}
-        >
+        <svg className="absolute left-0 right-0 pointer-events-none z-[5]" style={{ top: svgTop, height: triggerMergeHeight, width: '100%' }}>
           {triggerPositions.length === 1 ? (
-            // Single trigger: straight vertical line down
-            <line
-              x1={triggerPositions[0]}
-              y1={0}
-              x2={triggerPositions[0]}
-              y2={triggerMergeHeight}
-              stroke="hsl(var(--border))"
-              strokeWidth="2"
-            />
+            <line x1={triggerPositions[0]} y1={0} x2={triggerPositions[0]} y2={triggerMergeHeight} stroke="hsl(var(--border))" strokeWidth="2" />
           ) : (
-            // Multiple triggers: each drops and merges to center
             <>
               {triggerPositions.map((startX, index) => {
                 const dropDistance = 40;
                 const horizontalY = dropDistance;
                 const isLeftOfCenter = startX < mergePointX;
                 const cornerRadius = 8;
-                
-                // Path: drop down, curve to horizontal, go to center line
-                const path = `
-                  M ${startX} 0
-                  L ${startX} ${horizontalY - cornerRadius}
-                  Q ${startX} ${horizontalY} ${isLeftOfCenter ? startX + cornerRadius : startX - cornerRadius} ${horizontalY}
-                  L ${isLeftOfCenter ? mergePointX - cornerRadius : mergePointX + cornerRadius} ${horizontalY}
-                  Q ${mergePointX} ${horizontalY} ${mergePointX} ${horizontalY + cornerRadius}
-                `;
-
-                return (
-                  <path
-                    key={index}
-                    d={path}
-                    fill="none"
-                    stroke="hsl(var(--border))"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                );
+                const path = `M ${startX} 0 L ${startX} ${horizontalY - cornerRadius} Q ${startX} ${horizontalY} ${isLeftOfCenter ? startX + cornerRadius : startX - cornerRadius} ${horizontalY} L ${isLeftOfCenter ? mergePointX - cornerRadius : mergePointX + cornerRadius} ${horizontalY} Q ${mergePointX} ${horizontalY} ${mergePointX} ${horizontalY + cornerRadius}`;
+                return <path key={index} d={path} fill="none" stroke="hsl(var(--border))" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />;
               })}
-              
-              {/* Center vertical line (merge line) continues down */}
-              <line
-                x1={mergePointX}
-                y1={40 + 8} 
-                x2={mergePointX}
-                y2={triggerMergeHeight}
-                stroke="hsl(var(--border))"
-                strokeWidth="2"
-              />
+              <line x1={mergePointX} y1={40 + 8} x2={mergePointX} y2={triggerMergeHeight} stroke="hsl(var(--border))" strokeWidth="2" />
             </>
           )}
         </svg>
       )}
 
-      {/* Flow section: Plus → Actions → Plus → END */}
+      {/* Flow section */}
       {hasTriggers && (
-        <div 
-          className="absolute z-10 flex flex-col items-center"
-          style={{ 
-            top: svgTop + triggerMergeHeight, 
-            left: '50%',
-            transform: 'translateX(-50%)'
-          }}
-        >
-          {/* Central Plus Button */}
+        <div className="absolute z-10 flex flex-col items-center" style={{ top: svgTop + triggerMergeHeight, left: '50%', transform: 'translateX(-50%)' }}>
           <PlusButton onClick={() => onAddActionClick()} />
           
-          {/* Action Nodes rendered inline */}
           {nodes.length > 0 && (
             <div className="flex flex-col items-center">
-              {nodes.map((node, index) => {
+              {nodes.map((node) => {
                 const Icon = node.data.icon;
                 const isCondition = node.data.builderType === "condition";
                 
                 return (
                   <div key={node.id} className="flex flex-col items-center">
-                    {/* Connector line to this node */}
-                    <div className="w-px h-6 bg-border" />
+                    <div className="w-px h-8 bg-border" />
                     
-                    {/* Action Node Card */}
-                    <div 
-                      className="relative group"
+                    <div
+                      className={cn(
+                        "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200",
+                        "min-w-[220px] max-w-[280px] shadow-sm hover:shadow-md group",
+                        selectedNodeId === node.id && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                      )}
                       onClick={() => {
                         setSelectedEdgeId(null);
                         setSelectedTriggerId(null);
@@ -529,42 +397,44 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                         setSidebarTab("settings");
                       }}
                     >
-                      <div
-                        className={cn(
-                          "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200",
-                          "min-w-[220px] max-w-[280px]",
-                          "shadow-sm hover:shadow-md",
-                          selectedNodeId === node.id && "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                        )}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={cn(
-                            "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-                            colorIconClasses[node.data.color]
-                          )}>
-                            <Icon className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-foreground truncate">
-                              {node.data.config?.action_name || node.data.label}
-                            </div>
-                          </div>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                            }}
-                            className="p-1.5 hover:bg-muted rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                          >
-                            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-                          </button>
+                      <div className="flex items-center gap-3">
+                        <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0", colorIconClasses[node.data.color])}>
+                          <Icon className="w-5 h-5" />
                         </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-foreground truncate">
+                            {node.data.config?.action_name || node.data.label}
+                          </div>
+                        </div>
+                        
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button onClick={(e) => e.stopPropagation()} className="p-1.5 hover:bg-muted rounded-lg transition-colors">
+                              <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedNodeId(node.id); setSidebarTab("settings"); }}>
+                              <Settings className="w-4 h-4 mr-2" />
+                              Configure
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDuplicateNode?.(node.id); }}>
+                              <Copy className="w-4 h-4 mr-2" />
+                              Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDeleteNode(node.id); }} className="text-destructive focus:text-destructive">
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     </div>
                     
-                    {/* Plus button after each node */}
                     {!isCondition && (
                       <div className="flex flex-col items-center">
-                        <div className="w-px h-6 bg-border" />
+                        <div className="w-px h-4 bg-border" />
                         <PlusButton onClick={() => onAddActionClick(node.id, "default")} />
                       </div>
                     )}
@@ -574,25 +444,47 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
             </div>
           )}
           
-          {/* Connector line to END */}
-          <div className="w-px h-6 bg-border" />
-          <EndNode />
+          <div className="w-px h-8 bg-border" />
+          <div className={cn("bg-muted border border-border rounded-full px-4 py-1.5", "text-xs font-medium text-muted-foreground uppercase tracking-wide shadow-sm")}>
+            END
+          </div>
         </div>
       )}
 
-      {/* React Flow Canvas - Hidden but kept for edge management */}
+      {/* Control Buttons - Bottom Left */}
+      <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-1 bg-card border border-border rounded-lg shadow-sm p-1">
+        <button onClick={handleZoomIn} className="p-2 hover:bg-muted rounded transition-colors" title="Zoom In">
+          <ZoomIn className="w-4 h-4 text-muted-foreground" />
+        </button>
+        <button onClick={handleZoomOut} className="p-2 hover:bg-muted rounded transition-colors" title="Zoom Out">
+          <ZoomOut className="w-4 h-4 text-muted-foreground" />
+        </button>
+        <button onClick={handleFitView} className="p-2 hover:bg-muted rounded transition-colors" title="Fit View">
+          <Maximize className="w-4 h-4 text-muted-foreground" />
+        </button>
+        <button onClick={() => setIsInteractive(!isInteractive)} className={cn("p-2 hover:bg-muted rounded transition-colors", !isInteractive && "bg-muted")} title={isInteractive ? "Lock Canvas" : "Unlock Canvas"}>
+          {isInteractive ? <Unlock className="w-4 h-4 text-muted-foreground" /> : <Lock className="w-4 h-4 text-muted-foreground" />}
+        </button>
+      </div>
+
+      {/* Mini Map - Bottom Right */}
+      <div className="absolute bottom-4 right-4 z-20">
+        <div className="bg-card/90 border border-border rounded-lg shadow-sm p-2" style={{ width: 150, height: 100 }}>
+          <div className="relative w-full h-full bg-muted/30 rounded overflow-hidden">
+            <div className="absolute inset-1/4 border border-primary/30 rounded bg-primary/5" />
+            {triggers.map((trigger, i) => (
+              <div key={trigger.id} className="absolute w-2 h-2 rounded-full bg-orange-400" style={{ top: '10%', left: `${30 + i * 20}%` }} />
+            ))}
+            {nodes.map((node, i) => (
+              <div key={node.id} className="absolute w-2 h-2 rounded-sm" style={{ top: `${40 + i * 15}%`, left: '50%', transform: 'translateX(-50%)', backgroundColor: COLOR_HEX[node.data.color] }} />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Hidden ReactFlow for edge management */}
       <div className="hidden">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onConnectStart={onConnectStart}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          deleteKeyCode={null}
-        />
+        <ReactFlow nodes={[]} edges={[]} nodeTypes={nodeTypes} edgeTypes={edgeTypes} onInit={(instance) => { reactFlowRef.current = instance; }} fitView />
       </div>
     </div>
   );
