@@ -393,6 +393,23 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       className="relative flex-1 min-h-0 bg-workflow-canvas"
       onDragOver={onDragOver}
     >
+      {/* MiniMap */}
+      <MiniMap 
+        nodeColor={minimapNodeColor}
+        className="!absolute !bottom-4 !right-4 !bg-card/90 !border !border-border !rounded-lg !shadow-sm"
+        style={{ width: 150, height: 100 }}
+        maskColor="rgba(0,0,0,0.1)"
+        zoomable
+        pannable
+      />
+      
+      {/* Controls */}
+      <Controls 
+        className="!absolute !bottom-4 !left-4 !bg-card !border !border-border !rounded-lg !shadow-sm [&>button]:!bg-card [&>button]:!border-border [&>button]:!text-foreground [&>button:hover]:!bg-muted [&>button]:!w-7 [&>button]:!h-7"
+        showZoom
+        showFitView
+        showInteractive={false}
+      />
       {/* Trigger Row at Top */}
       <div ref={triggerRowRef} className="absolute top-6 left-0 right-0 z-10 flex justify-center">
         <div className="flex items-center gap-4">
