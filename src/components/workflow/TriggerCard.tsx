@@ -37,6 +37,8 @@ export const TriggerCard: React.FC<TriggerCardProps> = ({
 }) => {
   return (
     <div
+      data-trigger-card="true"
+      data-configured={isConfigured}
       onClick={onClick}
       className={cn(
         "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200",
