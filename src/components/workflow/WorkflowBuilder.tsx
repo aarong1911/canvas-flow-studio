@@ -46,19 +46,6 @@ function createEmptyTrigger(): TriggerData {
   };
 }
 
-// Create a sample configured trigger for demo
-function createSampleConfiguredTrigger(): TriggerData {
-  return {
-    id: crypto.randomUUID(),
-    actionType: "contact_created",
-    label: "Contact Created",
-    icon: Zap,
-    color: "purple",
-    config: { trigger_name: "Contact Created" },
-    isConfigured: true,
-  };
-}
-
 export const WorkflowBuilder: React.FC = () => {
   const navigate = useNavigate();
   const { id: workflowIdParam } = useParams<{ id?: string }>();
@@ -69,8 +56,8 @@ export const WorkflowBuilder: React.FC = () => {
   const [workflowName, setWorkflowName] = useState("Untitled Workflow");
   const [search, setSearch] = useState("");
 
-  // Triggers are separate from the flow nodes - start with a configured sample trigger for demo
-  const [triggers, setTriggers] = useState<TriggerData[]>([createSampleConfiguredTrigger(), createEmptyTrigger()]);
+  // Triggers are separate from the flow nodes
+  const [triggers, setTriggers] = useState<TriggerData[]>([createEmptyTrigger()]);
   const [selectedTriggerId, setSelectedTriggerId] = useState<string | null>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<RFNodeData>([]);
