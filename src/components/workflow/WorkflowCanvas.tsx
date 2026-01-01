@@ -86,6 +86,48 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
     event.dataTransfer.dropEffect = "move";
   }, []);
 
+  // Auto-connect proximity threshold (in flow coordinates)
+  const AUTO_CONNECT_THRESHOLD = 150;
+
+  // Find nearest node to connect from (prefers nodes without outgoing edges)
+  const findNearestNodeToConnect = useCallback(
+    (dropPosition: { x: number; y: number }, excludeId?: string): RFNode | null => {
+      let nearestNode: RFNode | null = null;
+      let minDistance = AUTO_CONNECT_THRESHOLD;
+
+      for (const node of nodes) {
+        if (excludeId && node.id === excludeId) continue;
+
+        // Calculate distance from drop position to node's bottom center
+        const nodeBottomY = node.position.y + 120; // Approximate node height
+        const nodeCenterX = node.position.x + 140; // Approximate half node width
+
+        const distance = Math.sqrt(
+          Math.pow(dropPosition.x - nodeCenterX, 2) +
+          Math.pow(dropPosition.y - nodeBottomY, 2)
+        );
+
+        // Prefer connecting below existing nodes (drop position should be below)
+        const isBelow = dropPosition.y > node.position.y + 50;
+
+        if (distance < minDistance && isBelow) {
+          // Check if this node already has an outgoing edge (for non-condition nodes)
+          const hasOutgoingEdge = edges.some((e) => e.source === node.id);
+          const isCondition = node.data.builderType === "condition";
+
+          // Conditions can have multiple outputs (yes/no/none), others prefer no existing edge
+          if (isCondition || !hasOutgoingEdge) {
+            minDistance = distance;
+            nearestNode = node;
+          }
+        }
+      }
+
+      return nearestNode;
+    },
+    [nodes, edges]
+  );
+
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
@@ -128,12 +170,31 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         },
       };
 
+      // Find nearest node for auto-connect
+      const nearestNode = findNearestNodeToConnect(position, nodeId);
+
       setNodes((nds) => [...nds, newNode]);
+
+      // Auto-create edge if near an existing node
+      if (nearestNode) {
+        const newEdge: RFEdge = {
+          id: `e-${nearestNode.id}-${nodeId}`,
+          source: nearestNode.id,
+          target: nodeId,
+          type: "smoothstep",
+          markerEnd: { type: MarkerType.ArrowClosed },
+          style: { strokeWidth: 2, stroke: "hsl(var(--workflow-connector))" },
+        };
+        setEdges((eds) => [...eds, newEdge]);
+        toast.success(`Added: ${item.label} (connected to ${nearestNode.data.label})`);
+      } else {
+        toast.success(`Added: ${item.label}`);
+      }
+
       setSelectedNodeId(nodeId);
       setSidebarTab("settings");
-      toast.success(`Added: ${item.label}`);
     },
-    [nodes, setNodes, setSelectedNodeId, setSidebarTab, canvasWrapRef, reactFlowRef]
+    [nodes, edges, setNodes, setEdges, setSelectedNodeId, setSidebarTab, canvasWrapRef, reactFlowRef, findNearestNodeToConnect]
   );
 
   const nodeTypes = React.useMemo(() => {
