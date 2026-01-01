@@ -10,6 +10,8 @@ import ReactFlow, {
   OnConnectStartParams,
   Handle,
   Position,
+  EdgeProps,
+  getSmoothStepPath,
 } from "reactflow";
 import "reactflow/dist/style.css";
 import { Plus, MoreHorizontal } from "lucide-react";
@@ -44,6 +46,7 @@ interface WorkflowCanvasProps {
   onAddTriggerClick: () => void;
   onTriggerClick: (triggerId: string) => void;
   onAddActionClick: (sourceNodeId?: string, sourceHandle?: string) => void;
+  onInsertOnEdge: (edgeId: string, sourceId: string, targetId: string) => void;
   reactFlowRef: React.MutableRefObject<ReactFlowInstance | null>;
   canvasWrapRef: React.RefObject<HTMLDivElement>;
 }
@@ -89,6 +92,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   onAddTriggerClick,
   onTriggerClick,
   onAddActionClick,
+  onInsertOnEdge,
   reactFlowRef,
   canvasWrapRef,
 }) => {
@@ -103,6 +107,8 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       workflowNode: (p: NodeProps<RFNodeData>) => {
         const Icon = p.data.icon;
         const isCondition = p.data.builderType === "condition";
+        // Check if this node has outgoing edges (is it a leaf node?)
+        const hasOutgoingEdge = edges.some(e => e.source === p.id);
         
         return (
           <div className="relative group">
@@ -185,6 +191,27 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 className="!w-3 !h-3 !bg-muted-foreground !border-2 !border-background"
               />
             )}
+
+            {/* Plus button below leaf nodes (nodes without outgoing edges) */}
+            {!hasOutgoingEdge && !isCondition && (
+              <div className="absolute -bottom-14 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                <div className="w-px h-4 bg-border" />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddActionClick(p.id, "default");
+                  }}
+                  className={cn(
+                    "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+                    "flex items-center justify-center",
+                    "hover:bg-primary hover:border-primary",
+                    "transition-all duration-200 group/plus cursor-pointer"
+                  )}
+                >
+                  <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover/plus:text-primary-foreground" />
+                </button>
+              </div>
+            )}
           </div>
         );
       },
@@ -257,7 +284,61 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         </div>
       ),
     };
-  }, [setSelectedNodeId, setSelectedEdgeId, setSelectedTriggerId, setSidebarTab]);
+  }, [edges, setSelectedNodeId, setSelectedEdgeId, setSelectedTriggerId, setSidebarTab, onAddActionClick]);
+
+  // Custom edge with plus button
+  const edgeTypes = useMemo(() => {
+    return {
+      plusEdge: (props: EdgeProps) => {
+        const [edgePath, labelX, labelY] = getSmoothStepPath({
+          sourceX: props.sourceX,
+          sourceY: props.sourceY,
+          sourcePosition: props.sourcePosition,
+          targetX: props.targetX,
+          targetY: props.targetY,
+          targetPosition: props.targetPosition,
+        });
+
+        return (
+          <>
+            <path
+              id={props.id}
+              style={props.style}
+              className="react-flow__edge-path"
+              d={edgePath}
+              markerEnd={props.markerEnd}
+            />
+            {/* Plus button in the middle of the edge */}
+            <foreignObject
+              width={24}
+              height={24}
+              x={labelX - 12}
+              y={labelY - 12}
+              className="overflow-visible"
+              requiredExtensions="http://www.w3.org/1999/xhtml"
+            >
+              <div className="flex items-center justify-center w-6 h-6">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onInsertOnEdge(props.id, props.source, props.target);
+                  }}
+                  className={cn(
+                    "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+                    "flex items-center justify-center",
+                    "hover:bg-primary hover:border-primary",
+                    "transition-all duration-200 group cursor-pointer"
+                  )}
+                >
+                  <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
+                </button>
+              </div>
+            </foreignObject>
+          </>
+        );
+      },
+    };
+  }, [onInsertOnEdge]);
 
   // Check if we have configured triggers
   const configuredTriggers = triggers.filter(t => t.isConfigured);
@@ -411,7 +492,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       <div className="absolute inset-0 pt-56">
         <ReactFlow
           nodes={nodes}
-          edges={edges}
+          edges={edges.map(e => ({ ...e, type: "plusEdge" }))}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
@@ -420,6 +501,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
           onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           deleteKeyCode={null}
           nodesDraggable={isInteractive}
           nodesConnectable={isInteractive}
@@ -430,7 +512,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
           zoomOnDoubleClick={isInteractive}
           fitViewOptions={{ padding: 0.6, maxZoom: 0.75, minZoom: 0.08 }}
           defaultEdgeOptions={{
-            type: "smoothstep",
+            type: "plusEdge",
             markerEnd: { type: MarkerType.ArrowClosed },
             style: { strokeWidth: 2, stroke: "hsl(var(--border))" },
           }}
@@ -465,6 +547,13 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         <div className="absolute top-[216px] left-1/2 -translate-x-1/2 z-10 flex flex-col items-center">
           <PlusButton onClick={() => onAddActionClick()} />
           <div className="w-px h-8 bg-border" />
+          <EndNode />
+        </div>
+      )}
+
+      {/* END node when there are flow nodes - shown after the last node in the flow */}
+      {hasConfiguredTriggers && nodes.length > 0 && (
+        <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center pointer-events-auto">
           <EndNode />
         </div>
       )}
