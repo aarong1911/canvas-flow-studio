@@ -88,6 +88,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
 
   // Auto-connect proximity threshold (in flow coordinates)
   const AUTO_CONNECT_THRESHOLD = 150;
+  const EDGE_DROP_THRESHOLD = 80; // Distance threshold for dropping on edges
 
   // Find nearest node to connect from (prefers nodes without outgoing edges)
   const findNearestNodeToConnect = useCallback(
@@ -124,6 +125,48 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       }
 
       return nearestNode;
+    },
+    [nodes, edges]
+  );
+
+  // Find nearest edge to drop on (for inserting between nodes)
+  const findNearestEdge = useCallback(
+    (dropPosition: { x: number; y: number }): RFEdge | null => {
+      let nearestEdge: RFEdge | null = null;
+      let minDistance = EDGE_DROP_THRESHOLD;
+
+      for (const edge of edges) {
+        const sourceNode = nodes.find((n) => n.id === edge.source);
+        const targetNode = nodes.find((n) => n.id === edge.target);
+
+        if (!sourceNode || !targetNode) continue;
+
+        // Calculate edge midpoint (approximate for smoothstep)
+        const sourceX = sourceNode.position.x + 140; // center x
+        const sourceY = sourceNode.position.y + 120; // bottom
+        const targetX = targetNode.position.x + 140; // center x
+        const targetY = targetNode.position.y; // top
+
+        // Edge midpoint
+        const midX = (sourceX + targetX) / 2;
+        const midY = (sourceY + targetY) / 2;
+
+        // Distance from drop to edge midpoint
+        const distance = Math.sqrt(
+          Math.pow(dropPosition.x - midX, 2) +
+          Math.pow(dropPosition.y - midY, 2)
+        );
+
+        // Also check if drop is roughly between source and target Y positions
+        const isBetweenNodes = dropPosition.y > sourceY - 20 && dropPosition.y < targetY + 20;
+
+        if (distance < minDistance && isBetweenNodes) {
+          minDistance = distance;
+          nearestEdge = edge;
+        }
+      }
+
+      return nearestEdge;
     },
     [nodes, edges]
   );
@@ -170,7 +213,53 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         },
       };
 
-      // Find nearest node for auto-connect
+      // First, check if dropping on an edge (insert between nodes)
+      const nearestEdge = findNearestEdge(position);
+
+      if (nearestEdge) {
+        // Insert node between source and target
+        const sourceNode = nodes.find((n) => n.id === nearestEdge.source);
+        const targetNode = nodes.find((n) => n.id === nearestEdge.target);
+
+        if (sourceNode && targetNode) {
+          // Position the new node between source and target
+          const midX = (sourceNode.position.x + targetNode.position.x) / 2;
+          const midY = (sourceNode.position.y + 120 + targetNode.position.y) / 2 - 60;
+          newNode.position = { x: midX, y: midY };
+
+          setNodes((nds) => [...nds, newNode]);
+
+          // Remove old edge and create two new edges
+          setEdges((eds) => {
+            const filteredEdges = eds.filter((e) => e.id !== nearestEdge.id);
+            const newEdge1: RFEdge = {
+              id: `e-${nearestEdge.source}-${nodeId}`,
+              source: nearestEdge.source,
+              target: nodeId,
+              sourceHandle: nearestEdge.sourceHandle,
+              type: "smoothstep",
+              markerEnd: { type: MarkerType.ArrowClosed },
+              style: { strokeWidth: 2, stroke: "hsl(var(--workflow-connector))" },
+            };
+            const newEdge2: RFEdge = {
+              id: `e-${nodeId}-${nearestEdge.target}`,
+              source: nodeId,
+              target: nearestEdge.target,
+              type: "smoothstep",
+              markerEnd: { type: MarkerType.ArrowClosed },
+              style: { strokeWidth: 2, stroke: "hsl(var(--workflow-connector))" },
+            };
+            return [...filteredEdges, newEdge1, newEdge2];
+          });
+
+          toast.success(`Inserted: ${item.label} between ${sourceNode.data.label} → ${targetNode.data.label}`);
+          setSelectedNodeId(nodeId);
+          setSidebarTab("settings");
+          return;
+        }
+      }
+
+      // Find nearest node for auto-connect (if not inserting on edge)
       const nearestNode = findNearestNodeToConnect(position, nodeId);
 
       setNodes((nds) => [...nds, newNode]);
@@ -194,7 +283,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       setSelectedNodeId(nodeId);
       setSidebarTab("settings");
     },
-    [nodes, edges, setNodes, setEdges, setSelectedNodeId, setSidebarTab, canvasWrapRef, reactFlowRef, findNearestNodeToConnect]
+    [nodes, edges, setNodes, setEdges, setSelectedNodeId, setSidebarTab, canvasWrapRef, reactFlowRef, findNearestNodeToConnect, findNearestEdge]
   );
 
   const nodeTypes = React.useMemo(() => {
