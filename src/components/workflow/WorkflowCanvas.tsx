@@ -340,9 +340,10 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
     };
   }, [onInsertOnEdge]);
 
-  // Check if we have configured triggers
+  // Check triggers
   const configuredTriggers = triggers.filter(t => t.isConfigured);
   const hasConfiguredTriggers = configuredTriggers.length > 0;
+  const hasTriggers = triggers.length > 0;
 
   // Track trigger card positions for connector lines
   const triggerRowRef = useRef<HTMLDivElement>(null);
@@ -410,8 +411,8 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         </div>
       </div>
 
-      {/* Connector lines from triggers to flow - SVG */}
-      {hasConfiguredTriggers && triggerPositions.length > 0 && (
+      {/* Connector lines from triggers to flow - SVG - ALWAYS show when triggers exist */}
+      {hasTriggers && (
         <svg 
           className="absolute left-0 right-0 pointer-events-none z-[5]"
           style={{ 
@@ -420,58 +421,72 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
             width: '100%'
           }}
         >
-          {/* Vertical drop lines from each configured trigger */}
-          {triggerPositions.map((startX, index) => {
-            const isSingle = triggerPositions.length === 1;
-            const dropDistance = 40;
-            const horizontalY = dropDistance;
-            
-            if (isSingle) {
-              // Single trigger: straight vertical line down to bottom
-              return (
+          {/* When we have configured triggers, draw from their positions */}
+          {hasConfiguredTriggers && triggerPositions.length > 0 ? (
+            <>
+              {triggerPositions.map((startX, index) => {
+                const isSingle = triggerPositions.length === 1;
+                const dropDistance = 40;
+                const horizontalY = dropDistance;
+                
+                if (isSingle) {
+                  // Single trigger: straight vertical line down to bottom
+                  return (
+                    <line
+                      key={index}
+                      x1={startX}
+                      y1={0}
+                      x2={startX}
+                      y2={svgHeight}
+                      stroke="hsl(var(--border))"
+                      strokeWidth="2"
+                    />
+                  );
+                }
+                
+                // Multiple triggers: vertical drop + horizontal to center + vertical down
+                const isLeftOfCenter = startX < mergePointX;
+                const cornerRadius = 8;
+                
+                // Path: drop down, curve to horizontal, go to center line
+                const path = `
+                  M ${startX} 0
+                  L ${startX} ${horizontalY - cornerRadius}
+                  Q ${startX} ${horizontalY} ${isLeftOfCenter ? startX + cornerRadius : startX - cornerRadius} ${horizontalY}
+                  L ${isLeftOfCenter ? mergePointX - cornerRadius : mergePointX + cornerRadius} ${horizontalY}
+                  Q ${mergePointX} ${horizontalY} ${mergePointX} ${horizontalY + cornerRadius}
+                `;
+
+                return (
+                  <path
+                    key={index}
+                    d={path}
+                    fill="none"
+                    stroke="hsl(var(--border))"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                );
+              })}
+              
+              {/* Center vertical line (merge line) - only when multiple triggers */}
+              {triggerPositions.length > 1 && (
                 <line
-                  key={index}
-                  x1={startX}
-                  y1={0}
-                  x2={startX}
+                  x1={mergePointX}
+                  y1={40 + 8} 
+                  x2={mergePointX}
                   y2={svgHeight}
                   stroke="hsl(var(--border))"
                   strokeWidth="2"
                 />
-              );
-            }
-            
-            // Multiple triggers: vertical drop + horizontal to center + vertical down
-            const isLeftOfCenter = startX < mergePointX;
-            const cornerRadius = 8;
-            
-            // Path: drop down, curve to horizontal, go to center line
-            const path = `
-              M ${startX} 0
-              L ${startX} ${horizontalY - cornerRadius}
-              Q ${startX} ${horizontalY} ${isLeftOfCenter ? startX + cornerRadius : startX - cornerRadius} ${horizontalY}
-              L ${isLeftOfCenter ? mergePointX - cornerRadius : mergePointX + cornerRadius} ${horizontalY}
-              Q ${mergePointX} ${horizontalY} ${mergePointX} ${horizontalY + cornerRadius}
-            `;
-
-            return (
-              <path
-                key={index}
-                d={path}
-                fill="none"
-                stroke="hsl(var(--border))"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            );
-          })}
-          
-          {/* Center vertical line (merge line) - only when multiple triggers */}
-          {triggerPositions.length > 1 && (
+              )}
+            </>
+          ) : (
+            /* No configured triggers yet - draw a single center line from first trigger area */
             <line
               x1={mergePointX}
-              y1={40 + 8} 
+              y1={0}
               x2={mergePointX}
               y2={svgHeight}
               stroke="hsl(var(--border))"
@@ -535,8 +550,8 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         </ReactFlow>
       </div>
 
-      {/* Central Plus Button when triggers configured but no flow nodes */}
-      {hasConfiguredTriggers && nodes.length === 0 && (
+      {/* Central Plus Button and END - show whenever triggers exist (configured or not) */}
+      {hasTriggers && nodes.length === 0 && (
         <div className="absolute top-[216px] left-1/2 -translate-x-1/2 z-10 flex flex-col items-center">
           <PlusButton onClick={() => onAddActionClick()} />
           <div className="w-px h-8 bg-border" />
@@ -545,7 +560,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       )}
 
       {/* END node when there are flow nodes - shown after the last node in the flow */}
-      {hasConfiguredTriggers && nodes.length > 0 && (
+      {hasTriggers && nodes.length > 0 && (
         <div className="absolute bottom-32 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center pointer-events-auto">
           <EndNode />
         </div>
