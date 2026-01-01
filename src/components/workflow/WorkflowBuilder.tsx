@@ -240,16 +240,17 @@ export const WorkflowBuilder: React.FC = () => {
     setSelectedTriggerId(null);
   }, []);
 
-  // Get new node position
+  // Get new node position - first node at center top of canvas, subsequent below last
   const getNewNodePosition = useCallback((sourceId?: string, sourceHandle?: ConnectFrom["sourceHandle"]) => {
     if (!sourceId) {
-      if (nodes.length === 0) return { x: 400, y: 80 };
+      // First action node - position at center, below trigger connector area
+      if (nodes.length === 0) return { x: 250, y: 0 };
       const last = nodes[nodes.length - 1];
-      return { x: last.position.x, y: last.position.y + 180 };
+      return { x: last.position.x, y: last.position.y + 150 };
     }
     const src = nodes.find((n) => n.id === sourceId);
-    if (!src) return { x: 300, y: 120 };
-    const base = { x: src.position.x, y: src.position.y + 190 };
+    if (!src) return { x: 250, y: 0 };
+    const base = { x: src.position.x, y: src.position.y + 150 };
     if (sourceHandle === "yes") return { x: base.x - 260, y: base.y };
     if (sourceHandle === "no") return { x: base.x + 260, y: base.y };
     return base;
