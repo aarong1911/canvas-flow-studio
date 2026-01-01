@@ -2,11 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useNavigate, useParams } from "react-router-dom";
 import { addEdge, Connection, MarkerType, useEdgesState, useNodesState, ReactFlowInstance, OnConnectStartParams } from "reactflow";
 import { toast } from "sonner";
+import { Zap } from "lucide-react";
 
-import { RFNode, RFEdge, RFNodeData, ConnectFrom, WorkflowSettings, SidebarTab, TopTab, NodeLibraryItem, BuilderNodeType } from "./types";
+import { RFNode, RFEdge, RFNodeData, ConnectFrom, WorkflowSettings, SidebarTab, TopTab, NodeLibraryItem, BuilderNodeType, TriggerData } from "./types";
 import { WorkflowHeader } from "./WorkflowHeader";
 import { WorkflowCanvas } from "./WorkflowCanvas";
 import { WorkflowSidebar } from "./WorkflowSidebar";
+import { TRIGGERS } from "./node-library";
 
 // Helper functions
 function normalizeBuilderType(maybe: any, actionType: string): BuilderNodeType {
@@ -31,15 +33,32 @@ const DEFAULT_SETTINGS: WorkflowSettings = {
   markConversationsRead: false,
 };
 
+// Get a default unconfigured trigger
+function createEmptyTrigger(): TriggerData {
+  return {
+    id: crypto.randomUUID(),
+    actionType: "trigger_placeholder",
+    label: "Select Trigger",
+    icon: Zap,
+    color: "purple",
+    config: {},
+    isConfigured: false,
+  };
+}
+
 export const WorkflowBuilder: React.FC = () => {
   const navigate = useNavigate();
   const { id: workflowIdParam } = useParams<{ id?: string }>();
 
   const [isInteractive, setIsInteractive] = useState(true);
   const [topTab, setTopTab] = useState<TopTab>("builder");
-  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("nodes");
+  const [sidebarTab, setSidebarTab] = useState<SidebarTab>("triggers");
   const [workflowName, setWorkflowName] = useState("Untitled Workflow");
   const [search, setSearch] = useState("");
+
+  // Triggers are separate from the flow nodes
+  const [triggers, setTriggers] = useState<TriggerData[]>([createEmptyTrigger()]);
+  const [selectedTriggerId, setSelectedTriggerId] = useState<string | null>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState<RFNodeData>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<{ label?: string }>([]);
@@ -54,6 +73,7 @@ export const WorkflowBuilder: React.FC = () => {
 
   const selectedNode = useMemo(() => nodes.find((n) => n.id === selectedNodeId) || null, [nodes, selectedNodeId]);
   const selectedEdge = useMemo(() => edges.find((e) => e.id === selectedEdgeId) || null, [edges, selectedEdgeId]);
+  const selectedTrigger = useMemo(() => triggers.find((t) => t.id === selectedTriggerId) || null, [triggers, selectedTriggerId]);
 
   // Prevent page scroll
   useEffect(() => {
@@ -66,6 +86,7 @@ export const WorkflowBuilder: React.FC = () => {
   const onConnect = useCallback((connection: Connection) => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
+    setSelectedTriggerId(null);
     setEdges((eds) => addEdge({
       ...connection,
       id: crypto.randomUUID(),
@@ -84,12 +105,14 @@ export const WorkflowBuilder: React.FC = () => {
 
   const onNodeClick = useCallback((_e: any, node: RFNode) => {
     setSelectedEdgeId(null);
+    setSelectedTriggerId(null);
     setSelectedNodeId(node.id);
     setSidebarTab("settings");
   }, []);
 
   const onEdgeClick = useCallback((_e: any, edge: RFEdge) => {
     setSelectedNodeId(null);
+    setSelectedTriggerId(null);
     setSelectedEdgeId(edge.id);
     setSidebarTab("settings");
   }, []);
@@ -97,6 +120,7 @@ export const WorkflowBuilder: React.FC = () => {
   const onPaneClick = useCallback(() => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
+    setSelectedTriggerId(null);
   }, []);
 
   // Delete key handler
@@ -115,13 +139,108 @@ export const WorkflowBuilder: React.FC = () => {
         setEdges((eds) => eds.filter((x) => x.source !== selectedNodeId && x.target !== selectedNodeId));
         setSelectedNodeId(null);
         toast.success("Node deleted");
+      } else if (selectedTriggerId) {
+        const trigger = triggers.find(t => t.id === selectedTriggerId);
+        if (trigger?.isConfigured) {
+          setTriggers((ts) => {
+            const filtered = ts.filter((t) => t.id !== selectedTriggerId);
+            // Ensure at least one empty trigger exists
+            if (filtered.length === 0 || filtered.every(t => t.isConfigured)) {
+              return [...filtered, createEmptyTrigger()];
+            }
+            return filtered;
+          });
+          setSelectedTriggerId(null);
+          toast.success("Trigger removed");
+        }
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [selectedEdgeId, selectedNodeId, setEdges, setNodes]);
+  }, [selectedEdgeId, selectedNodeId, selectedTriggerId, triggers, setEdges, setNodes]);
 
-  // Add node handler
+  // Handle trigger click - select it and show triggers list in sidebar
+  const handleTriggerClick = useCallback((triggerId: string) => {
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setSelectedTriggerId(triggerId);
+    
+    const trigger = triggers.find(t => t.id === triggerId);
+    if (trigger?.isConfigured) {
+      setSidebarTab("settings");
+    } else {
+      setSidebarTab("triggers");
+    }
+  }, [triggers]);
+
+  // Handle add trigger click - show triggers list
+  const handleAddTriggerClick = useCallback(() => {
+    // Find or create an empty trigger and select it
+    const emptyTrigger = triggers.find(t => !t.isConfigured);
+    if (emptyTrigger) {
+      setSelectedTriggerId(emptyTrigger.id);
+    } else {
+      const newTrigger = createEmptyTrigger();
+      setTriggers(ts => [...ts, newTrigger]);
+      setSelectedTriggerId(newTrigger.id);
+    }
+    setSidebarTab("triggers");
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+  }, [triggers]);
+
+  // Handle selecting a trigger type from the library
+  const handleSelectTriggerType = useCallback((item: NodeLibraryItem) => {
+    if (!selectedTriggerId) return;
+    
+    setTriggers((ts) => ts.map((t) => {
+      if (t.id === selectedTriggerId) {
+        return {
+          ...t,
+          actionType: item.id,
+          label: item.label,
+          icon: item.icon,
+          color: item.color,
+          config: { trigger_name: item.label },
+          isConfigured: false, // Still needs to be saved
+        };
+      }
+      return t;
+    }));
+    setSidebarTab("settings");
+  }, [selectedTriggerId]);
+
+  // Handle saving trigger configuration
+  const handleSaveTriggerConfig = useCallback((triggerId: string, config: Record<string, any>) => {
+    setTriggers((ts) => {
+      const updated = ts.map((t) => {
+        if (t.id === triggerId) {
+          return { ...t, config, isConfigured: true };
+        }
+        return t;
+      });
+      
+      // Add a new empty trigger slot if all are configured
+      if (updated.every(t => t.isConfigured)) {
+        return [...updated, createEmptyTrigger()];
+      }
+      return updated;
+    });
+    toast.success("Trigger saved");
+  }, []);
+
+  // Handle add action click
+  const handleAddActionClick = useCallback((sourceNodeId?: string, sourceHandle?: string) => {
+    if (sourceNodeId) {
+      setConnectFrom({ sourceNodeId, sourceHandle: (sourceHandle as any) || "default" });
+    }
+    setSidebarTab("actions");
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setSelectedTriggerId(null);
+  }, []);
+
+  // Get new node position
   const getNewNodePosition = useCallback((sourceId?: string, sourceHandle?: ConnectFrom["sourceHandle"]) => {
     if (!sourceId) {
       if (nodes.length === 0) return { x: 400, y: 80 };
@@ -136,12 +255,8 @@ export const WorkflowBuilder: React.FC = () => {
     return base;
   }, [nodes]);
 
+  // Handle adding an action node
   const handleAddNode = useCallback((item: NodeLibraryItem) => {
-    if (item.kind === "trigger" && nodes.some((n) => n.data.builderType === "trigger")) {
-      toast.error("This workflow already has a trigger. Delete it first.");
-      return;
-    }
-
     const nodeId = crypto.randomUUID();
     const builderType = normalizeBuilderType(item.kind, item.id);
     const pos = getNewNodePosition(connectFrom?.sourceNodeId, connectFrom?.sourceHandle);
@@ -157,12 +272,13 @@ export const WorkflowBuilder: React.FC = () => {
         icon: item.icon,
         color: item.color,
         config: {},
+        isConfigured: false,
       },
     };
 
     setNodes((nds) => [...nds, newNode]);
 
-    if (connectFrom && item.kind !== "trigger") {
+    if (connectFrom) {
       setEdges((eds) => [...eds, {
         id: crypto.randomUUID(),
         source: connectFrom.sourceNodeId,
@@ -180,10 +296,11 @@ export const WorkflowBuilder: React.FC = () => {
     setSelectedNodeId(nodeId);
     setSidebarTab("settings");
     toast.success(`Added: ${item.label}`);
-  }, [connectFrom, getNewNodePosition, setEdges, setNodes, nodes]);
+  }, [connectFrom, getNewNodePosition, setEdges, setNodes]);
 
   const handleSaveNodeConfig = useCallback((nodeId: string, config: Record<string, any>) => {
-    setNodes((nds) => nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, config } } : n)));
+    setNodes((nds) => nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, config, isConfigured: true } } : n)));
+    toast.success("Saved");
   }, [setNodes]);
 
   const handleDisconnectEdge = useCallback((edgeId: string) => {
@@ -192,7 +309,7 @@ export const WorkflowBuilder: React.FC = () => {
     toast.success("Disconnected");
   }, [setEdges]);
 
-  // Stub functions for save/publish (would integrate with Supabase)
+  // Stub functions for save/publish
   const handleSave = async () => { toast.success("Draft saved (demo)"); };
   const handlePublish = async () => { toast.success("Published (demo)"); };
   const persistNodeConfig = async () => {};
@@ -216,6 +333,7 @@ export const WorkflowBuilder: React.FC = () => {
           <WorkflowCanvas
             nodes={nodes}
             edges={edges}
+            triggers={triggers}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
@@ -224,7 +342,9 @@ export const WorkflowBuilder: React.FC = () => {
             onEdgeClick={onEdgeClick}
             onPaneClick={onPaneClick}
             selectedNodeId={selectedNodeId}
+            selectedTriggerId={selectedTriggerId}
             setSelectedNodeId={setSelectedNodeId}
+            setSelectedTriggerId={setSelectedTriggerId}
             setSelectedEdgeId={setSelectedEdgeId}
             setSidebarTab={setSidebarTab}
             setConnectFrom={setConnectFrom}
@@ -232,7 +352,9 @@ export const WorkflowBuilder: React.FC = () => {
             setEdges={setEdges}
             isInteractive={isInteractive}
             setIsInteractive={setIsInteractive}
-            onAddTriggerClick={() => setSidebarTab("nodes")}
+            onAddTriggerClick={handleAddTriggerClick}
+            onTriggerClick={handleTriggerClick}
+            onAddActionClick={handleAddActionClick}
             reactFlowRef={reactFlowRef}
             canvasWrapRef={canvasWrapRef}
           />
@@ -257,10 +379,13 @@ export const WorkflowBuilder: React.FC = () => {
           setSearch={setSearch}
           selectedNode={selectedNode}
           selectedEdge={selectedEdge}
+          selectedTrigger={selectedTrigger}
           settings={wfSettings}
           setSettings={setWfSettings}
           onAddNode={handleAddNode}
+          onSelectTriggerType={handleSelectTriggerType}
           onSaveNodeConfig={handleSaveNodeConfig}
+          onSaveTriggerConfig={handleSaveTriggerConfig}
           onPersistNodeConfig={persistNodeConfig}
           onPersistWorkflowSettings={persistWorkflowSettings}
           onDisconnectEdge={handleDisconnectEdge}
