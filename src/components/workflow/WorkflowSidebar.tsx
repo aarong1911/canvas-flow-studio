@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -22,6 +21,7 @@ import {
   WorkflowSettings,
   BuilderNodeType,
   ColorKey,
+  TriggerData,
 } from "./types";
 import { TRIGGERS, ACTIONS, NODE_CONFIGS, ALL_LIBRARY_ITEMS } from "./node-library";
 
@@ -32,10 +32,13 @@ interface WorkflowSidebarProps {
   setSearch: (s: string) => void;
   selectedNode: RFNode | null;
   selectedEdge: RFEdge | null;
+  selectedTrigger: TriggerData | null;
   settings: WorkflowSettings;
   setSettings: (s: WorkflowSettings) => void;
   onAddNode: (item: NodeLibraryItem) => void;
+  onSelectTriggerType: (item: NodeLibraryItem) => void;
   onSaveNodeConfig: (nodeId: string, config: Record<string, any>) => void;
+  onSaveTriggerConfig: (triggerId: string, config: Record<string, any>) => void;
   onPersistNodeConfig: (nodeId: string, config: Record<string, any>) => Promise<void>;
   onPersistWorkflowSettings: (settings: WorkflowSettings) => Promise<void>;
   onDisconnectEdge: (edgeId: string) => void;
@@ -74,12 +77,6 @@ function insertAtCursor(el: HTMLInputElement | HTMLTextAreaElement, text: string
   el.focus();
 }
 
-// Drag handler for sidebar items
-function onDragStart(event: React.DragEvent, item: NodeLibraryItem) {
-  event.dataTransfer.setData("application/reactflow", JSON.stringify(item));
-  event.dataTransfer.effectAllowed = "move";
-}
-
 export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
   tab,
   setTab,
@@ -87,16 +84,20 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
   setSearch,
   selectedNode,
   selectedEdge,
+  selectedTrigger,
   settings,
   setSettings,
   onAddNode,
+  onSelectTriggerType,
   onSaveNodeConfig,
+  onSaveTriggerConfig,
   onPersistNodeConfig,
   onPersistWorkflowSettings,
   onDisconnectEdge,
 }) => {
   const [localConfig, setLocalConfig] = useState<Record<string, any>>({});
   const [dirtyNodeId, setDirtyNodeId] = useState<string | null>(null);
+  const [triggerConfig, setTriggerConfig] = useState<Record<string, any>>({});
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -113,20 +114,51 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
     }
   }, [selectedNode?.id]);
 
+  // Sync trigger config when selected trigger changes
+  React.useEffect(() => {
+    if (selectedTrigger) {
+      setTriggerConfig(selectedTrigger.config || {});
+    } else {
+      setTriggerConfig({});
+    }
+  }, [selectedTrigger?.id]);
+
   const nodeSchema = selectedNode ? NODE_CONFIGS[selectedNode.data.actionType] : null;
+  const triggerSchema = selectedTrigger ? NODE_CONFIGS[selectedTrigger.actionType] : null;
   const variables = nodeSchema?.variables || [];
 
-  // Filter library items
-  const libraryGroups = useMemo(() => {
+  // Filter triggers list
+  const triggersGroups = useMemo(() => {
     const q = search.toLowerCase().trim();
+    const allTriggers = Object.values(TRIGGERS).flat();
     const filtered = q
-      ? ALL_LIBRARY_ITEMS.filter(
+      ? allTriggers.filter(
           (item) =>
             item.label.toLowerCase().includes(q) ||
-            item.group.toLowerCase().includes(q) ||
-            item.kind.toLowerCase().includes(q)
+            item.group.toLowerCase().includes(q)
         )
-      : ALL_LIBRARY_ITEMS;
+      : allTriggers;
+
+    const grouped: Record<string, NodeLibraryItem[]> = {};
+    for (const item of filtered) {
+      if (!grouped[item.group]) grouped[item.group] = [];
+      grouped[item.group].push(item);
+    }
+
+    return Object.entries(grouped);
+  }, [search]);
+
+  // Filter actions list
+  const actionsGroups = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    const allActions = Object.values(ACTIONS).flat();
+    const filtered = q
+      ? allActions.filter(
+          (item) =>
+            item.label.toLowerCase().includes(q) ||
+            item.group.toLowerCase().includes(q)
+        )
+      : allActions;
 
     const grouped: Record<string, NodeLibraryItem[]> = {};
     for (const item of filtered) {
@@ -143,44 +175,32 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
 
   return (
     <div className="w-[380px] bg-card border-l flex flex-col h-full">
-      {/* Tabs */}
-      <div className="flex-shrink-0 border-b p-3">
-        <Tabs value={tab} onValueChange={(v) => setTab(v as SidebarTab)}>
-          <TabsList className="w-full">
-            <TabsTrigger value="nodes" className="flex-1">Nodes</TabsTrigger>
-            <TabsTrigger value="settings" className="flex-1">Settings</TabsTrigger>
-            <TabsTrigger value="workflow" className="flex-1">Workflow</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-
-      {/* NODES TAB */}
-      {tab === "nodes" && (
+      {/* TRIGGERS TAB - List of available triggers */}
+      {tab === "triggers" && (
         <>
-          <div className="flex-shrink-0 p-4 border-b space-y-3">
+          <div className="flex-shrink-0 p-4 border-b">
+            <div className="text-sm font-semibold text-foreground mb-1">Triggers</div>
+            <div className="text-xs text-muted-foreground mb-3">Select a trigger to start your workflow</div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search triggers & actions..."
+                placeholder="Search Triggers"
                 className="pl-9"
               />
             </div>
-            <p className="text-xs text-muted-foreground">
-              <span className="font-medium">Drag</span> nodes to the canvas or <span className="font-medium">click</span> to add them.
-            </p>
           </div>
 
           <ScrollArea className="flex-1">
             <div className="p-4 space-y-2">
-              {libraryGroups.length === 0 && (
+              {triggersGroups.length === 0 && (
                 <div className="text-sm text-muted-foreground p-4 text-center">
-                  No nodes match your search.
+                  No triggers match your search.
                 </div>
               )}
 
-              {libraryGroups.map(([group, items]) => (
+              {triggersGroups.map(([group, items]) => (
                 <Collapsible
                   key={group}
                   open={openGroups[group] !== false}
@@ -207,17 +227,88 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                       return (
                         <div
                           key={item.id}
-                          draggable
-                          onDragStart={(e) => onDragStart(e, item)}
-                          onClick={() => onAddNode(item)}
-                          className="w-full flex items-center gap-2 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors text-left group cursor-grab active:cursor-grabbing hover:border-primary/50 hover:shadow-sm"
+                          onClick={() => onSelectTriggerType(item)}
+                          className="w-full flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors text-left cursor-pointer hover:border-primary/50 hover:shadow-sm"
                         >
-                          <GripVertical className="w-4 h-4 text-muted-foreground/50 group-hover:text-muted-foreground flex-shrink-0" />
                           <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", cls.chipBg)}>
                             <Icon className={cn("w-4 h-4", cls.chipText)} />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                            <div className="text-sm font-medium text-foreground truncate">
+                              {item.label}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </CollapsibleContent>
+                </Collapsible>
+              ))}
+            </div>
+          </ScrollArea>
+        </>
+      )}
+
+      {/* ACTIONS TAB - List of available actions */}
+      {tab === "actions" && (
+        <>
+          <div className="flex-shrink-0 p-4 border-b">
+            <div className="text-sm font-semibold text-foreground mb-1">Actions</div>
+            <div className="text-xs text-muted-foreground mb-3">Pick an action for this step</div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search Action"
+                className="pl-9"
+              />
+            </div>
+          </div>
+
+          <ScrollArea className="flex-1">
+            <div className="p-4 space-y-2">
+              {actionsGroups.length === 0 && (
+                <div className="text-sm text-muted-foreground p-4 text-center">
+                  No actions match your search.
+                </div>
+              )}
+
+              {actionsGroups.map(([group, items]) => (
+                <Collapsible
+                  key={group}
+                  open={openGroups[group] !== false}
+                  onOpenChange={() => toggleGroup(group)}
+                >
+                  <CollapsibleTrigger className="flex items-center gap-2 w-full py-2 px-1 hover:bg-muted/50 rounded-lg transition-colors">
+                    <ChevronRight
+                      className={cn(
+                        "w-4 h-4 text-muted-foreground transition-transform",
+                        openGroups[group] !== false && "rotate-90"
+                      )}
+                    />
+                    <span className="text-xs font-semibold text-foreground uppercase tracking-wide">
+                      {group}
+                    </span>
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      {items.length}
+                    </span>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-1 mt-1">
+                    {items.map((item) => {
+                      const Icon = item.icon;
+                      const cls = colorClasses(item.color);
+                      return (
+                        <div
+                          key={item.id}
+                          onClick={() => onAddNode(item)}
+                          className="w-full flex items-center gap-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors text-left cursor-pointer hover:border-primary/50 hover:shadow-sm"
+                        >
+                          <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", cls.chipBg)}>
+                            <Icon className={cn("w-4 h-4", cls.chipText)} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-foreground truncate">
                               {item.label}
                             </div>
                             <div className="text-xs text-muted-foreground">{kindLabel(item.kind)}</div>
@@ -233,33 +324,125 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
         </>
       )}
 
-      {/* SETTINGS TAB */}
+      {/* SETTINGS TAB - Configure selected node, trigger, or edge */}
       {tab === "settings" && (
         <div className="flex flex-col flex-1 min-h-0">
           <div className="flex-shrink-0 p-4 border-b flex items-start justify-between">
             <div>
-              <div className="text-sm font-semibold text-foreground">Configure</div>
+              <div className="text-sm font-semibold text-foreground">
+                {selectedTrigger ? "Workflow Trigger" : selectedNode ? selectedNode.data.label : selectedEdge ? "Connection" : "Configure"}
+              </div>
               <div className="text-xs text-muted-foreground">
-                {selectedNode ? selectedNode.data.label : selectedEdge ? "Connection" : "Select a node"}
+                {selectedTrigger 
+                  ? "Adds a workflow trigger, and on execution, the contact gets added to the workflow."
+                  : selectedNode 
+                    ? "Configure this action" 
+                    : selectedEdge 
+                      ? "Connection details" 
+                      : "Select a node to configure"}
               </div>
             </div>
-            <button onClick={() => setTab("nodes")} className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="Close">
+            <button onClick={() => setTab("triggers")} className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="Close">
               <X className="w-4 h-4 text-muted-foreground" />
             </button>
           </div>
 
+          {/* Trigger Configuration */}
+          {selectedTrigger && (
+            <>
+              <ScrollArea className="flex-1">
+                <div className="p-4 space-y-4">
+                  {/* Trigger Type Selection */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">CHOOSE A WORKFLOW TRIGGER</Label>
+                    <div className="p-3 border rounded-lg bg-muted/30">
+                      <div className="flex items-center gap-3">
+                        <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center", colorClasses(selectedTrigger.color).chipBg)}>
+                          {React.createElement(selectedTrigger.icon, { className: cn("w-4 h-4", colorClasses(selectedTrigger.color).chipText) })}
+                        </div>
+                        <span className="text-sm font-medium">{selectedTrigger.label}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Trigger Name */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">WORKFLOW TRIGGER NAME</Label>
+                    <Input
+                      value={triggerConfig.trigger_name || ""}
+                      onChange={(e) => setTriggerConfig(s => ({ ...s, trigger_name: e.target.value }))}
+                      placeholder={selectedTrigger.label}
+                    />
+                  </div>
+
+                  {/* Additional trigger-specific fields would go here */}
+                  {triggerSchema && triggerSchema.fields.map((field) => {
+                    if (field.name === "trigger_name") return null;
+                    const val = triggerConfig[field.name];
+
+                    return (
+                      <div key={field.name} className="space-y-2">
+                        <Label className="text-sm font-medium uppercase">
+                          {field.label}
+                          {"required" in field && field.required && <span className="text-destructive ml-1">*</span>}
+                        </Label>
+
+                        {field.type === "text" && (
+                          <Input
+                            value={val ?? ""}
+                            onChange={(e) => setTriggerConfig((s) => ({ ...s, [field.name]: e.target.value }))}
+                            placeholder={"placeholder" in field ? field.placeholder : ""}
+                          />
+                        )}
+
+                        {field.type === "select" && (
+                          <Select
+                            value={val ?? ""}
+                            onValueChange={(v) => setTriggerConfig((s) => ({ ...s, [field.name]: v }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder={`Select ${field.label}`} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {field.options.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+
+              <div className="flex-shrink-0 p-4 border-t bg-muted/30">
+                <Button
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  onClick={() => {
+                    onSaveTriggerConfig(selectedTrigger.id, triggerConfig);
+                  }}
+                >
+                  Save Trigger
+                </Button>
+              </div>
+            </>
+          )}
+
           {/* Edge Selected */}
-          {!selectedNode && selectedEdge && (
+          {!selectedNode && !selectedTrigger && selectedEdge && (
             <>
               <ScrollArea className="flex-1">
                 <div className="p-4 space-y-4">
                   <div className="text-sm font-medium text-foreground">Connection Details</div>
                   <div className="text-xs text-muted-foreground space-y-2 bg-muted/50 rounded-lg p-3">
                     <div>
-                      <span className="font-medium">From:</span> {selectedEdge.source} ({selectedEdge.sourceHandle || "default"})
+                      <span className="font-medium">From:</span> {selectedEdge.source}
                     </div>
                     <div>
-                      <span className="font-medium">To:</span> {selectedEdge.target} ({selectedEdge.targetHandle || "in"})
+                      <span className="font-medium">To:</span> {selectedEdge.target}
                     </div>
                   </div>
 
@@ -271,34 +454,25 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                     <Link2Off className="w-4 h-4" />
                     Disconnect
                   </Button>
-                  <p className="text-xs text-muted-foreground">
-                    Tip: Select an edge and press Delete key to disconnect.
-                  </p>
                 </div>
               </ScrollArea>
-
-              <div className="flex-shrink-0 p-4 border-t bg-muted/30">
-                <Button variant="outline" className="w-full" onClick={() => setTab("nodes")}>
-                  Back to Nodes
-                </Button>
-              </div>
             </>
           )}
 
           {/* Nothing Selected */}
-          {!selectedNode && !selectedEdge && (
+          {!selectedNode && !selectedTrigger && !selectedEdge && (
             <div className="flex-1 flex items-center justify-center p-6">
               <div className="text-center">
                 <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
                   <Settings className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <p className="text-sm text-muted-foreground">Select a node or edge to configure it.</p>
+                <p className="text-sm text-muted-foreground">Select a trigger or node to configure it.</p>
               </div>
             </div>
           )}
 
           {/* Node Selected */}
-          {selectedNode && (
+          {selectedNode && !selectedTrigger && (
             <>
               <ScrollArea className="flex-1">
                 <div className="p-4 space-y-4">
@@ -316,7 +490,7 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
 
                       return (
                         <div key={field.name} className="space-y-2">
-                          <Label className="text-sm font-medium">
+                          <Label className="text-sm font-medium uppercase">
                             {field.label}
                             {"required" in field && field.required && <span className="text-destructive ml-1">*</span>}
                           </Label>
@@ -331,8 +505,8 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                                 ref={(el) => (inputRefs.current[field.name] = el)}
                                 value={val ?? ""}
                                 onChange={(e) => setLocalConfig((s) => ({ ...s, [field.name]: e.target.value }))}
-                                placeholder={field.placeholder}
-                                readOnly={field.readOnly}
+                                placeholder={"placeholder" in field ? field.placeholder : ""}
+                                readOnly={"readOnly" in field ? field.readOnly : false}
                               />
                               {showVars && (
                                 <div className="flex flex-wrap gap-1.5">
@@ -371,8 +545,8 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                                 ref={(el) => (textareaRefs.current[field.name] = el)}
                                 value={val ?? ""}
                                 onChange={(e) => setLocalConfig((s) => ({ ...s, [field.name]: e.target.value }))}
-                                rows={field.rows || 5}
-                                placeholder={field.placeholder}
+                                rows={"rows" in field ? field.rows : 5}
+                                placeholder={"placeholder" in field ? field.placeholder : ""}
                               />
                               {showVars && (
                                 <div className="flex flex-wrap gap-1.5">
@@ -450,7 +624,6 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                     try {
                       await onPersistNodeConfig(dirtyNodeId, localConfig);
                       onSaveNodeConfig(dirtyNodeId, localConfig);
-                      toast.success("Saved");
                     } catch (e: any) {
                       console.error(e);
                       toast.error(e?.message || "Failed to save node settings");
@@ -463,6 +636,25 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
             </>
           )}
         </div>
+      )}
+
+      {/* NODES TAB - Keep for backwards compatibility / legacy */}
+      {tab === "nodes" && (
+        <>
+          <div className="flex-shrink-0 p-4 border-b space-y-3">
+            <Tabs value="all" className="w-full">
+              <TabsList className="w-full">
+                <TabsTrigger value="all" className="flex-1" onClick={() => setTab("triggers")}>Triggers</TabsTrigger>
+                <TabsTrigger value="actions" className="flex-1" onClick={() => setTab("actions")}>Actions</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          <div className="flex-1 flex items-center justify-center p-6">
+            <div className="text-center text-muted-foreground">
+              <p>Click a tab above to browse nodes</p>
+            </div>
+          </div>
+        </>
       )}
 
       {/* WORKFLOW TAB */}
@@ -506,7 +698,7 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Stop on Response</Label>
-                  <p className="text-xs text-muted-foreground">Stop when contact responds</p>
+                  <p className="text-xs text-muted-foreground">Pause workflow when contact replies</p>
                 </div>
                 <Switch
                   className={BLUE_SWITCH_CLASS}
@@ -517,13 +709,13 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
 
               <Separator />
 
-              <div>
+              <div className="space-y-2">
                 <Label>Timezone</Label>
                 <Select
                   value={settings.timezone}
-                  onValueChange={(value: any) => setSettings({ ...settings, timezone: value })}
+                  onValueChange={(v) => setSettings({ ...settings, timezone: v as "account" | "contact" })}
                 >
-                  <SelectTrigger className="mt-2">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -531,135 +723,6 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                     <SelectItem value="contact">Contact Timezone</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-
-              <Separator />
-
-              <div>
-                <Label>Time Window</Label>
-                <div className="mt-3 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={settings.timeWindow.enabled}
-                      onCheckedChange={(checked) =>
-                        setSettings({ ...settings, timeWindow: { ...settings.timeWindow, enabled: !!checked } })
-                      }
-                    />
-                    <span className="text-sm">Enable specific time window</span>
-                  </div>
-
-                  {settings.timeWindow.enabled && (
-                    <>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-xs">Start Time</Label>
-                          <Input
-                            type="time"
-                            value={settings.timeWindow.startTime}
-                            onChange={(e) =>
-                              setSettings({ ...settings, timeWindow: { ...settings.timeWindow, startTime: e.target.value } })
-                            }
-                            className="mt-1"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">End Time</Label>
-                          <Input
-                            type="time"
-                            value={settings.timeWindow.endTime}
-                            onChange={(e) =>
-                              setSettings({ ...settings, timeWindow: { ...settings.timeWindow, endTime: e.target.value } })
-                            }
-                            className="mt-1"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <Label className="text-xs">Days</Label>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day) => {
-                            const isActive = settings.timeWindow.days.includes(day);
-                            return (
-                              <button
-                                key={day}
-                                className={cn(
-                                  "px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors",
-                                  isActive
-                                    ? "bg-primary text-primary-foreground border-primary"
-                                    : "bg-background text-foreground border-border hover:bg-muted"
-                                )}
-                                onClick={() => {
-                                  const next = isActive
-                                    ? settings.timeWindow.days.filter((d) => d !== day)
-                                    : [...settings.timeWindow.days, day];
-                                  setSettings({ ...settings, timeWindow: { ...settings.timeWindow, days: next } });
-                                }}
-                              >
-                                {day}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <Separator />
-
-              <div>
-                <Label>Sender Details</Label>
-                <div className="mt-3 space-y-3">
-                  <div>
-                    <Label className="text-xs">From Name</Label>
-                    <Input
-                      value={settings.senderDetails.fromName}
-                      onChange={(e) =>
-                        setSettings({ ...settings, senderDetails: { ...settings.senderDetails, fromName: e.target.value } })
-                      }
-                      placeholder="Your Name"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">From Email</Label>
-                    <Input
-                      value={settings.senderDetails.fromEmail}
-                      onChange={(e) =>
-                        setSettings({ ...settings, senderDetails: { ...settings.senderDetails, fromEmail: e.target.value } })
-                      }
-                      placeholder="noreply@example.com"
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-xs">From Phone</Label>
-                    <Input
-                      value={settings.senderDetails.fromNumber}
-                      onChange={(e) =>
-                        setSettings({ ...settings, senderDetails: { ...settings.senderDetails, fromNumber: e.target.value } })
-                      }
-                      placeholder="+1234567890"
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Mark Conversations as Read</Label>
-                  <p className="text-xs text-muted-foreground">Auto-read workflow-triggered messages</p>
-                </div>
-                <Switch
-                  className={BLUE_SWITCH_CLASS}
-                  checked={settings.markConversationsRead}
-                  onCheckedChange={(checked) => setSettings({ ...settings, markConversationsRead: checked })}
-                />
               </div>
             </div>
           </ScrollArea>
@@ -672,8 +735,7 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                   await onPersistWorkflowSettings(settings);
                   toast.success("Workflow settings saved");
                 } catch (e: any) {
-                  console.error(e);
-                  toast.error(e?.message || "Failed to save settings");
+                  toast.error(e?.message || "Failed to save");
                 }
               }}
             >

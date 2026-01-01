@@ -81,17 +81,28 @@ export type RFNodeData = {
   icon: LucideIcon;
   color: ColorKey;
   config: Record<string, any>;
+  isConfigured?: boolean;
 };
 
 export type RFNode = Node<RFNodeData, string>;
 export type RFEdge = Edge<{ label?: string }>;
+
+export type TriggerData = {
+  id: string;
+  actionType: string;
+  label: string;
+  icon: LucideIcon;
+  color: ColorKey;
+  config: Record<string, any>;
+  isConfigured: boolean;
+};
 
 export type ConnectFrom = {
   sourceNodeId: string;
   sourceHandle: "default" | "yes" | "no" | "none";
 } | null;
 
-export type SidebarTab = "nodes" | "settings" | "workflow";
+export type SidebarTab = "nodes" | "settings" | "workflow" | "triggers" | "actions";
 export type TopTab = "builder" | "settings" | "history" | "logs";
 
 export const COLOR_HEX: Record<ColorKey, string> = {

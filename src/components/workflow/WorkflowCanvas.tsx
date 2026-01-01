@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useMemo } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -8,17 +8,22 @@ import ReactFlow, {
   NodeProps,
   ReactFlowInstance,
   OnConnectStartParams,
+  Handle,
+  Position,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Zap, Plus } from "lucide-react";
+import { Plus, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { RFNode, RFEdge, RFNodeData, ConnectFrom, COLOR_HEX, SidebarTab, NodeLibraryItem, BuilderNodeType } from "./types";
-import { WorkflowNodeCard } from "./WorkflowNodeCard";
+import { RFNode, RFEdge, RFNodeData, ConnectFrom, COLOR_HEX, SidebarTab, NodeLibraryItem, BuilderNodeType, TriggerData, ColorKey } from "./types";
+import { TriggerCard, AddTriggerCard } from "./TriggerCard";
+import { EndNode } from "./EndNode";
+import { PlusButton } from "./PlusButton";
 
 interface WorkflowCanvasProps {
   nodes: RFNode[];
   edges: RFEdge[];
+  triggers: TriggerData[];
   onNodesChange: any;
   onEdgesChange: any;
   onConnect: (connection: Connection) => void;
@@ -27,7 +32,9 @@ interface WorkflowCanvasProps {
   onEdgeClick: (_e: any, edge: RFEdge) => void;
   onPaneClick: () => void;
   selectedNodeId: string | null;
+  selectedTriggerId: string | null;
   setSelectedNodeId: (id: string | null) => void;
+  setSelectedTriggerId: (id: string | null) => void;
   setSelectedEdgeId: (id: string | null) => void;
   setSidebarTab: (tab: SidebarTab) => void;
   setConnectFrom: (from: ConnectFrom) => void;
@@ -36,6 +43,8 @@ interface WorkflowCanvasProps {
   isInteractive: boolean;
   setIsInteractive: (interactive: boolean) => void;
   onAddTriggerClick: () => void;
+  onTriggerClick: (triggerId: string) => void;
+  onAddActionClick: (sourceNodeId?: string, sourceHandle?: string) => void;
   reactFlowRef: React.MutableRefObject<ReactFlowInstance | null>;
   canvasWrapRef: React.RefObject<HTMLDivElement>;
 }
@@ -45,21 +54,21 @@ const minimapNodeColor = (n: RFNode) => {
   return COLOR_HEX[key];
 };
 
-function normalizeBuilderType(maybe: any, actionType: string): BuilderNodeType {
-  if (actionType === "if_else" || actionType === "business_hours_gate") return "condition";
-  if (["wait", "wait_until", "wait_for_event", "goal_event"].includes(actionType)) return "delay";
-  if (["trigger", "action", "condition", "delay"].includes(maybe)) return maybe;
-  return "action";
-}
-
-function normalizeActionType(rawActionType: string): string {
-  if (rawActionType === "goal_event") return "wait_for_event";
-  return rawActionType;
-}
+// Color classes for action node icons
+const colorIconClasses: Record<ColorKey, string> = {
+  purple: "bg-purple-100 text-purple-600",
+  blue: "bg-blue-100 text-blue-600",
+  green: "bg-green-100 text-green-600",
+  red: "bg-red-100 text-red-600",
+  amber: "bg-amber-100 text-amber-600",
+  orange: "bg-orange-100 text-orange-600",
+  gray: "bg-gray-100 text-gray-600",
+};
 
 export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   nodes,
   edges,
+  triggers,
   onNodesChange,
   onEdgesChange,
   onConnect,
@@ -68,7 +77,9 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   onEdgeClick,
   onPaneClick,
   selectedNodeId,
+  selectedTriggerId,
   setSelectedNodeId,
+  setSelectedTriggerId,
   setSelectedEdgeId,
   setSidebarTab,
   setConnectFrom,
@@ -77,338 +88,296 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   isInteractive,
   setIsInteractive,
   onAddTriggerClick,
+  onTriggerClick,
+  onAddActionClick,
   reactFlowRef,
   canvasWrapRef,
 }) => {
-  // Handle drop from sidebar
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
   }, []);
 
-  // Auto-connect proximity threshold (in flow coordinates)
-  const AUTO_CONNECT_THRESHOLD = 150;
-  const EDGE_DROP_THRESHOLD = 80; // Distance threshold for dropping on edges
-
-  // Find nearest node to connect from (prefers nodes without outgoing edges)
-  const findNearestNodeToConnect = useCallback(
-    (dropPosition: { x: number; y: number }, excludeId?: string): RFNode | null => {
-      let nearestNode: RFNode | null = null;
-      let minDistance = AUTO_CONNECT_THRESHOLD;
-
-      for (const node of nodes) {
-        if (excludeId && node.id === excludeId) continue;
-
-        // Calculate distance from drop position to node's bottom center
-        const nodeBottomY = node.position.y + 120; // Approximate node height
-        const nodeCenterX = node.position.x + 140; // Approximate half node width
-
-        const distance = Math.sqrt(
-          Math.pow(dropPosition.x - nodeCenterX, 2) +
-          Math.pow(dropPosition.y - nodeBottomY, 2)
-        );
-
-        // Prefer connecting below existing nodes (drop position should be below)
-        const isBelow = dropPosition.y > node.position.y + 50;
-
-        if (distance < minDistance && isBelow) {
-          // Check if this node already has an outgoing edge (for non-condition nodes)
-          const hasOutgoingEdge = edges.some((e) => e.source === node.id);
-          const isCondition = node.data.builderType === "condition";
-
-          // Conditions can have multiple outputs (yes/no/none), others prefer no existing edge
-          if (isCondition || !hasOutgoingEdge) {
-            minDistance = distance;
-            nearestNode = node;
-          }
-        }
-      }
-
-      return nearestNode;
-    },
-    [nodes, edges]
-  );
-
-  // Find nearest edge to drop on (for inserting between nodes)
-  const findNearestEdge = useCallback(
-    (dropPosition: { x: number; y: number }): RFEdge | null => {
-      let nearestEdge: RFEdge | null = null;
-      let minDistance = EDGE_DROP_THRESHOLD;
-
-      for (const edge of edges) {
-        const sourceNode = nodes.find((n) => n.id === edge.source);
-        const targetNode = nodes.find((n) => n.id === edge.target);
-
-        if (!sourceNode || !targetNode) continue;
-
-        // Calculate edge midpoint (approximate for smoothstep)
-        const sourceX = sourceNode.position.x + 140; // center x
-        const sourceY = sourceNode.position.y + 120; // bottom
-        const targetX = targetNode.position.x + 140; // center x
-        const targetY = targetNode.position.y; // top
-
-        // Edge midpoint
-        const midX = (sourceX + targetX) / 2;
-        const midY = (sourceY + targetY) / 2;
-
-        // Distance from drop to edge midpoint
-        const distance = Math.sqrt(
-          Math.pow(dropPosition.x - midX, 2) +
-          Math.pow(dropPosition.y - midY, 2)
-        );
-
-        // Also check if drop is roughly between source and target Y positions
-        const isBetweenNodes = dropPosition.y > sourceY - 20 && dropPosition.y < targetY + 20;
-
-        if (distance < minDistance && isBetweenNodes) {
-          minDistance = distance;
-          nearestEdge = edge;
-        }
-      }
-
-      return nearestEdge;
-    },
-    [nodes, edges]
-  );
-
-  const onDrop = useCallback(
-    (event: React.DragEvent) => {
-      event.preventDefault();
-
-      const data = event.dataTransfer.getData("application/reactflow");
-      if (!data) return;
-
-      const item: NodeLibraryItem = JSON.parse(data);
-      const reactFlowBounds = canvasWrapRef.current?.getBoundingClientRect();
-      const instance = reactFlowRef.current;
-
-      if (!reactFlowBounds || !instance) return;
-
-      // Check for duplicate trigger
-      if (item.kind === "trigger" && nodes.some((n) => n.data.builderType === "trigger")) {
-        toast.error("This workflow already has a trigger. Delete it first.");
-        return;
-      }
-
-      // Calculate drop position in flow coordinates
-      const position = instance.screenToFlowPosition({
-        x: event.clientX - reactFlowBounds.left,
-        y: event.clientY - reactFlowBounds.top,
-      });
-
-      const nodeId = crypto.randomUUID();
-      const builderType = normalizeBuilderType(item.kind, item.id);
-
-      const newNode: RFNode = {
-        id: nodeId,
-        type: "workflowNode",
-        position,
-        data: {
-          builderType,
-          actionType: normalizeActionType(item.id),
-          label: item.label,
-          icon: item.icon,
-          color: item.color,
-          config: {},
-        },
-      };
-
-      // First, check if dropping on an edge (insert between nodes)
-      const nearestEdge = findNearestEdge(position);
-
-      if (nearestEdge) {
-        // Insert node between source and target
-        const sourceNode = nodes.find((n) => n.id === nearestEdge.source);
-        const targetNode = nodes.find((n) => n.id === nearestEdge.target);
-
-        if (sourceNode && targetNode) {
-          // Position the new node between source and target
-          const midX = (sourceNode.position.x + targetNode.position.x) / 2;
-          const midY = (sourceNode.position.y + 120 + targetNode.position.y) / 2 - 60;
-          newNode.position = { x: midX, y: midY };
-
-          setNodes((nds) => [...nds, newNode]);
-
-          // Remove old edge and create two new edges
-          setEdges((eds) => {
-            const filteredEdges = eds.filter((e) => e.id !== nearestEdge.id);
-            const newEdge1: RFEdge = {
-              id: `e-${nearestEdge.source}-${nodeId}`,
-              source: nearestEdge.source,
-              target: nodeId,
-              sourceHandle: nearestEdge.sourceHandle,
-              type: "smoothstep",
-              markerEnd: { type: MarkerType.ArrowClosed },
-              style: { strokeWidth: 2, stroke: "hsl(var(--workflow-connector))" },
-            };
-            const newEdge2: RFEdge = {
-              id: `e-${nodeId}-${nearestEdge.target}`,
-              source: nodeId,
-              target: nearestEdge.target,
-              type: "smoothstep",
-              markerEnd: { type: MarkerType.ArrowClosed },
-              style: { strokeWidth: 2, stroke: "hsl(var(--workflow-connector))" },
-            };
-            return [...filteredEdges, newEdge1, newEdge2];
-          });
-
-          toast.success(`Inserted: ${item.label} between ${sourceNode.data.label} → ${targetNode.data.label}`);
-          setSelectedNodeId(nodeId);
-          setSidebarTab("settings");
-          return;
-        }
-      }
-
-      // Find nearest node for auto-connect (if not inserting on edge)
-      const nearestNode = findNearestNodeToConnect(position, nodeId);
-
-      setNodes((nds) => [...nds, newNode]);
-
-      // Auto-create edge if near an existing node
-      if (nearestNode) {
-        const newEdge: RFEdge = {
-          id: `e-${nearestNode.id}-${nodeId}`,
-          source: nearestNode.id,
-          target: nodeId,
-          type: "smoothstep",
-          markerEnd: { type: MarkerType.ArrowClosed },
-          style: { strokeWidth: 2, stroke: "hsl(var(--workflow-connector))" },
-        };
-        setEdges((eds) => [...eds, newEdge]);
-        toast.success(`Added: ${item.label} (connected to ${nearestNode.data.label})`);
-      } else {
-        toast.success(`Added: ${item.label}`);
-      }
-
-      setSelectedNodeId(nodeId);
-      setSidebarTab("settings");
-    },
-    [nodes, edges, setNodes, setEdges, setSelectedNodeId, setSidebarTab, canvasWrapRef, reactFlowRef, findNearestNodeToConnect, findNearestEdge]
-  );
-
-  const nodeTypes = React.useMemo(() => {
+  // Create custom node component
+  const nodeTypes = useMemo(() => {
     return {
-      workflowNode: (p: NodeProps<RFNodeData>) => (
-        <WorkflowNodeCard
-          {...p}
-          onSelectNode={(id) => {
-            setSelectedEdgeId(null);
-            setSelectedNodeId(id);
-            setSidebarTab("settings");
-          }}
-          onDeleteNode={(id) => {
-            setNodes((nds) => nds.filter((n) => n.id !== id));
-            setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
-            if (selectedNodeId === id) setSelectedNodeId(null);
-          }}
-          onAddAfter={(from) => {
-            setConnectFrom(from);
-            setSidebarTab("nodes");
-          }}
-        />
+      workflowNode: (p: NodeProps<RFNodeData>) => {
+        const Icon = p.data.icon;
+        const isCondition = p.data.builderType === "condition";
+        
+        return (
+          <div className="relative group">
+            {/* Target Handle */}
+            <Handle
+              type="target"
+              position={Position.Top}
+              id="in"
+              className="!w-3 !h-3 !bg-muted-foreground !border-2 !border-background"
+            />
+
+            {/* Node Card */}
+            <div
+              onClick={() => {
+                setSelectedEdgeId(null);
+                setSelectedTriggerId(null);
+                setSelectedNodeId(p.id);
+                setSidebarTab("settings");
+              }}
+              className={cn(
+                "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200",
+                "min-w-[220px] max-w-[280px]",
+                "shadow-sm hover:shadow-md",
+                p.selected && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
+                  colorIconClasses[p.data.color]
+                )}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-foreground truncate">
+                    {p.data.config?.action_name || p.data.label}
+                  </div>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                  }}
+                  className="p-1.5 hover:bg-muted rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                >
+                  <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+            </div>
+
+            {/* Source Handles */}
+            {isCondition ? (
+              <>
+                <Handle
+                  type="source"
+                  position={Position.Bottom}
+                  id="yes"
+                  className="!w-3 !h-3 !bg-green-500 !border-2 !border-background"
+                  style={{ left: "25%" }}
+                />
+                <Handle
+                  type="source"
+                  position={Position.Bottom}
+                  id="no"
+                  className="!w-3 !h-3 !bg-red-500 !border-2 !border-background"
+                  style={{ left: "50%" }}
+                />
+                <Handle
+                  type="source"
+                  position={Position.Bottom}
+                  id="none"
+                  className="!w-3 !h-3 !bg-gray-500 !border-2 !border-background"
+                  style={{ left: "75%" }}
+                />
+              </>
+            ) : (
+              <Handle
+                type="source"
+                position={Position.Bottom}
+                id="default"
+                className="!w-3 !h-3 !bg-muted-foreground !border-2 !border-background"
+              />
+            )}
+          </div>
+        );
+      },
+      // Placeholder node for "Please select action"
+      placeholderNode: (p: NodeProps<{ onAddAction: () => void }>) => (
+        <div className="relative">
+          <Handle
+            type="target"
+            position={Position.Top}
+            id="in"
+            className="!w-3 !h-3 !bg-muted-foreground !border-2 !border-background"
+          />
+          <div
+            onClick={() => p.data.onAddAction()}
+            className={cn(
+              "bg-muted/50 border border-dashed border-muted-foreground/30 rounded-xl px-6 py-3 cursor-pointer transition-all duration-200",
+              "min-w-[200px]",
+              "hover:bg-muted hover:border-muted-foreground/50",
+              "flex items-center justify-center"
+            )}
+          >
+            <span className="text-sm text-muted-foreground">Please select action</span>
+          </div>
+        </div>
+      ),
+      // Plus button node
+      plusNode: (p: NodeProps<{ onAdd: () => void }>) => (
+        <div className="relative">
+          <Handle
+            type="target"
+            position={Position.Top}
+            id="in"
+            className="!w-0 !h-0 !opacity-0"
+          />
+          <button
+            onClick={() => p.data.onAdd()}
+            className={cn(
+              "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+              "flex items-center justify-center",
+              "hover:bg-primary hover:border-primary hover:text-primary-foreground",
+              "transition-all duration-200 group"
+            )}
+          >
+            <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
+          </button>
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="default"
+            className="!w-0 !h-0 !opacity-0"
+          />
+        </div>
+      ),
+      // End node
+      endNode: () => (
+        <div className="relative">
+          <Handle
+            type="target"
+            position={Position.Top}
+            id="in"
+            className="!w-3 !h-3 !bg-muted-foreground !border-2 !border-background"
+          />
+          <div className={cn(
+            "bg-muted border border-border rounded-full px-4 py-1.5",
+            "text-xs font-medium text-muted-foreground uppercase tracking-wide",
+            "shadow-sm"
+          )}>
+            END
+          </div>
+        </div>
       ),
     };
-  }, [selectedNodeId, setEdges, setNodes, setSelectedNodeId, setSelectedEdgeId, setSidebarTab, setConnectFrom]);
+  }, [setSelectedNodeId, setSelectedEdgeId, setSelectedTriggerId, setSidebarTab]);
 
-  const hasTrigger = nodes.some((n) => n.data.builderType === "trigger");
+  // Check if we have configured triggers
+  const configuredTriggers = triggers.filter(t => t.isConfigured);
+  const hasConfiguredTriggers = configuredTriggers.length > 0;
 
   return (
     <div 
       ref={canvasWrapRef} 
       className="relative flex-1 min-h-0 bg-workflow-canvas"
       onDragOver={onDragOver}
-      onDrop={onDrop}
     >
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onConnectStart={onConnectStart}
-        onNodeClick={onNodeClick}
-        onEdgeClick={onEdgeClick}
-        onPaneClick={onPaneClick}
-        nodeTypes={nodeTypes}
-        deleteKeyCode={null}
-        nodesDraggable={isInteractive}
-        nodesConnectable={isInteractive}
-        elementsSelectable={isInteractive}
-        panOnDrag={isInteractive}
-        zoomOnScroll={isInteractive}
-        zoomOnPinch={isInteractive}
-        zoomOnDoubleClick={isInteractive}
-        fitViewOptions={{ padding: 0.6, maxZoom: 0.75, minZoom: 0.08 }}
-        defaultEdgeOptions={{
-          type: "smoothstep",
-          markerEnd: { type: MarkerType.ArrowClosed },
-          style: { strokeWidth: 2, stroke: "hsl(var(--workflow-connector))" },
-        }}
-        onInit={(inst) => {
-          reactFlowRef.current = inst;
-        }}
-        className="bg-workflow-canvas"
-      >
-        <Background gap={20} size={1} color="hsl(var(--border))" />
-        <Controls
-          position="bottom-left"
-          showInteractive
-          onInteractiveChange={setIsInteractive}
-          className="!left-4 !bottom-20 !bg-card !border !border-border !rounded-lg !shadow-lg"
-        />
-        <MiniMap
-          position="bottom-right"
-          style={{ bottom: 80, right: 16 }}
-          nodeStrokeWidth={2}
-          nodeColor={minimapNodeColor}
-          nodeStrokeColor={() => "#94a3b8"}
-          maskColor="rgba(0,0,0,0.06)"
-          pannable
-          zoomable
-          className="!bg-card !border !border-border !rounded-lg"
-        />
-      </ReactFlow>
-
-      {/* Empty State / Add Trigger Button */}
-      {nodes.length === 0 && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="bg-card border-2 border-dashed border-primary/30 rounded-2xl p-10 shadow-lg text-center max-w-md pointer-events-auto">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
-              <Zap className="w-8 h-8 text-primary" />
-            </div>
-            <div className="text-xl font-bold text-foreground mb-2">Start building your workflow</div>
-            <div className="text-sm text-muted-foreground mb-6">
-              Add a trigger to start, then connect actions to automate your process.
-            </div>
-            <button
-              onClick={onAddTriggerClick}
-              className={cn(
-                "inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all",
-                "bg-primary text-primary-foreground hover:bg-primary/90",
-                "shadow-lg hover:shadow-xl"
-              )}
-            >
-              <Plus className="w-5 h-5" />
-              Add Workflow Trigger
-            </button>
-          </div>
+      {/* Trigger Row at Top */}
+      <div className="absolute top-6 left-0 right-0 z-10 flex justify-center">
+        <div className="flex items-center gap-4">
+          {triggers.map((trigger) => (
+            <TriggerCard
+              key={trigger.id}
+              id={trigger.id}
+              label="Trigger"
+              sublabel={trigger.isConfigured ? trigger.config?.trigger_name || trigger.label : trigger.label}
+              icon={trigger.icon}
+              color={trigger.color}
+              isConfigured={trigger.isConfigured}
+              selected={selectedTriggerId === trigger.id}
+              onClick={() => onTriggerClick(trigger.id)}
+            />
+          ))}
+          <AddTriggerCard onClick={onAddTriggerClick} />
         </div>
+      </div>
+
+      {/* Connector lines from triggers to flow - using SVG */}
+      {hasConfiguredTriggers && (
+        <svg 
+          className="absolute top-[96px] left-0 right-0 h-32 z-0 pointer-events-none"
+          style={{ width: "100%" }}
+        >
+          {configuredTriggers.map((trigger, index) => {
+            const totalTriggers = configuredTriggers.length;
+            const triggerWidth = 200;
+            const gap = 16;
+            const totalWidth = totalTriggers * triggerWidth + (totalTriggers - 1) * gap;
+            const startX = (window.innerWidth - 380) / 2 - totalWidth / 2 + index * (triggerWidth + gap) + triggerWidth / 2;
+            const centerX = (window.innerWidth - 380) / 2;
+            
+            return (
+              <path
+                key={trigger.id}
+                d={`M ${startX} 0 L ${startX} 40 Q ${startX} 60 ${centerX} 80 L ${centerX} 100`}
+                fill="none"
+                stroke="hsl(var(--border))"
+                strokeWidth="2"
+              />
+            );
+          })}
+        </svg>
       )}
 
-      {/* Floating Add Trigger Button (when no trigger exists but has other nodes) */}
-      {nodes.length > 0 && !hasTrigger && (
-        <button
-          onClick={onAddTriggerClick}
-          className={cn(
-            "absolute top-4 left-1/2 -translate-x-1/2 z-10",
-            "inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all",
-            "bg-purple-500 text-white hover:bg-purple-600",
-            "shadow-lg hover:shadow-xl border-2 border-purple-400"
-          )}
+      {/* React Flow Canvas */}
+      <div className="absolute inset-0 pt-40">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onConnectStart={onConnectStart}
+          onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
+          onPaneClick={onPaneClick}
+          nodeTypes={nodeTypes}
+          deleteKeyCode={null}
+          nodesDraggable={isInteractive}
+          nodesConnectable={isInteractive}
+          elementsSelectable={isInteractive}
+          panOnDrag={isInteractive}
+          zoomOnScroll={isInteractive}
+          zoomOnPinch={isInteractive}
+          zoomOnDoubleClick={isInteractive}
+          fitViewOptions={{ padding: 0.6, maxZoom: 0.75, minZoom: 0.08 }}
+          defaultEdgeOptions={{
+            type: "smoothstep",
+            markerEnd: { type: MarkerType.ArrowClosed },
+            style: { strokeWidth: 2, stroke: "hsl(var(--border))" },
+          }}
+          onInit={(inst) => {
+            reactFlowRef.current = inst;
+          }}
+          className="bg-transparent"
         >
-          <Plus className="w-4 h-4" />
-          Add Trigger
-        </button>
+          <Background gap={20} size={1} color="hsl(var(--border) / 0.5)" />
+          <Controls
+            position="bottom-left"
+            showInteractive
+            onInteractiveChange={setIsInteractive}
+            className="!left-4 !bottom-20 !bg-card !border !border-border !rounded-lg !shadow-lg"
+          />
+          <MiniMap
+            position="bottom-right"
+            style={{ bottom: 80, right: 16 }}
+            nodeStrokeWidth={2}
+            nodeColor={minimapNodeColor}
+            nodeStrokeColor={() => "#94a3b8"}
+            maskColor="rgba(0,0,0,0.06)"
+            pannable
+            zoomable
+            className="!bg-card !border !border-border !rounded-lg"
+          />
+        </ReactFlow>
+      </div>
+
+      {/* Central Plus Button when triggers configured but no flow nodes */}
+      {hasConfiguredTriggers && nodes.length === 0 && (
+        <div className="absolute top-52 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-4">
+          <div className="w-px h-8 bg-border" />
+          <PlusButton onClick={() => onAddActionClick()} />
+          <div className="w-px h-8 bg-border" />
+          <EndNode />
+        </div>
       )}
     </div>
   );
