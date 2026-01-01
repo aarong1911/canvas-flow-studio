@@ -67,24 +67,3 @@ export const TriggerCard: React.FC<TriggerCardProps> = ({
     </div>
   );
 };
-
-interface AddTriggerCardProps {
-  onClick: () => void;
-}
-
-export const AddTriggerCard: React.FC<AddTriggerCardProps> = ({ onClick }) => {
-  return (
-    <div
-      onClick={onClick}
-      className={cn(
-        "relative bg-card border-2 border-dashed border-primary/40 rounded-xl px-4 py-3 cursor-pointer transition-all duration-200",
-        "min-w-[160px] h-[72px]",
-        "hover:border-primary/60 hover:bg-primary/5",
-        "flex items-center justify-center gap-2"
-      )}
-    >
-      <Plus className="w-5 h-5 text-primary" />
-      <span className="text-sm font-medium text-primary">Add New Trigger</span>
-    </div>
-  );
-};
