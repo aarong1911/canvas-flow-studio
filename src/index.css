@@ -39,20 +39,29 @@ All colors MUST be HSL.
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Workflow Builder Colors */
+    --workflow-canvas: 220 14% 96%;
+    --workflow-trigger: 271 91% 65%;
+    --workflow-trigger-foreground: 0 0% 100%;
+    --workflow-action: 217 91% 60%;
+    --workflow-action-foreground: 0 0% 100%;
+    --workflow-condition: 43 96% 56%;
+    --workflow-condition-foreground: 0 0% 0%;
+    --workflow-delay: 24 95% 53%;
+    --workflow-delay-foreground: 0 0% 100%;
+    --workflow-success: 142 76% 36%;
+    --workflow-success-foreground: 0 0% 100%;
+    --workflow-error: 0 84% 60%;
+    --workflow-error-foreground: 0 0% 100%;
+    --workflow-connector: 215 20% 65%;
   }
 
   .dark {
@@ -83,6 +92,7 @@ All colors MUST be HSL.
     --border: 217.2 32.6% 17.5%;
     --input: 217.2 32.6% 17.5%;
     --ring: 212.7 26.8% 83.9%;
+    
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -91,6 +101,22 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Workflow Builder Colors - Dark */
+    --workflow-canvas: 222 47% 11%;
+    --workflow-trigger: 271 81% 56%;
+    --workflow-trigger-foreground: 0 0% 100%;
+    --workflow-action: 217 81% 50%;
+    --workflow-action-foreground: 0 0% 100%;
+    --workflow-condition: 43 86% 46%;
+    --workflow-condition-foreground: 0 0% 0%;
+    --workflow-delay: 24 85% 43%;
+    --workflow-delay-foreground: 0 0% 100%;
+    --workflow-success: 142 66% 30%;
+    --workflow-success-foreground: 0 0% 100%;
+    --workflow-error: 0 74% 50%;
+    --workflow-error-foreground: 0 0% 100%;
+    --workflow-connector: 215 20% 45%;
   }
 }
 
@@ -102,4 +128,32 @@ All colors MUST be HSL.
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ReactFlow custom styles */
+.react-flow__node-workflowNode {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__edge-path {
+  stroke: hsl(var(--workflow-connector));
+  stroke-width: 2px;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: hsl(var(--workflow-action));
+  stroke-width: 3px;
+}
+
+.react-flow__handle {
+  background: hsl(var(--workflow-connector)) !important;
+  border: 2px solid hsl(var(--background)) !important;
+}
+
+.react-flow__minimap {
+  background: hsl(var(--card)) !important;
+  border-radius: 0.5rem;
+  border: 1px solid hsl(var(--border));
 }

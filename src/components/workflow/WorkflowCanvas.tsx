@@ -1,0 +1,191 @@
+import React, { useCallback, useRef } from "react";
+import ReactFlow, {
+  Background,
+  Controls,
+  MiniMap,
+  Connection,
+  MarkerType,
+  NodeProps,
+  ReactFlowInstance,
+  OnConnectStartParams,
+} from "reactflow";
+import "reactflow/dist/style.css";
+import { Zap, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { RFNode, RFEdge, RFNodeData, ConnectFrom, COLOR_HEX, SidebarTab } from "./types";
+import { WorkflowNodeCard } from "./WorkflowNodeCard";
+
+interface WorkflowCanvasProps {
+  nodes: RFNode[];
+  edges: RFEdge[];
+  onNodesChange: any;
+  onEdgesChange: any;
+  onConnect: (connection: Connection) => void;
+  onConnectStart: (_: any, params: OnConnectStartParams) => void;
+  onNodeClick: (_e: any, node: RFNode) => void;
+  onEdgeClick: (_e: any, edge: RFEdge) => void;
+  onPaneClick: () => void;
+  selectedNodeId: string | null;
+  setSelectedNodeId: (id: string | null) => void;
+  setSelectedEdgeId: (id: string | null) => void;
+  setSidebarTab: (tab: SidebarTab) => void;
+  setConnectFrom: (from: ConnectFrom) => void;
+  setNodes: React.Dispatch<React.SetStateAction<RFNode[]>>;
+  setEdges: React.Dispatch<React.SetStateAction<RFEdge[]>>;
+  isInteractive: boolean;
+  setIsInteractive: (interactive: boolean) => void;
+  onAddTriggerClick: () => void;
+  reactFlowRef: React.MutableRefObject<ReactFlowInstance | null>;
+  canvasWrapRef: React.RefObject<HTMLDivElement>;
+}
+
+const minimapNodeColor = (n: RFNode) => {
+  const key = n?.data?.color ?? "gray";
+  return COLOR_HEX[key];
+};
+
+export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
+  nodes,
+  edges,
+  onNodesChange,
+  onEdgesChange,
+  onConnect,
+  onConnectStart,
+  onNodeClick,
+  onEdgeClick,
+  onPaneClick,
+  selectedNodeId,
+  setSelectedNodeId,
+  setSelectedEdgeId,
+  setSidebarTab,
+  setConnectFrom,
+  setNodes,
+  setEdges,
+  isInteractive,
+  setIsInteractive,
+  onAddTriggerClick,
+  reactFlowRef,
+  canvasWrapRef,
+}) => {
+  const nodeTypes = React.useMemo(() => {
+    return {
+      workflowNode: (p: NodeProps<RFNodeData>) => (
+        <WorkflowNodeCard
+          {...p}
+          onSelectNode={(id) => {
+            setSelectedEdgeId(null);
+            setSelectedNodeId(id);
+            setSidebarTab("settings");
+          }}
+          onDeleteNode={(id) => {
+            setNodes((nds) => nds.filter((n) => n.id !== id));
+            setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+            if (selectedNodeId === id) setSelectedNodeId(null);
+          }}
+          onAddAfter={(from) => {
+            setConnectFrom(from);
+            setSidebarTab("nodes");
+          }}
+        />
+      ),
+    };
+  }, [selectedNodeId, setEdges, setNodes, setSelectedNodeId, setSelectedEdgeId, setSidebarTab, setConnectFrom]);
+
+  const hasTrigger = nodes.some((n) => n.data.builderType === "trigger");
+
+  return (
+    <div ref={canvasWrapRef} className="relative flex-1 min-h-0 bg-workflow-canvas">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onConnectStart={onConnectStart}
+        onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
+        onPaneClick={onPaneClick}
+        nodeTypes={nodeTypes}
+        deleteKeyCode={null}
+        nodesDraggable={isInteractive}
+        nodesConnectable={isInteractive}
+        elementsSelectable={isInteractive}
+        panOnDrag={isInteractive}
+        zoomOnScroll={isInteractive}
+        zoomOnPinch={isInteractive}
+        zoomOnDoubleClick={isInteractive}
+        fitViewOptions={{ padding: 0.6, maxZoom: 0.75, minZoom: 0.08 }}
+        defaultEdgeOptions={{
+          type: "smoothstep",
+          markerEnd: { type: MarkerType.ArrowClosed },
+          style: { strokeWidth: 2, stroke: "hsl(var(--workflow-connector))" },
+        }}
+        onInit={(inst) => {
+          reactFlowRef.current = inst;
+        }}
+        className="bg-workflow-canvas"
+      >
+        <Background gap={20} size={1} color="hsl(var(--border))" />
+        <Controls
+          position="bottom-left"
+          showInteractive
+          onInteractiveChange={setIsInteractive}
+          className="!left-4 !bottom-20 !bg-card !border !border-border !rounded-lg !shadow-lg"
+        />
+        <MiniMap
+          position="bottom-right"
+          style={{ bottom: 80, right: 16 }}
+          nodeStrokeWidth={2}
+          nodeColor={minimapNodeColor}
+          nodeStrokeColor={() => "#94a3b8"}
+          maskColor="rgba(0,0,0,0.06)"
+          pannable
+          zoomable
+          className="!bg-card !border !border-border !rounded-lg"
+        />
+      </ReactFlow>
+
+      {/* Empty State / Add Trigger Button */}
+      {nodes.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="bg-card border-2 border-dashed border-primary/30 rounded-2xl p-10 shadow-lg text-center max-w-md pointer-events-auto">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-6">
+              <Zap className="w-8 h-8 text-primary" />
+            </div>
+            <div className="text-xl font-bold text-foreground mb-2">Start building your workflow</div>
+            <div className="text-sm text-muted-foreground mb-6">
+              Add a trigger to start, then connect actions to automate your process.
+            </div>
+            <button
+              onClick={onAddTriggerClick}
+              className={cn(
+                "inline-flex items-center gap-2 px-6 py-3 rounded-xl font-medium text-sm transition-all",
+                "bg-primary text-primary-foreground hover:bg-primary/90",
+                "shadow-lg hover:shadow-xl"
+              )}
+            >
+              <Plus className="w-5 h-5" />
+              Add Workflow Trigger
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Add Trigger Button (when no trigger exists but has other nodes) */}
+      {nodes.length > 0 && !hasTrigger && (
+        <button
+          onClick={onAddTriggerClick}
+          className={cn(
+            "absolute top-4 left-1/2 -translate-x-1/2 z-10",
+            "inline-flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all",
+            "bg-purple-500 text-white hover:bg-purple-600",
+            "shadow-lg hover:shadow-xl border-2 border-purple-400"
+          )}
+        >
+          <Plus className="w-4 h-4" />
+          Add Trigger
+        </button>
+      )}
+    </div>
+  );
+};
