@@ -621,93 +621,91 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         </div>
       )}
 
-      {/* Control Buttons - Bottom Left */}
-      <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-1 bg-background border rounded-lg shadow-md p-1">
-        <button
-          onClick={handleZoomIn}
-          className="p-2 hover:bg-muted rounded transition-colors"
-          title="Zoom In"
-        >
-          <ZoomIn className="w-4 h-4 text-muted-foreground" />
-        </button>
-        <button
-          onClick={handleZoomOut}
-          className="p-2 hover:bg-muted rounded transition-colors"
-          title="Zoom Out"
-        >
-          <ZoomOut className="w-4 h-4 text-muted-foreground" />
-        </button>
-        <button
-          onClick={handleFitView}
-          className="p-2 hover:bg-muted rounded transition-colors"
-          title="Fit View"
-        >
-          <Maximize className="w-4 h-4 text-muted-foreground" />
-        </button>
-        <button
-          onClick={() => setIsInteractive(!isInteractive)}
-          className={cn(
-            "p-2 hover:bg-muted rounded transition-colors",
-            !isInteractive && "bg-muted"
-          )}
-          title={isInteractive ? "Lock Canvas" : "Unlock Canvas"}
-        >
-          {isInteractive ? (
-            <Unlock className="w-4 h-4 text-muted-foreground" />
-          ) : (
-            <Lock className="w-4 h-4 text-muted-foreground" />
-          )}
-        </button>
-      </div>
+      {/* React Flow Canvas - Full Interactive */}
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onConnectStart={onConnectStart}
+        onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
+        onPaneClick={onPaneClick}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        onInit={(instance) => {
+          reactFlowRef.current = instance;
+        }}
+        deleteKeyCode={null}
+        panOnDrag={isInteractive}
+        zoomOnScroll={isInteractive}
+        zoomOnPinch={isInteractive}
+        zoomOnDoubleClick={isInteractive}
+        nodesDraggable={isInteractive}
+        nodesConnectable={isInteractive}
+        elementsSelectable={true}
+        fitView
+        fitViewOptions={{ padding: 0.2 }}
+        defaultEdgeOptions={{
+          type: 'plusEdge',
+          markerEnd: { type: MarkerType.ArrowClosed },
+          style: { stroke: 'hsl(var(--border))', strokeWidth: 2 },
+        }}
+        className="absolute inset-0"
+        style={{ top: svgTop + triggerMergeHeight + 60 }}
+      >
+        <Background gap={20} size={1} color="hsl(var(--border))" style={{ opacity: 0.4 }} />
+        
+        {/* Control Buttons - Bottom Left */}
+        <Panel position="bottom-left" className="flex flex-col gap-1 bg-background border rounded-lg shadow-md p-1 m-4">
+          <button
+            onClick={handleZoomIn}
+            className="p-2 hover:bg-muted rounded transition-colors"
+            title="Zoom In"
+          >
+            <ZoomIn className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <button
+            onClick={handleZoomOut}
+            className="p-2 hover:bg-muted rounded transition-colors"
+            title="Zoom Out"
+          >
+            <ZoomOut className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <button
+            onClick={handleFitView}
+            className="p-2 hover:bg-muted rounded transition-colors"
+            title="Fit View"
+          >
+            <Maximize className="w-4 h-4 text-muted-foreground" />
+          </button>
+          <button
+            onClick={() => setIsInteractive(!isInteractive)}
+            className={cn(
+              "p-2 hover:bg-muted rounded transition-colors",
+              !isInteractive && "bg-muted"
+            )}
+            title={isInteractive ? "Lock Canvas" : "Unlock Canvas"}
+          >
+            {isInteractive ? (
+              <Unlock className="w-4 h-4 text-muted-foreground" />
+            ) : (
+              <Lock className="w-4 h-4 text-muted-foreground" />
+            )}
+          </button>
+        </Panel>
 
-      {/* Mini Map - Bottom Right */}
-      <div className="absolute bottom-4 right-4 z-20 border rounded-lg shadow-md overflow-hidden bg-background">
-        <div className="w-[180px] h-[120px] relative">
-          {/* Simple minimap visualization */}
-          <div className="absolute inset-2 border border-border/50 rounded bg-muted/20">
-            {/* Viewport indicator */}
-            <div className="absolute top-1/4 left-1/4 w-1/2 h-1/2 border-2 border-primary/50 bg-primary/10 rounded" />
-            {/* Node indicators */}
-            {triggers.map((trigger, i) => (
-              <div 
-                key={trigger.id}
-                className="absolute w-3 h-2 rounded-sm"
-                style={{ 
-                  backgroundColor: COLOR_HEX[trigger.color],
-                  top: '15%',
-                  left: `${30 + i * 15}%`
-                }}
-              />
-            ))}
-            {nodes.map((node, i) => (
-              <div 
-                key={node.id}
-                className="absolute w-3 h-2 rounded-sm"
-                style={{ 
-                  backgroundColor: COLOR_HEX[node.data.color],
-                  top: `${40 + i * 12}%`,
-                  left: '45%'
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* React Flow Canvas - Hidden but kept for edge management */}
-      <div className="hidden">
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onConnectStart={onConnectStart}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          deleteKeyCode={null}
+        {/* Mini Map - Bottom Right */}
+        <MiniMap 
+          nodeColor={minimapNodeColor}
+          nodeStrokeWidth={3}
+          zoomable
+          pannable
+          className="!bg-background !border !rounded-lg !shadow-md !m-4"
+          style={{ width: 180, height: 120 }}
         />
-      </div>
+      </ReactFlow>
     </div>
   );
 };
