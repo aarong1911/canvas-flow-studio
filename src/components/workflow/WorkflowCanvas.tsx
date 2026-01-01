@@ -413,64 +413,46 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       {/* Connector lines from triggers to flow - SVG */}
       {hasConfiguredTriggers && triggerPositions.length > 0 && (
         <svg 
-          className="absolute left-0 right-0 pointer-events-none"
+          className="absolute left-0 right-0 pointer-events-none z-[5]"
           style={{ 
             top: svgTop, 
             height: svgHeight,
             width: '100%'
           }}
         >
+          {/* Vertical drop lines from each configured trigger */}
           {triggerPositions.map((startX, index) => {
             const isSingle = triggerPositions.length === 1;
+            const dropDistance = 40;
+            const horizontalY = dropDistance;
             
             if (isSingle) {
-              // Single trigger: straight vertical line to center
+              // Single trigger: straight vertical line down to bottom
               return (
-                <g key={index}>
-                  <line
-                    x1={startX}
-                    y1={0}
-                    x2={startX}
-                    y2={svgHeight}
-                    stroke="hsl(var(--border))"
-                    strokeWidth="2"
-                  />
-                </g>
+                <line
+                  key={index}
+                  x1={startX}
+                  y1={0}
+                  x2={startX}
+                  y2={svgHeight}
+                  stroke="hsl(var(--border))"
+                  strokeWidth="2"
+                />
               );
             }
             
-            // Multiple triggers: curved paths that merge
-            const dropDistance = 35;
-            const curveRadius = 25;
-            const mergeY = svgHeight - 20;
+            // Multiple triggers: vertical drop + horizontal to center + vertical down
+            const isLeftOfCenter = startX < mergePointX;
+            const cornerRadius = 8;
             
-            // Determine direction to merge point
-            const goingRight = startX < mergePointX;
-            const goingLeft = startX > mergePointX;
-            const isCenter = Math.abs(startX - mergePointX) < 30;
-            
-            let path: string;
-            
-            if (isCenter) {
-              // Center trigger: straight down then merge
-              path = `M ${startX} 0 L ${startX} ${dropDistance} L ${startX} ${mergeY} L ${mergePointX} ${svgHeight}`;
-            } else if (goingRight) {
-              // Left side: drop, curve right, go to merge
-              path = `M ${startX} 0 
-                      L ${startX} ${dropDistance}
-                      Q ${startX} ${dropDistance + curveRadius} ${startX + curveRadius} ${dropDistance + curveRadius}
-                      L ${mergePointX - curveRadius} ${dropDistance + curveRadius}
-                      Q ${mergePointX} ${dropDistance + curveRadius} ${mergePointX} ${dropDistance + curveRadius * 2}
-                      L ${mergePointX} ${svgHeight}`;
-            } else {
-              // Right side: drop, curve left, go to merge
-              path = `M ${startX} 0 
-                      L ${startX} ${dropDistance}
-                      Q ${startX} ${dropDistance + curveRadius} ${startX - curveRadius} ${dropDistance + curveRadius}
-                      L ${mergePointX + curveRadius} ${dropDistance + curveRadius}
-                      Q ${mergePointX} ${dropDistance + curveRadius} ${mergePointX} ${dropDistance + curveRadius * 2}
-                      L ${mergePointX} ${svgHeight}`;
-            }
+            // Path: drop down, curve to horizontal, go to center line
+            const path = `
+              M ${startX} 0
+              L ${startX} ${horizontalY - cornerRadius}
+              Q ${startX} ${horizontalY} ${isLeftOfCenter ? startX + cornerRadius : startX - cornerRadius} ${horizontalY}
+              L ${isLeftOfCenter ? mergePointX - cornerRadius : mergePointX + cornerRadius} ${horizontalY}
+              Q ${mergePointX} ${horizontalY} ${mergePointX} ${horizontalY + cornerRadius}
+            `;
 
             return (
               <path
@@ -484,6 +466,18 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
               />
             );
           })}
+          
+          {/* Center vertical line (merge line) - only when multiple triggers */}
+          {triggerPositions.length > 1 && (
+            <line
+              x1={mergePointX}
+              y1={40 + 8} 
+              x2={mergePointX}
+              y2={svgHeight}
+              stroke="hsl(var(--border))"
+              strokeWidth="2"
+            />
+          )}
         </svg>
       )}
 
