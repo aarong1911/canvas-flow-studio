@@ -1,12 +1,20 @@
 import React from "react";
 import { NodeProps, Handle, Position } from "reactflow";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, MoreVertical, Copy, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RFNodeData, RFNode, ConnectFrom, ColorKey, BuilderNodeType } from "./types";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface WorkflowNodeCardProps extends NodeProps<RFNodeData> {
   onSelectNode: (id: string) => void;
   onDeleteNode: (id: string) => void;
+  onDuplicateNode?: (id: string) => void;
   onAddAfter: (from: { sourceNodeId: string; sourceHandle: ConnectFrom["sourceHandle"] }) => void;
 }
 
@@ -77,6 +85,7 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
   selected,
   onSelectNode,
   onDeleteNode,
+  onDuplicateNode,
   onAddAfter,
 }) => {
   const Icon = data.icon;
@@ -110,23 +119,6 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
           selected && "ring-2 ring-offset-2 ring-primary ring-offset-background scale-[1.02]"
         )}
       >
-        {/* Delete Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDeleteNode(id);
-          }}
-          className={cn(
-            "absolute -top-2 -right-2 p-1.5 rounded-full transition-all duration-200",
-            "bg-destructive text-destructive-foreground",
-            "opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100",
-            "shadow-md hover:shadow-lg"
-          )}
-          title="Delete node"
-        >
-          <Trash2 className="w-3 h-3" />
-        </button>
-
         {/* Node Content */}
         <div className="flex items-center gap-3">
           <div className={cn(
@@ -143,6 +135,45 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
               {data.label}
             </div>
           </div>
+          
+          {/* Three Dots Menu - Always visible */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="p-1.5 rounded hover:bg-white/20 transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48 bg-background">
+              <DropdownMenuItem onClick={(e) => {
+                e.stopPropagation();
+                onSelectNode(id);
+              }}>
+                <Settings className="w-4 h-4 mr-2" />
+                Configure
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => {
+                e.stopPropagation();
+                onDuplicateNode?.(id);
+              }}>
+                <Copy className="w-4 h-4 mr-2" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteNode(id);
+                }}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Branch Buttons for Conditions */}
