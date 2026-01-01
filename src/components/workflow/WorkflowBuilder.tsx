@@ -276,6 +276,61 @@ export const WorkflowBuilder: React.FC = () => {
       },
     };
 
+    // Check if we're inserting on an existing edge
+    if (selectedEdgeId) {
+      const edge = edges.find(e => e.id === selectedEdgeId);
+      if (edge) {
+        // Find source and target nodes to calculate insert position
+        const sourceNode = nodes.find(n => n.id === edge.source);
+        const targetNode = nodes.find(n => n.id === edge.target);
+        
+        if (sourceNode && targetNode) {
+          // Position between source and target
+          newNode.position = {
+            x: (sourceNode.position.x + targetNode.position.x) / 2,
+            y: (sourceNode.position.y + targetNode.position.y) / 2,
+          };
+        }
+
+        setNodes((nds) => [...nds, newNode]);
+
+        // Remove old edge and create two new edges
+        setEdges((eds) => {
+          const filtered = eds.filter(e => e.id !== selectedEdgeId);
+          return [
+            ...filtered,
+            {
+              id: crypto.randomUUID(),
+              source: edge.source,
+              target: nodeId,
+              sourceHandle: edge.sourceHandle,
+              targetHandle: "in",
+              type: "plusEdge",
+              markerEnd: { type: MarkerType.ArrowClosed },
+              style: { strokeWidth: 2 },
+            },
+            {
+              id: crypto.randomUUID(),
+              source: nodeId,
+              target: edge.target,
+              sourceHandle: "default",
+              targetHandle: "in",
+              type: "plusEdge",
+              markerEnd: { type: MarkerType.ArrowClosed },
+              style: { strokeWidth: 2 },
+            },
+          ];
+        });
+
+        setSelectedEdgeId(null);
+        setConnectFrom(null);
+        setSelectedNodeId(nodeId);
+        setSidebarTab("settings");
+        toast.success(`Inserted: ${item.label}`);
+        return;
+      }
+    }
+
     setNodes((nds) => [...nds, newNode]);
 
     if (connectFrom) {
@@ -285,7 +340,7 @@ export const WorkflowBuilder: React.FC = () => {
         target: nodeId,
         sourceHandle: connectFrom.sourceHandle,
         targetHandle: "in",
-        type: "smoothstep",
+        type: "plusEdge",
         markerEnd: { type: MarkerType.ArrowClosed },
         style: { strokeWidth: 2 },
         label: connectFrom.sourceHandle === "yes" ? "Yes" : connectFrom.sourceHandle === "no" ? "No" : connectFrom.sourceHandle === "none" ? "None" : undefined,
@@ -296,7 +351,7 @@ export const WorkflowBuilder: React.FC = () => {
     setSelectedNodeId(nodeId);
     setSidebarTab("settings");
     toast.success(`Added: ${item.label}`);
-  }, [connectFrom, getNewNodePosition, setEdges, setNodes]);
+  }, [connectFrom, selectedEdgeId, edges, nodes, getNewNodePosition, setEdges, setNodes]);
 
   const handleSaveNodeConfig = useCallback((nodeId: string, config: Record<string, any>) => {
     setNodes((nds) => nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, config, isConfigured: true } } : n)));
@@ -308,6 +363,18 @@ export const WorkflowBuilder: React.FC = () => {
     setSelectedEdgeId(null);
     toast.success("Disconnected");
   }, [setEdges]);
+
+  // Handle inserting a node on an edge (clicking plus button on edge)
+  const handleInsertOnEdge = useCallback((edgeId: string, sourceId: string, targetId: string) => {
+    // Store the edge info for inserting a node
+    setConnectFrom({ sourceNodeId: sourceId, sourceHandle: "default" });
+    // Store edge info in a ref or state for later use when adding node
+    // For now, just open the actions sidebar
+    setSidebarTab("actions");
+    setSelectedNodeId(null);
+    setSelectedEdgeId(edgeId);
+    setSelectedTriggerId(null);
+  }, []);
 
   // Stub functions for save/publish
   const handleSave = async () => { toast.success("Draft saved (demo)"); };
@@ -355,6 +422,7 @@ export const WorkflowBuilder: React.FC = () => {
             onAddTriggerClick={handleAddTriggerClick}
             onTriggerClick={handleTriggerClick}
             onAddActionClick={handleAddActionClick}
+            onInsertOnEdge={handleInsertOnEdge}
             reactFlowRef={reactFlowRef}
             canvasWrapRef={canvasWrapRef}
           />
