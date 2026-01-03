@@ -425,7 +425,7 @@ export const WorkflowBuilder: React.FC = () => {
   const persistWorkflowSettings = async () => {};
 
   return (
-    <div className="h-dvh overflow-hidden bg-background flex flex-col">
+    <div className="h-[calc(100dvh-64px)] overflow-hidden bg-background flex flex-col">
       {/* Full-width header */}
       <WorkflowHeader
         workflowName={workflowName}
