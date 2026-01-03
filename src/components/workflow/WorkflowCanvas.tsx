@@ -104,6 +104,12 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   reactFlowRef,
   canvasWrapRef,
 }) => {
+  // Zoom and pan state
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const contentRef = useRef<HTMLDivElement>(null);
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
@@ -316,19 +322,74 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   const triggerMergeHeight = 120;
 
   const handleZoomIn = () => {
-    reactFlowRef.current?.zoomIn();
+    setZoom(z => Math.min(z * 1.2, 2));
   };
 
   const handleZoomOut = () => {
-    reactFlowRef.current?.zoomOut();
+    setZoom(z => Math.max(z / 1.2, 0.5));
   };
 
   const handleFitView = () => {
-    reactFlowRef.current?.fitView({ padding: 0.2 });
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
   };
 
+  // Mouse wheel zoom
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (!isInteractive) return;
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setZoom(z => Math.min(Math.max(z * delta, 0.5), 2));
+  }, [isInteractive]);
+
+  // Pan handlers
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!isInteractive) return;
+    if (e.button !== 0) return; // Only left click
+    // Don't start drag if clicking on interactive elements
+    const target = e.target as HTMLElement;
+    if (target.closest('button, [data-trigger-card], [role="menu"]')) return;
+    
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+  }, [isInteractive, pan]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging) return;
+    setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+  }, [isDragging, dragStart]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsDragging(false);
+  }, []);
+
   return (
-    <div ref={canvasWrapRef} className="relative flex-1 min-h-0 bg-workflow-canvas" onDragOver={onDragOver}>
+    <div 
+      ref={canvasWrapRef} 
+      className={cn(
+        "relative flex-1 min-h-0 bg-workflow-canvas overflow-hidden",
+        isDragging && "cursor-grabbing",
+        isInteractive && !isDragging && "cursor-grab"
+      )}
+      onDragOver={onDragOver}
+      onWheel={handleWheel}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Zoomable/Pannable content wrapper */}
+      <div 
+        ref={contentRef}
+        className="absolute inset-0 origin-center transition-transform duration-75"
+        style={{ 
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+        }}
+      >
       {/* Trigger Row */}
       <div ref={triggerRowRef} className="absolute top-6 left-0 right-0 z-10 flex justify-center">
         <div className="flex items-center gap-4">
@@ -450,8 +511,10 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
           </div>
         </div>
       )}
+      </div>
+      {/* End of zoomable content wrapper */}
 
-      {/* Control Buttons - Bottom Left */}
+      {/* Control Buttons - Bottom Left (outside zoomable area) */}
       <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-1 bg-card border border-border rounded-lg shadow-sm p-1">
         <button onClick={handleZoomIn} className="p-2 hover:bg-muted rounded transition-colors" title="Zoom In">
           <ZoomIn className="w-4 h-4 text-muted-foreground" />
