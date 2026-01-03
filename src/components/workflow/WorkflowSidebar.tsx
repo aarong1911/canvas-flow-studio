@@ -25,6 +25,7 @@ import {
 } from "./types";
 import { TRIGGERS, ACTIONS, NODE_CONFIGS, ALL_LIBRARY_ITEMS } from "./node-library";
 import { CustomFieldInput } from "./CustomFieldInput";
+import { CustomFieldTextarea } from "./CustomFieldTextarea";
 import { RichTextEditor } from "./RichTextEditor";
 
 interface WorkflowSidebarProps {
@@ -519,35 +520,12 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                           )}
 
                           {field.type === "textarea" && (
-                            <>
-                              <Textarea
-                                ref={(el) => (textareaRefs.current[field.name] = el)}
-                                value={val ?? ""}
-                                onChange={(e) => setLocalConfig((s) => ({ ...s, [field.name]: e.target.value }))}
-                                rows={"rows" in field ? field.rows : 5}
-                                placeholder={"placeholder" in field ? field.placeholder : ""}
-                              />
-                              {showVars && (
-                                <div className="flex flex-wrap gap-1.5">
-                                  {variables.map((v) => (
-                                    <button
-                                      key={v}
-                                      type="button"
-                                      className="px-2 py-1 text-xs rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                                      onClick={() => {
-                                        const el = textareaRefs.current[field.name];
-                                        if (!el) return;
-                                        el.value = (localConfig[field.name] ?? "").toString();
-                                        insertAtCursor(el, v);
-                                        setLocalConfig((s) => ({ ...s, [field.name]: el.value }));
-                                      }}
-                                    >
-                                      {v}
-                                    </button>
-                                  ))}
-                                </div>
-                              )}
-                            </>
+                            <CustomFieldTextarea
+                              value={val ?? ""}
+                              onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
+                              rows={"rows" in field ? field.rows : 5}
+                              placeholder={"placeholder" in field ? field.placeholder : ""}
+                            />
                           )}
 
                           {field.type === "select" && (
