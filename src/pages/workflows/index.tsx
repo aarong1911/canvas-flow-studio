@@ -69,7 +69,7 @@ export default function WorkflowsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-[calc(100vh-64px)] bg-muted/30">
       <div className="max-w-6xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
