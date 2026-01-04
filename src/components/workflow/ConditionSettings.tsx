@@ -26,6 +26,7 @@ export interface ConditionConfig {
   action_name: string;
   scenario_recipe: string;
   branches: ConditionBranch[];
+  showNoneBranch?: boolean;
 }
 
 interface ConditionSettingsProps {
@@ -494,15 +495,34 @@ export const ConditionSettings: React.FC<ConditionSettingsProps> = ({
           </div>
 
           {/* None Branch Info */}
-          <div className="border rounded-lg p-4 bg-muted/20">
-            <div className="flex items-start gap-2">
-              <GripVertical className="w-4 h-4 text-muted-foreground mt-0.5" />
-              <div>
-                <div className="font-medium text-sm">None Branch</div>
-                <div className="text-xs text-muted-foreground">When no condition is met</div>
+          {config.showNoneBranch !== false && (
+            <div className="border rounded-lg p-4 bg-muted/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-start gap-2">
+                  <GripVertical className="w-4 h-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <div className="font-medium text-sm">None Branch</div>
+                    <div className="text-xs text-muted-foreground">When no condition is met</div>
+                  </div>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem 
+                      onClick={() => onChange({ ...config, showNoneBranch: false })}
+                      className="text-destructive"
+                    >
+                      Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </ScrollArea>
 

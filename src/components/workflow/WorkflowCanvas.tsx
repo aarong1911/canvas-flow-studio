@@ -77,12 +77,10 @@ const colorIconClasses: Record<ColorKey, string> = {
 const BranchCardsSection: React.FC<{
   node: RFNode;
   onAddActionClick: (sourceNodeId?: string, sourceHandle?: string) => void;
-  onDeleteNoneBranch?: (nodeId: string) => void;
-  showNoneBranch?: boolean;
-}> = ({ node, onAddActionClick, onDeleteNoneBranch, showNoneBranch = true }) => {
+}> = ({ node, onAddActionClick }) => {
   const branches = node.data.config?.branches || [];
-  const hasNoneBranch = showNoneBranch && node.data.config?.showNoneBranch !== false;
-  const totalBranches = branches.length + (hasNoneBranch ? 1 : 0);
+  const showNoneBranch = node.data.config?.showNoneBranch !== false;
+  const totalBranches = branches.length + (showNoneBranch ? 1 : 0);
   const branchWidth = 200; // Width of each branch column
   const gap = 24; // Gap between branches
   const totalWidth = totalBranches * branchWidth + (totalBranches - 1) * gap;
@@ -201,36 +199,12 @@ const BranchCardsSection: React.FC<{
         ))}
         
         {/* None branch */}
-        {hasNoneBranch && (
+        {showNoneBranch && (
           <div className="flex flex-col items-center" style={{ width: branchWidth }}>
-            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 w-full relative">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-gray-600">
-                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-                  <span className="text-sm font-medium">None</span>
-                </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-1 rounded hover:bg-gray-200 transition-colors"
-                    >
-                      <MoreHorizontal className="w-4 h-4 text-gray-500" />
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteNoneBranch?.(node.id);
-                      }}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 w-full">
+              <div className="flex items-center gap-2 text-gray-600">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm font-medium">None</span>
               </div>
               <div className="text-xs text-gray-500 mt-1">
                 When no conditions match
@@ -742,25 +716,6 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                       <BranchCardsSection 
                         node={node} 
                         onAddActionClick={onAddActionClick}
-                        showNoneBranch={node.data.config?.showNoneBranch !== false}
-                        onDeleteNoneBranch={(nodeId) => {
-                          setNodes((nds) =>
-                            nds.map((n) =>
-                              n.id === nodeId
-                                ? {
-                                    ...n,
-                                    data: {
-                                      ...n.data,
-                                      config: {
-                                        ...n.data.config,
-                                        showNoneBranch: false,
-                                      },
-                                    },
-                                  }
-                                : n
-                            )
-                          );
-                        }}
                       />
                     ) : !isCondition ? (
                       <div className="flex flex-col items-center">
