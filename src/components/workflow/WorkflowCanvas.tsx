@@ -959,7 +959,30 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         
         return (
         <div className="absolute z-10 flex flex-col items-center" style={{ top: svgTop + triggerMergeHeight, left: '50%', transform: 'translateX(-50%)' }}>
-          <PlusButton onClick={() => onAddActionClick()} />
+          {/* Initial plus button - only shown if no nodes or to add before first node */}
+          {mainColumnNodes.length === 0 ? (
+            <PlusButton onClick={() => onAddActionClick()} />
+          ) : (
+            <div className="flex flex-col items-center">
+              <div className="w-0.5 h-4 bg-border" />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Insert before first node - pass special handler
+                  onInsertBetween("__trigger__", mainColumnNodes[0].id, "default");
+                }}
+                className={cn(
+                  "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+                  "flex items-center justify-center",
+                  "hover:bg-primary hover:border-primary hover:text-primary-foreground",
+                  "transition-all duration-200 group"
+                )}
+              >
+                <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
+              </button>
+              <div className="w-0.5 h-4 bg-border" />
+            </div>
+          )}
           
           {mainColumnNodes.length > 0 && (
             <div className="flex flex-col items-center">
@@ -972,30 +995,27 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 
                 return (
                   <div key={node.id} className="flex flex-col items-center">
-                    {/* Connector line with centered plus button - above node */}
-                    <div className="flex flex-col items-center">
-                      <div className="w-0.5 h-4 bg-border" />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (prevNode) {
+                    {/* Connector line with centered plus button - between nodes (not before first) */}
+                    {prevNode && (
+                      <div className="flex flex-col items-center">
+                        <div className="w-0.5 h-4 bg-border" />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
                             onInsertBetween(prevNode.id, node.id, "default");
-                          } else {
-                            // Insert before first node
-                            onAddActionClick(undefined, undefined);
-                          }
-                        }}
-                        className={cn(
-                          "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
-                          "flex items-center justify-center",
-                          "hover:bg-primary hover:border-primary hover:text-primary-foreground",
-                          "transition-all duration-200 group"
-                        )}
-                      >
-                        <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
-                      </button>
-                      <div className="w-0.5 h-4 bg-border" />
-                    </div>
+                          }}
+                          className={cn(
+                            "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+                            "flex items-center justify-center",
+                            "hover:bg-primary hover:border-primary hover:text-primary-foreground",
+                            "transition-all duration-200 group"
+                          )}
+                        >
+                          <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
+                        </button>
+                        <div className="w-0.5 h-4 bg-border" />
+                      </div>
+                    )}
                     
                     <div
                       className={cn(
