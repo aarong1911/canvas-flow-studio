@@ -91,7 +91,6 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
   const Icon = data.icon;
   const styles = getNodeStyles(data.builderType, data.color);
   const isCondition = data.builderType === "condition";
-  const isSplit = data.actionType === "split";
   const isTrigger = data.builderType === "trigger";
   const branches = getBranches(data);
   const hasBranches = branches && branches.length > 0;
@@ -310,112 +309,15 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
         </div>
       )}
 
-      {/* Default branch buttons for conditions without saved branches */}
-      {isCondition && !hasBranches && (
-        <>
-          {isSplit ? (
-            // Split A/B - two paths
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {(["yes", "no"] as const).map((handle, idx) => (
-                <button
-                  key={handle}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddAfter({ sourceNodeId: id, sourceHandle: handle });
-                  }}
-                  className={cn(
-                    "flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all",
-                    "border bg-card",
-                    handle === "yes" && "border-blue-300 text-blue-600 hover:bg-blue-50",
-                    handle === "no" && "border-purple-300 text-purple-600 hover:bg-purple-50"
-                  )}
-                  title={`Add to ${idx === 0 ? "Path A" : "Path B"}`}
-                >
-                  <Plus className="w-3 h-3" />
-                  {idx === 0 ? "Path A" : "Path B"}
-                </button>
-              ))}
-            </div>
-          ) : (
-            // If/Else - three paths
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {(["yes", "no", "none"] as const).map((handle) => (
-                <button
-                  key={handle}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddAfter({ sourceNodeId: id, sourceHandle: handle });
-                  }}
-                  className={cn(
-                    "flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all",
-                    "border bg-card",
-                    handle === "yes" && "border-green-300 text-green-600 hover:bg-green-50",
-                    handle === "no" && "border-red-300 text-red-600 hover:bg-red-50",
-                    handle === "none" && "border-gray-300 text-gray-600 hover:bg-gray-50"
-                  )}
-                  title={`Add after ${handle}`}
-                >
-                  <Plus className="w-3 h-3" />
-                  {handle === "none" ? "None" : handle.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Source Handles */}
-      {isCondition && !hasBranches && isSplit ? (
-        // Split A/B - two handles
-        <>
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="yes"
-            className="!w-3 !h-3 !bg-blue-500 !border-2 !border-background"
-            style={{ left: "30%" }}
-          />
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="no"
-            className="!w-3 !h-3 !bg-purple-500 !border-2 !border-background"
-            style={{ left: "70%" }}
-          />
-        </>
-      ) : isCondition && !hasBranches ? (
-        // If/Else - three handles (only when no branches saved)
-        <>
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="yes"
-            className="!w-3 !h-3 !bg-green-500 !border-2 !border-background"
-            style={{ left: "20%" }}
-          />
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="no"
-            className="!w-3 !h-3 !bg-red-500 !border-2 !border-background"
-            style={{ left: "50%" }}
-          />
-          <Handle
-            type="source"
-            position={Position.Bottom}
-            id="none"
-            className="!w-3 !h-3 !bg-gray-500 !border-2 !border-background"
-            style={{ left: "80%" }}
-          />
-        </>
-      ) : !isCondition ? (
+      {/* Source Handle for non-condition nodes */}
+      {!isCondition && (
         <Handle
           type="source"
           position={Position.Bottom}
           id="default"
           className="!w-3 !h-3 !bg-workflow-connector !border-2 !border-background"
         />
-      ) : null}
+      )}
     </div>
   );
 };

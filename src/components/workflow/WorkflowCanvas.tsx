@@ -12,7 +12,7 @@ import ReactFlow, {
   getSmoothStepPath,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Plus, MoreHorizontal, ZoomIn, ZoomOut, Maximize, Lock, Unlock, Trash2, Copy, Settings } from "lucide-react";
+import { Plus, MoreHorizontal, ZoomIn, ZoomOut, Maximize, Lock, Unlock, Trash2, Copy, Settings, GitBranch, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RFNode, RFEdge, RFNodeData, ConnectFrom, COLOR_HEX, SidebarTab, TriggerData, ColorKey } from "./types";
 import { TriggerCard } from "./TriggerCard";
@@ -71,6 +71,103 @@ const colorIconClasses: Record<ColorKey, string> = {
   amber: "bg-amber-100 text-amber-600",
   orange: "bg-orange-100 text-orange-600",
   gray: "bg-gray-100 text-gray-600",
+};
+
+// Branch Cards Section component for condition nodes with saved branches
+const BranchCardsSection: React.FC<{
+  node: RFNode;
+  onAddActionClick: (sourceNodeId?: string, sourceHandle?: string) => void;
+}> = ({ node, onAddActionClick }) => {
+  const branches = node.data.config?.branches || [];
+  
+  return (
+    <div className="mt-4 flex flex-col items-center">
+      {/* Vertical line from node */}
+      <div className="w-px h-6 bg-border" />
+      
+      {/* Branch cards container */}
+      <div className="flex gap-4 items-start">
+        {/* User-defined branches */}
+        {branches.map((branch: any, idx: number) => (
+          <div key={branch.id} className="flex flex-col items-center">
+            {/* Branch card */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 min-w-[160px] max-w-[200px]">
+              <div className="flex items-center gap-2 text-blue-700">
+                <GitBranch className="w-4 h-4" />
+                <span className="text-sm font-medium truncate">
+                  {branch.name || `Branch ${idx + 1}`}
+                </span>
+              </div>
+              {branch.segments && branch.segments[0]?.field && (
+                <div className="text-xs text-blue-600/70 mt-1 truncate">
+                  If "{branch.segments[0].field}" {branch.segments[0].operator}...
+                </div>
+              )}
+            </div>
+            
+            {/* Plus button and END */}
+            <div className="flex flex-col items-center mt-2">
+              <div className="w-px h-4 bg-border" />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddActionClick(node.id, `branch_${idx}`);
+                }}
+                className={cn(
+                  "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+                  "flex items-center justify-center",
+                  "hover:bg-primary hover:border-primary hover:text-primary-foreground",
+                  "transition-all duration-200 group"
+                )}
+              >
+                <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
+              </button>
+              <div className="w-px h-4 bg-border" />
+              <div className="bg-muted border border-border rounded-full px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide shadow-sm">
+                END
+              </div>
+            </div>
+          </div>
+        ))}
+        
+        {/* None branch */}
+        <div className="flex flex-col items-center">
+          <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 min-w-[140px]">
+            <div className="flex items-center gap-2 text-gray-600">
+              <AlertTriangle className="w-4 h-4" />
+              <span className="text-sm font-medium">None</span>
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              When no conditions are met
+            </div>
+          </div>
+          
+          {/* Plus button and END */}
+          <div className="flex flex-col items-center mt-2">
+            <div className="w-px h-4 bg-border" />
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddActionClick(node.id, "none");
+              }}
+              className={cn(
+                "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+                "flex items-center justify-center",
+                "hover:bg-primary hover:border-primary hover:text-primary-foreground",
+                "transition-all duration-200 group"
+              )}
+            >
+              <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
+            </button>
+            <div className="w-px h-4 bg-border" />
+            <div className="bg-muted border border-border rounded-full px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide shadow-sm">
+              END
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
@@ -543,66 +640,34 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                       </div>
                     </div>
                     
-                    {/* Branch buttons for condition nodes */}
-                    {isCondition && node.data.actionType === "split" ? (
-                      <div className="mt-2 grid grid-cols-2 gap-2 w-full max-w-[220px]">
-                        {(["yes", "no"] as const).map((handle, idx) => (
-                          <button
-                            key={handle}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onAddActionClick(node.id, handle);
-                            }}
-                            className={cn(
-                              "flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all",
-                              "border backdrop-blur-sm",
-                              handle === "yes" && "bg-blue-100 border-blue-300 text-blue-700 hover:bg-blue-200",
-                              handle === "no" && "bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200"
-                            )}
-                          >
-                            <Plus className="w-3 h-3" />
-                            {idx === 0 ? "Path A" : "Path B"}
-                          </button>
-                        ))}
-                      </div>
-                    ) : isCondition ? (
-                      <div className="mt-2 grid grid-cols-3 gap-1.5 w-full max-w-[220px]">
-                        {(["yes", "no", "none"] as const).map((handle) => (
-                          <button
-                            key={handle}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onAddActionClick(node.id, handle);
-                            }}
-                            className={cn(
-                              "flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-all",
-                              "border backdrop-blur-sm",
-                              handle === "yes" && "bg-green-100 border-green-300 text-green-700 hover:bg-green-200",
-                              handle === "no" && "bg-red-100 border-red-300 text-red-700 hover:bg-red-200",
-                              handle === "none" && "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
-                            )}
-                          >
-                            <Plus className="w-3 h-3" />
-                            {handle === "none" ? "None" : handle.toUpperCase()}
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
+                    {/* Branch buttons for condition nodes - only show if no branches configured yet */}
+                    {isCondition && node.data.config?.branches?.length > 0 ? (
+                      // Show saved branches as cards
+                      <BranchCardsSection 
+                        node={node} 
+                        onAddActionClick={onAddActionClick}
+                      />
+                    ) : !isCondition ? (
                       <div className="flex flex-col items-center">
                         <div className="w-px h-4 bg-border" />
                         <PlusButton onClick={() => onAddActionClick(node.id, "default")} />
                       </div>
-                    )}
+                    ) : null}
                   </div>
                 );
               })}
             </div>
           )}
           
-          <div className="w-px h-8 bg-border" />
-          <div className={cn("bg-muted border border-border rounded-full px-4 py-1.5", "text-xs font-medium text-muted-foreground uppercase tracking-wide shadow-sm")}>
-            END
-          </div>
+          {/* Only show main END if there are no condition nodes with branches */}
+          {!nodes.some(n => n.data.builderType === "condition" && n.data.config?.branches?.length > 0) && (
+            <>
+              <div className="w-px h-8 bg-border" />
+              <div className={cn("bg-muted border border-border rounded-full px-4 py-1.5", "text-xs font-medium text-muted-foreground uppercase tracking-wide shadow-sm")}>
+                END
+              </div>
+            </>
+          )}
         </div>
       )}
       </div>
