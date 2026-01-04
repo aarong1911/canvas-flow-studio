@@ -1,6 +1,6 @@
 import React from "react";
 import { NodeProps, Handle, Position } from "reactflow";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, MoreHorizontal, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RFNodeData, RFNode, ConnectFrom, ColorKey, BuilderNodeType } from "./types";
 
@@ -25,10 +25,10 @@ function getNodeStyles(builderType: BuilderNodeType, color: ColorKey) {
       shadow: "shadow-blue-500/20",
     },
     condition: {
-      bg: "bg-gradient-to-br from-amber-400 to-amber-500",
-      text: "text-amber-950",
-      border: "border-amber-300",
-      shadow: "shadow-amber-500/20",
+      bg: "bg-card",
+      text: "text-foreground",
+      border: "border-border",
+      shadow: "shadow-md",
     },
     delay: {
       bg: "bg-gradient-to-br from-orange-400 to-orange-500",
@@ -71,6 +71,15 @@ function prettyNodeTitle(data: RFNodeData) {
   return cfg.action_name || cfg.trigger_name || data.label;
 }
 
+// Get branches from config
+function getBranches(data: RFNodeData) {
+  const cfg = data.config || {};
+  if (cfg.branches && Array.isArray(cfg.branches)) {
+    return cfg.branches;
+  }
+  return null;
+}
+
 export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
   id,
   data,
@@ -84,6 +93,8 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
   const isCondition = data.builderType === "condition";
   const isSplit = data.actionType === "split";
   const isTrigger = data.builderType === "trigger";
+  const branches = getBranches(data);
+  const hasBranches = branches && branches.length > 0;
 
   return (
     <div className="relative group">
@@ -97,104 +108,98 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
         />
       )}
 
-      {/* Node Card */}
-      <div
-        onClick={() => onSelectNode(id)}
-        className={cn(
-          "relative rounded-xl border-2 px-4 py-3 cursor-pointer transition-all duration-200",
-          "min-w-[260px] max-w-[320px]",
-          "shadow-lg hover:shadow-xl",
-          styles.bg,
-          styles.text,
-          styles.border,
-          styles.shadow,
-          selected && "ring-2 ring-offset-2 ring-primary ring-offset-background scale-[1.02]"
-        )}
-      >
-        {/* Delete Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDeleteNode(id);
-          }}
+      {/* Main Node Card - Simplified for conditions */}
+      {isCondition ? (
+        <div
+          onClick={() => onSelectNode(id)}
           className={cn(
-            "absolute -top-2 -right-2 p-1.5 rounded-full transition-all duration-200",
-            "bg-destructive text-destructive-foreground",
-            "opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100",
-            "shadow-md hover:shadow-lg"
+            "relative rounded-xl border bg-card px-4 py-3 cursor-pointer transition-all duration-200",
+            "min-w-[180px]",
+            "shadow-md hover:shadow-lg",
+            selected && "ring-2 ring-offset-2 ring-primary ring-offset-background"
           )}
-          title="Delete node"
         >
-          <Trash2 className="w-3 h-3" />
-        </button>
+          {/* Delete Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteNode(id);
+            }}
+            className={cn(
+              "absolute -top-2 -right-2 p-1.5 rounded-full transition-all duration-200",
+              "bg-destructive text-destructive-foreground",
+              "opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100",
+              "shadow-md hover:shadow-lg"
+            )}
+            title="Delete node"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
 
-        {/* Node Content */}
-        <div className="flex items-center gap-3">
-          <div className={cn(
-            "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
-            "bg-white/20 backdrop-blur-sm"
-          )}>
-            <Icon className="w-5 h-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold truncate leading-tight">
-              {prettyNodeTitle(data)}
+          {/* Node Content */}
+          <div className="flex items-center gap-3">
+            <div className="text-lg text-muted-foreground">{"{}"}</div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-foreground truncate">
+                {prettyNodeTitle(data)}
+              </div>
             </div>
-            <div className="text-xs opacity-75 truncate mt-0.5">
-              {data.label}
-            </div>
+            <button className="p-1 hover:bg-muted rounded">
+              <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+            </button>
           </div>
         </div>
+      ) : (
+        /* Regular Node Card */
+        <div
+          onClick={() => onSelectNode(id)}
+          className={cn(
+            "relative rounded-xl border-2 px-4 py-3 cursor-pointer transition-all duration-200",
+            "min-w-[260px] max-w-[320px]",
+            "shadow-lg hover:shadow-xl",
+            styles.bg,
+            styles.text,
+            styles.border,
+            styles.shadow,
+            selected && "ring-2 ring-offset-2 ring-primary ring-offset-background scale-[1.02]"
+          )}
+        >
+          {/* Delete Button */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteNode(id);
+            }}
+            className={cn(
+              "absolute -top-2 -right-2 p-1.5 rounded-full transition-all duration-200",
+              "bg-destructive text-destructive-foreground",
+              "opacity-0 group-hover:opacity-100 scale-75 group-hover:scale-100",
+              "shadow-md hover:shadow-lg"
+            )}
+            title="Delete node"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
 
-        {/* Branch Buttons for Conditions */}
-        {isCondition && isSplit ? (
-          // Split A/B - two paths
-          <div className="mt-4 grid grid-cols-2 gap-2">
-            {(["yes", "no"] as const).map((handle, idx) => (
-              <button
-                key={handle}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddAfter({ sourceNodeId: id, sourceHandle: handle });
-                }}
-                className={cn(
-                  "flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all",
-                  "border-2 backdrop-blur-sm",
-                  handle === "yes" && "bg-blue-500/90 border-blue-400 text-white hover:bg-blue-500",
-                  handle === "no" && "bg-purple-500/90 border-purple-400 text-white hover:bg-purple-500"
-                )}
-                title={`Add to ${idx === 0 ? "Path A" : "Path B"}`}
-              >
-                <Plus className="w-3 h-3" />
-                {idx === 0 ? "Path A" : "Path B"}
-              </button>
-            ))}
+          {/* Node Content */}
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0",
+              "bg-white/20 backdrop-blur-sm"
+            )}>
+              <Icon className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold truncate leading-tight">
+                {prettyNodeTitle(data)}
+              </div>
+              <div className="text-xs opacity-75 truncate mt-0.5">
+                {data.label}
+              </div>
+            </div>
           </div>
-        ) : isCondition ? (
-          // If/Else - three paths
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {(["yes", "no", "none"] as const).map((handle) => (
-              <button
-                key={handle}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddAfter({ sourceNodeId: id, sourceHandle: handle });
-                }}
-                className={cn(
-                  "flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all",
-                  "border-2 backdrop-blur-sm",
-                  handle === "yes" && "bg-green-500/90 border-green-400 text-white hover:bg-green-500",
-                  handle === "no" && "bg-red-500/90 border-red-400 text-white hover:bg-red-500",
-                  handle === "none" && "bg-gray-500/90 border-gray-400 text-white hover:bg-gray-500"
-                )}
-                title={`Add after ${handle}`}
-              >
-                <Plus className="w-3 h-3" />
-                {handle === "none" ? "None" : handle.toUpperCase()}
-              </button>
-            ))}
-          </div>
-        ) : (
+
+          {/* Add Next Button for non-condition nodes */}
           <div className="mt-4 flex justify-center">
             <button
               onClick={(e) => {
@@ -212,11 +217,155 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
               Add Next
             </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Branch Cards for Conditions */}
+      {isCondition && hasBranches && (
+        <div className="mt-4 flex gap-3 justify-center">
+          {branches.map((branch: any, idx: number) => (
+            <div
+              key={branch.id}
+              className="relative flex flex-col items-center"
+            >
+              {/* Connector line from main node */}
+              <div className="w-px h-4 bg-border" />
+              
+              {/* Branch Card */}
+              <div className="border rounded-lg bg-blue-50 border-blue-200 px-3 py-2 min-w-[140px] max-w-[180px]">
+                <div className="flex items-center gap-2 text-blue-700">
+                  <AlertTriangle className="w-3 h-3" />
+                  <span className="text-xs font-medium truncate">{branch.name}</span>
+                </div>
+                {branch.segments && branch.segments[0]?.field && (
+                  <div className="text-xs text-blue-600/70 mt-1 truncate">
+                    If "{branch.segments[0].field}" {branch.segments[0].operator}...
+                  </div>
+                )}
+              </div>
+
+              {/* Add button below branch */}
+              <div className="mt-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Use branch index as handle identifier
+                    onAddAfter({ sourceNodeId: id, sourceHandle: idx === 0 ? "yes" : idx === 1 ? "no" : "none" });
+                  }}
+                  className="w-6 h-6 rounded-full border-2 border-border bg-card flex items-center justify-center hover:border-primary hover:text-primary transition-colors"
+                >
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
+
+              {/* Source Handle for this branch */}
+              <Handle
+                type="source"
+                position={Position.Bottom}
+                id={idx === 0 ? "yes" : idx === 1 ? "no" : "none"}
+                className="!w-3 !h-3 !bg-blue-500 !border-2 !border-background"
+                style={{ position: "relative", transform: "none", left: "auto", bottom: "auto" }}
+              />
+            </div>
+          ))}
+
+          {/* None Branch */}
+          <div className="relative flex flex-col items-center">
+            {/* Connector line from main node */}
+            <div className="w-px h-4 bg-border" />
+            
+            {/* None Branch Card */}
+            <div className="border rounded-lg bg-gray-50 border-gray-200 px-3 py-2 min-w-[100px]">
+              <div className="flex items-center gap-2 text-gray-600">
+                <AlertTriangle className="w-3 h-3" />
+                <span className="text-xs font-medium">None</span>
+              </div>
+              <div className="text-xs text-gray-500 mt-1">
+                When none of the conditions are met
+              </div>
+            </div>
+
+            {/* Add button below none branch */}
+            <div className="mt-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddAfter({ sourceNodeId: id, sourceHandle: "none" });
+                }}
+                className="w-6 h-6 rounded-full border-2 border-border bg-card flex items-center justify-center hover:border-primary hover:text-primary transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+
+            {/* Source Handle for none */}
+            <Handle
+              type="source"
+              position={Position.Bottom}
+              id="none"
+              className="!w-3 !h-3 !bg-gray-500 !border-2 !border-background"
+              style={{ position: "relative", transform: "none", left: "auto", bottom: "auto" }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Default branch buttons for conditions without saved branches */}
+      {isCondition && !hasBranches && (
+        <>
+          {isSplit ? (
+            // Split A/B - two paths
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {(["yes", "no"] as const).map((handle, idx) => (
+                <button
+                  key={handle}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddAfter({ sourceNodeId: id, sourceHandle: handle });
+                  }}
+                  className={cn(
+                    "flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all",
+                    "border bg-card",
+                    handle === "yes" && "border-blue-300 text-blue-600 hover:bg-blue-50",
+                    handle === "no" && "border-purple-300 text-purple-600 hover:bg-purple-50"
+                  )}
+                  title={`Add to ${idx === 0 ? "Path A" : "Path B"}`}
+                >
+                  <Plus className="w-3 h-3" />
+                  {idx === 0 ? "Path A" : "Path B"}
+                </button>
+              ))}
+            </div>
+          ) : (
+            // If/Else - three paths
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {(["yes", "no", "none"] as const).map((handle) => (
+                <button
+                  key={handle}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddAfter({ sourceNodeId: id, sourceHandle: handle });
+                  }}
+                  className={cn(
+                    "flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all",
+                    "border bg-card",
+                    handle === "yes" && "border-green-300 text-green-600 hover:bg-green-50",
+                    handle === "no" && "border-red-300 text-red-600 hover:bg-red-50",
+                    handle === "none" && "border-gray-300 text-gray-600 hover:bg-gray-50"
+                  )}
+                  title={`Add after ${handle}`}
+                >
+                  <Plus className="w-3 h-3" />
+                  {handle === "none" ? "None" : handle.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      )}
 
       {/* Source Handles */}
-      {isCondition && isSplit ? (
+      {isCondition && !hasBranches && isSplit ? (
         // Split A/B - two handles
         <>
           <Handle
@@ -234,8 +383,8 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
             style={{ left: "70%" }}
           />
         </>
-      ) : isCondition ? (
-        // If/Else - three handles
+      ) : isCondition && !hasBranches ? (
+        // If/Else - three handles (only when no branches saved)
         <>
           <Handle
             type="source"
@@ -259,14 +408,14 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
             style={{ left: "80%" }}
           />
         </>
-      ) : (
+      ) : !isCondition ? (
         <Handle
           type="source"
           position={Position.Bottom}
           id="default"
           className="!w-3 !h-3 !bg-workflow-connector !border-2 !border-background"
         />
-      )}
+      ) : null}
     </div>
   );
 };
