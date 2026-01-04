@@ -560,11 +560,9 @@ const BranchCardsSection: React.FC<{
 // Component to render persistent Go To connection lines
 const GoToConnectorLines: React.FC<{
   nodes: RFNode[];
-  pan: { x: number; y: number };
-  zoom: number;
   canvasWrapRef: React.RefObject<HTMLDivElement>;
   contentRef: React.RefObject<HTMLDivElement>;
-}> = ({ nodes, pan, zoom, canvasWrapRef, contentRef }) => {
+}> = ({ nodes, canvasWrapRef, contentRef }) => {
   const [connections, setConnections] = useState<Array<{
     sourceId: string;
     targetId: string;
@@ -576,7 +574,7 @@ const GoToConnectorLines: React.FC<{
 
   useEffect(() => {
     const updateConnections = () => {
-      if (!contentRef.current || !canvasWrapRef.current) return;
+      if (!contentRef.current) return;
       
       const newConnections: typeof connections = [];
       
@@ -595,11 +593,11 @@ const GoToConnectorLines: React.FC<{
             const targetRect = targetEl.getBoundingClientRect();
             
             if (contentRect) {
-              // Calculate positions relative to the content container, accounting for transform
-              const sourceX = (sourceRect.right - contentRect.left) / zoom - pan.x / zoom;
-              const sourceY = (sourceRect.bottom - contentRect.top) / zoom - pan.y / zoom - 8;
-              const targetX = (targetRect.left - contentRect.left) / zoom - pan.x / zoom;
-              const targetY = (targetRect.top + targetRect.height / 2 - contentRect.top) / zoom - pan.y / zoom;
+              // Calculate positions relative to the content container (already in transformed space)
+              const sourceX = sourceRect.right - contentRect.left + 4;
+              const sourceY = sourceRect.top + sourceRect.height / 2 - contentRect.top;
+              const targetX = targetRect.left - contentRect.left - 4;
+              const targetY = targetRect.top + targetRect.height / 2 - contentRect.top;
               
               newConnections.push({
                 sourceId: node.id,
@@ -617,8 +615,10 @@ const GoToConnectorLines: React.FC<{
       setConnections(newConnections);
     };
 
+    // Initial update
     updateConnections();
-    // Update on scroll, resize, and node changes
+    
+    // Update on DOM changes
     const observer = new MutationObserver(updateConnections);
     if (contentRef.current) {
       observer.observe(contentRef.current, { childList: true, subtree: true, attributes: true });
@@ -627,24 +627,22 @@ const GoToConnectorLines: React.FC<{
     
     // Also update after a short delay to catch layout changes
     const timeout = setTimeout(updateConnections, 100);
+    const timeout2 = setTimeout(updateConnections, 300);
     
     return () => {
       observer.disconnect();
       window.removeEventListener('resize', updateConnections);
       clearTimeout(timeout);
+      clearTimeout(timeout2);
     };
-  }, [nodes, pan, zoom, canvasWrapRef, contentRef]);
+  }, [nodes, contentRef]);
 
   if (connections.length === 0) return null;
 
   return (
     <svg 
-      className="absolute inset-0 pointer-events-none z-40"
-      style={{ 
-        transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-        transformOrigin: '0 0',
-        overflow: 'visible'
-      }}
+      className="absolute inset-0 pointer-events-none"
+      style={{ overflow: 'visible' }}
     >
       <defs>
         <marker
@@ -659,11 +657,16 @@ const GoToConnectorLines: React.FC<{
         </marker>
       </defs>
       {connections.map(conn => {
-        // Create a curved path from source to target
-        const midX = (conn.sourceX + conn.targetX) / 2;
-        const controlOffset = Math.abs(conn.targetY - conn.sourceY) * 0.5 + 50;
+        // Determine curve direction based on target position
+        const goingUp = conn.targetY < conn.sourceY;
+        const goingLeft = conn.targetX < conn.sourceX;
         
-        // Create a smooth bezier curve
+        // Calculate control points for a nice curve
+        const dx = Math.abs(conn.targetX - conn.sourceX);
+        const dy = Math.abs(conn.targetY - conn.sourceY);
+        const controlOffset = Math.max(dx * 0.5, 60);
+        
+        // Create a smooth bezier curve going right first, then curving to target
         const path = `M ${conn.sourceX} ${conn.sourceY} 
           C ${conn.sourceX + controlOffset} ${conn.sourceY}, 
             ${conn.targetX - controlOffset} ${conn.targetY}, 
@@ -1200,10 +1203,16 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         // Find all nodes that are connected to condition branches (should not be in main column)
         const branchConnectedNodeIds = new Set<string>();
         
-        const collectBranchNodes = (nodeId: string) => {
+        const collectBranchNodes = (nodeId: string, visited: Set<string> = new Set()) => {
+          // Prevent infinite recursion by tracking visited nodes
+          if (visited.has(nodeId)) return;
+          visited.add(nodeId);
+          
           branchConnectedNodeIds.add(nodeId);
-          // Find all children of this node
-          edges.filter(e => e.source === nodeId).forEach(e => collectBranchNodes(e.target));
+          // Find all children of this node (excluding go_to edges which are visual only)
+          edges
+            .filter(e => e.source === nodeId && e.data?.label !== "Go To")
+            .forEach(e => collectBranchNodes(e.target, visited));
         };
         
         // Find condition nodes with branches and collect their connected nodes
@@ -1480,8 +1489,6 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       {/* Persistent Go To connection lines */}
       <GoToConnectorLines 
         nodes={nodes} 
-        pan={pan} 
-        zoom={zoom} 
         canvasWrapRef={canvasWrapRef}
         contentRef={contentRef}
       />
