@@ -51,6 +51,7 @@ interface WorkflowCanvasProps {
   onTriggerClick: (triggerId: string) => void;
   onAddActionClick: (sourceNodeId?: string, sourceHandle?: string) => void;
   onInsertOnEdge: (edgeId: string, sourceId: string, targetId: string) => void;
+  onInsertBetween: (parentNodeId: string, childNodeId: string, sourceHandle: string) => void;
   onDeleteNode: (nodeId: string) => void;
   onDuplicateNode?: (nodeId: string) => void;
   reactFlowRef: React.MutableRefObject<ReactFlowInstance | null>;
@@ -86,6 +87,10 @@ const BranchNodeRenderer: React.FC<{
   onAddActionClick: (sourceNodeId?: string, sourceHandle?: string) => void;
   onDeleteNode: (nodeId: string) => void;
   onDuplicateNode?: (nodeId: string) => void;
+  onInsertBetween?: (parentNodeId: string, childNodeId: string, sourceHandle: string) => void;
+  parentNodeId?: string;
+  sourceHandle?: string;
+  isFirstInBranch?: boolean;
 }> = ({ 
   nodeId, 
   allNodes, 
@@ -97,20 +102,49 @@ const BranchNodeRenderer: React.FC<{
   setSidebarTab,
   onAddActionClick,
   onDeleteNode,
-  onDuplicateNode
+  onDuplicateNode,
+  onInsertBetween,
+  parentNodeId,
+  sourceHandle,
+  isFirstInBranch = false
 }) => {
   const node = allNodes.find(n => n.id === nodeId);
   if (!node) return null;
   
   const Icon = node.data.icon;
   const isCondition = node.data.builderType === "condition";
+  const isGoTo = node.data.actionType === "go_to";
   
   // Find child nodes connected from this node
   const childEdges = edges.filter(e => e.source === nodeId);
   
   return (
     <div className="flex flex-col items-center">
-      <div className="w-0.5 h-4 bg-border" />
+      {/* Connector line with plus button for insertion */}
+      <div className="flex flex-col items-center">
+        <div className="w-0.5 h-4 bg-border" />
+        {isFirstInBranch && parentNodeId && (
+          <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onInsertBetween) {
+                  onInsertBetween(parentNodeId, nodeId, sourceHandle || "default");
+                }
+              }}
+              className={cn(
+                "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+                "flex items-center justify-center",
+                "hover:bg-primary hover:border-primary hover:text-primary-foreground",
+                "transition-all duration-200 group"
+              )}
+            >
+              <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
+            </button>
+            <div className="w-0.5 h-4 bg-border" />
+          </>
+        )}
+      </div>
       
       {/* Node Card */}
       <div
@@ -159,26 +193,54 @@ const BranchNodeRenderer: React.FC<{
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
+        
+        {/* Go To node - draggable connector indicator */}
+        {isGoTo && (
+          <div className="absolute -bottom-2 -right-2 w-5 h-5 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center cursor-grab">
+            <div className="w-2 h-2 rounded-full bg-amber-500" />
+          </div>
+        )}
       </div>
       
-      {/* If this node has children, render them */}
+      {/* If this node has children, render them with connector and plus button */}
       {childEdges.length > 0 ? (
         <div className="flex flex-col items-center">
           {childEdges.map(edge => (
-            <BranchNodeRenderer
-              key={edge.target}
-              nodeId={edge.target}
-              allNodes={allNodes}
-              edges={edges}
-              selectedNodeId={selectedNodeId}
-              setSelectedNodeId={setSelectedNodeId}
-              setSelectedEdgeId={setSelectedEdgeId}
-              setSelectedTriggerId={setSelectedTriggerId}
-              setSidebarTab={setSidebarTab}
-              onAddActionClick={onAddActionClick}
-              onDeleteNode={onDeleteNode}
-              onDuplicateNode={onDuplicateNode}
-            />
+            <div key={edge.target} className="flex flex-col items-center">
+              <div className="w-0.5 h-4 bg-border" />
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onInsertBetween) {
+                    onInsertBetween(node.id, edge.target, edge.sourceHandle || "default");
+                  }
+                }}
+                className={cn(
+                  "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+                  "flex items-center justify-center",
+                  "hover:bg-primary hover:border-primary hover:text-primary-foreground",
+                  "transition-all duration-200 group"
+                )}
+              >
+                <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
+              </button>
+              <BranchNodeRenderer
+                nodeId={edge.target}
+                allNodes={allNodes}
+                edges={edges}
+                selectedNodeId={selectedNodeId}
+                setSelectedNodeId={setSelectedNodeId}
+                setSelectedEdgeId={setSelectedEdgeId}
+                setSelectedTriggerId={setSelectedTriggerId}
+                setSidebarTab={setSidebarTab}
+                onAddActionClick={onAddActionClick}
+                onDeleteNode={onDeleteNode}
+                onDuplicateNode={onDuplicateNode}
+                onInsertBetween={onInsertBetween}
+                parentNodeId={node.id}
+                sourceHandle={edge.sourceHandle || "default"}
+              />
+            </div>
           ))}
         </div>
       ) : (
@@ -222,6 +284,7 @@ const BranchCardsSection: React.FC<{
   onAddActionClick: (sourceNodeId?: string, sourceHandle?: string) => void;
   onDeleteNode: (nodeId: string) => void;
   onDuplicateNode?: (nodeId: string) => void;
+  onInsertBetween?: (parentNodeId: string, childNodeId: string, sourceHandle: string) => void;
 }> = ({ 
   node, 
   allNodes, 
@@ -233,7 +296,8 @@ const BranchCardsSection: React.FC<{
   setSidebarTab,
   onAddActionClick,
   onDeleteNode,
-  onDuplicateNode
+  onDuplicateNode,
+  onInsertBetween
 }) => {
   const branches = node.data.config?.branches || [];
   const showNoneBranch = node.data.config?.showNoneBranch !== false;
@@ -354,6 +418,10 @@ const BranchCardsSection: React.FC<{
                   onAddActionClick={onAddActionClick}
                   onDeleteNode={onDeleteNode}
                   onDuplicateNode={onDuplicateNode}
+                  onInsertBetween={onInsertBetween}
+                  parentNodeId={node.id}
+                  sourceHandle={branchHandle}
+                  isFirstInBranch={true}
                 />
               ) : (
                 <div className="flex flex-col items-center mt-2">
@@ -411,6 +479,10 @@ const BranchCardsSection: React.FC<{
                   onAddActionClick={onAddActionClick}
                   onDeleteNode={onDeleteNode}
                   onDuplicateNode={onDuplicateNode}
+                  onInsertBetween={onInsertBetween}
+                  parentNodeId={node.id}
+                  sourceHandle="none"
+                  isFirstInBranch={true}
                 />
               ) : (
                 <div className="flex flex-col items-center mt-2">
@@ -469,6 +541,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   onTriggerClick,
   onAddActionClick,
   onInsertOnEdge,
+  onInsertBetween,
   onDeleteNode,
   onDuplicateNode,
   reactFlowRef,
@@ -890,13 +963,37 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
           
           {mainColumnNodes.length > 0 && (
             <div className="flex flex-col items-center">
-              {mainColumnNodes.map((node) => {
+              {mainColumnNodes.map((node, nodeIndex) => {
                 const Icon = node.data.icon;
                 const isCondition = node.data.builderType === "condition";
+                const isGoTo = node.data.actionType === "go_to";
+                const prevNode = nodeIndex > 0 ? mainColumnNodes[nodeIndex - 1] : null;
                 
                 return (
                   <div key={node.id} className="flex flex-col items-center">
-                    <div className="w-px h-8 bg-border" />
+                    {/* Connector line with centered plus button */}
+                    <div className="flex flex-col items-center">
+                      <div className="w-0.5 h-4 bg-border" />
+                      {prevNode && (
+                        <>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onInsertBetween(prevNode.id, node.id, "default");
+                            }}
+                            className={cn(
+                              "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+                              "flex items-center justify-center",
+                              "hover:bg-primary hover:border-primary hover:text-primary-foreground",
+                              "transition-all duration-200 group"
+                            )}
+                          >
+                            <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
+                          </button>
+                          <div className="w-0.5 h-4 bg-border" />
+                        </>
+                      )}
+                    </div>
                     
                     <div
                       className={cn(
@@ -944,6 +1041,16 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </div>
+                      
+                      {/* Go To node - draggable connector indicator */}
+                      {isGoTo && (
+                        <div 
+                          className="absolute -bottom-2 -right-2 w-5 h-5 rounded-full bg-amber-100 border-2 border-dashed border-amber-400 flex items-center justify-center cursor-grab active:cursor-grabbing"
+                          title="Drag to connect to another node"
+                        >
+                          <div className="w-2 h-2 rounded-full bg-amber-500" />
+                        </div>
+                      )}
                     </div>
                     
                     {/* Branch buttons for condition nodes - only show if no branches configured yet */}
@@ -961,6 +1068,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                         onAddActionClick={onAddActionClick}
                         onDeleteNode={onDeleteNode}
                         onDuplicateNode={onDuplicateNode}
+                        onInsertBetween={onInsertBetween}
                       />
                     ) : !isCondition ? (
                       <div className="flex flex-col items-center">

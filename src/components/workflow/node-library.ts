@@ -335,6 +335,12 @@ export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
         ],
       },
       { name: "notify_assignee", label: "Notify Assignee", type: "switch" },
+      { name: "notification_method", label: "Notification Method", type: "select", options: [
+        { value: "email", label: "Email" },
+        { value: "in_app", label: "In-App" },
+        { value: "sms", label: "SMS" },
+        { value: "all", label: "All Channels" },
+      ], helperText: "How to notify the assignee when the task is created" },
     ],
   },
   internal_notification: {
