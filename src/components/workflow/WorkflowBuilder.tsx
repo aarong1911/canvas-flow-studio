@@ -384,8 +384,8 @@ export const WorkflowBuilder: React.FC = () => {
 
     // Check if we're inserting between two nodes in the main column (no edge exists)
     if (insertBeforeNodeId) {
-      const targetNode = nodes.find(n => n.id === insertBeforeNodeId);
-      
+      const targetNode = nodes.find((n) => n.id === insertBeforeNodeId);
+
       // Handle special case: inserting before first node (source is __trigger__)
       if (connectFrom?.sourceNodeId === "__trigger__") {
         if (targetNode) {
@@ -395,19 +395,21 @@ export const WorkflowBuilder: React.FC = () => {
             y: targetNode.position.y - 120,
           };
         }
-        
+
         // Insert at the beginning of nodes array
         setNodes((nds) => [newNode, ...nds]);
-        
+
         setConnectFrom(null);
         setSelectedNodeId(nodeId);
         setSidebarTab("settings");
         toast.success(`Inserted: ${item.label}`);
         return;
       }
-      
-      const sourceNode = nodes.find(n => n.id === connectFrom?.sourceNodeId);
-      
+
+      const sourceId = connectFrom?.sourceNodeId;
+      const sourceHandle = (connectFrom?.sourceHandle as any) || "default";
+      const sourceNode = nodes.find((n) => n.id === sourceId);
+
       if (sourceNode && targetNode) {
         // Position between the two nodes
         newNode.position = {
@@ -415,16 +417,55 @@ export const WorkflowBuilder: React.FC = () => {
           y: (sourceNode.position.y + targetNode.position.y) / 2,
         };
       }
-      
+
       // Insert the new node at the correct position in the nodes array
       setNodes((nds) => {
-        const targetIndex = nds.findIndex(n => n.id === insertBeforeNodeId);
+        const targetIndex = nds.findIndex((n) => n.id === insertBeforeNodeId);
         if (targetIndex === -1) return [...nds, newNode];
         const newNodes = [...nds];
         newNodes.splice(targetIndex, 0, newNode);
         return newNodes;
       });
-      
+
+      // Rewire the existing edge (source -> target) into (source -> new -> target)
+      if (sourceId) {
+        setEdges((eds) => {
+          const existing = eds.find(
+            (e) =>
+              e.source === sourceId &&
+              e.target === insertBeforeNodeId &&
+              ((e.sourceHandle as any) || "default") === sourceHandle
+          );
+
+          const filtered = existing ? eds.filter((e) => e.id !== existing.id) : eds;
+
+          return [
+            ...filtered,
+            {
+              id: crypto.randomUUID(),
+              source: sourceId,
+              target: nodeId,
+              sourceHandle,
+              targetHandle: "in",
+              type: "plusEdge",
+              markerEnd: { type: MarkerType.ArrowClosed },
+              style: { strokeWidth: 2 },
+              label: (existing as any)?.label,
+            },
+            {
+              id: crypto.randomUUID(),
+              source: nodeId,
+              target: insertBeforeNodeId,
+              sourceHandle: "default",
+              targetHandle: "in",
+              type: "plusEdge",
+              markerEnd: { type: MarkerType.ArrowClosed },
+              style: { strokeWidth: 2 },
+            },
+          ];
+        });
+      }
+
       setConnectFrom(null);
       setSelectedNodeId(nodeId);
       setSidebarTab("settings");

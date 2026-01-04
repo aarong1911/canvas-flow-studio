@@ -123,9 +123,10 @@ const BranchNodeRenderer: React.FC<{
   const Icon = node.data.icon;
   const isCondition = node.data.builderType === "condition";
   const isGoTo = node.data.actionType === "go_to";
+  const hasBranches = isCondition && (node.data.config?.branches?.length || 0) > 0;
   
-  // Find child nodes connected from this node
-  const childEdges = edges.filter(e => e.source === nodeId);
+  // Find child nodes connected from this node (exclude Go To edges which are visual-only)
+  const childEdges = edges.filter(e => e.source === nodeId && e.data?.label !== "Go To");
   
   return (
     <div className="flex flex-col items-center">
@@ -223,10 +224,29 @@ const BranchNodeRenderer: React.FC<{
         )}
       </div>
       
-      {/* If this node has children, render them with connector and plus button */}
-      {childEdges.length > 0 ? (
+      {/* If this node is a condition with branches, render its branch columns */}
+      {hasBranches ? (
+        <BranchCardsSection
+          node={node}
+          allNodes={allNodes}
+          edges={edges}
+          selectedNodeId={selectedNodeId}
+          setSelectedNodeId={setSelectedNodeId}
+          setSelectedEdgeId={setSelectedEdgeId}
+          setSelectedTriggerId={setSelectedTriggerId}
+          setSidebarTab={setSidebarTab}
+          onAddActionClick={onAddActionClick}
+          onDeleteNode={onDeleteNode}
+          onDuplicateNode={onDuplicateNode}
+          onInsertBetween={onInsertBetween}
+          goToConnecting={goToConnecting}
+          hoveredNodeId={hoveredNodeId}
+          setHoveredNodeId={setHoveredNodeId}
+          onGoToConnectorMouseDown={onGoToConnectorMouseDown}
+        />
+      ) : childEdges.length > 0 ? (
         <div className="flex flex-col items-center">
-          {childEdges.map(edge => (
+          {childEdges.map((edge) => (
             <div key={edge.target} className="flex flex-col items-center">
               <div className="w-0.5 h-4 bg-border" />
               <button
