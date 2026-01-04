@@ -438,6 +438,23 @@ export const WorkflowBuilder: React.FC = () => {
     setSelectedTriggerId(null);
   }, []);
 
+  // Handle inserting a node between two existing nodes (clicking plus button between nodes)
+  const handleInsertBetween = useCallback((parentNodeId: string, childNodeId: string, sourceHandle: string) => {
+    // Find the edge between parent and child
+    const edge = edges.find(e => e.source === parentNodeId && e.target === childNodeId);
+    if (edge) {
+      // Use the existing edge insert logic
+      handleInsertOnEdge(edge.id, parentNodeId, childNodeId);
+    } else {
+      // Fallback: just add after parent
+      setConnectFrom({ sourceNodeId: parentNodeId, sourceHandle: sourceHandle as any });
+      setSidebarTab("actions");
+      setSelectedNodeId(null);
+      setSelectedEdgeId(null);
+      setSelectedTriggerId(null);
+    }
+  }, [edges, handleInsertOnEdge]);
+
   // Save workflow
   const handleSave = async () => {
     setIsSaving(true);
@@ -510,6 +527,7 @@ export const WorkflowBuilder: React.FC = () => {
               onTriggerClick={handleTriggerClick}
               onAddActionClick={handleAddActionClick}
               onInsertOnEdge={handleInsertOnEdge}
+              onInsertBetween={handleInsertBetween}
               onDeleteNode={(nodeId) => {
                 setNodes((nds) => nds.filter((n) => n.id !== nodeId));
                 setEdges((eds) => eds.filter((x) => x.source !== nodeId && x.target !== nodeId));
