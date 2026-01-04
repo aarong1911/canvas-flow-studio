@@ -157,9 +157,10 @@ const BranchNodeRenderer: React.FC<{
       
       {/* Node Card */}
       <div
+        data-node-id={node.id}
         className={cn(
           "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200",
-          "min-w-[180px] max-w-[200px] shadow-sm hover:shadow-md group",
+          "w-[220px] shadow-sm hover:shadow-md group",
           selectedNodeId === node.id && "ring-2 ring-primary ring-offset-2 ring-offset-background",
           // Highlight when being hovered during Go To connection
           goToConnecting && hoveredNodeId === node.id && goToConnecting.sourceNodeId !== node.id && "ring-2 ring-amber-500 ring-offset-2 ring-offset-background"
@@ -553,6 +554,134 @@ const BranchCardsSection: React.FC<{
         )}
       </div>
     </div>
+  );
+};
+
+// Component to render persistent Go To connection lines
+const GoToConnectorLines: React.FC<{
+  nodes: RFNode[];
+  pan: { x: number; y: number };
+  zoom: number;
+  canvasWrapRef: React.RefObject<HTMLDivElement>;
+  contentRef: React.RefObject<HTMLDivElement>;
+}> = ({ nodes, pan, zoom, canvasWrapRef, contentRef }) => {
+  const [connections, setConnections] = useState<Array<{
+    sourceId: string;
+    targetId: string;
+    sourceX: number;
+    sourceY: number;
+    targetX: number;
+    targetY: number;
+  }>>([]);
+
+  useEffect(() => {
+    const updateConnections = () => {
+      if (!contentRef.current || !canvasWrapRef.current) return;
+      
+      const newConnections: typeof connections = [];
+      
+      // Find all Go To nodes with target_node_id configured
+      nodes.forEach(node => {
+        if (node.data.actionType === "go_to" && node.data.config?.target_node_id) {
+          const targetNodeId = node.data.config.target_node_id;
+          
+          // Find the DOM elements for source and target nodes
+          const sourceEl = contentRef.current?.querySelector(`[data-node-id="${node.id}"]`);
+          const targetEl = contentRef.current?.querySelector(`[data-node-id="${targetNodeId}"]`);
+          
+          if (sourceEl && targetEl) {
+            const contentRect = contentRef.current?.getBoundingClientRect();
+            const sourceRect = sourceEl.getBoundingClientRect();
+            const targetRect = targetEl.getBoundingClientRect();
+            
+            if (contentRect) {
+              // Calculate positions relative to the content container, accounting for transform
+              const sourceX = (sourceRect.right - contentRect.left) / zoom - pan.x / zoom;
+              const sourceY = (sourceRect.bottom - contentRect.top) / zoom - pan.y / zoom - 8;
+              const targetX = (targetRect.left - contentRect.left) / zoom - pan.x / zoom;
+              const targetY = (targetRect.top + targetRect.height / 2 - contentRect.top) / zoom - pan.y / zoom;
+              
+              newConnections.push({
+                sourceId: node.id,
+                targetId: targetNodeId,
+                sourceX,
+                sourceY,
+                targetX,
+                targetY,
+              });
+            }
+          }
+        }
+      });
+      
+      setConnections(newConnections);
+    };
+
+    updateConnections();
+    // Update on scroll, resize, and node changes
+    const observer = new MutationObserver(updateConnections);
+    if (contentRef.current) {
+      observer.observe(contentRef.current, { childList: true, subtree: true, attributes: true });
+    }
+    window.addEventListener('resize', updateConnections);
+    
+    // Also update after a short delay to catch layout changes
+    const timeout = setTimeout(updateConnections, 100);
+    
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', updateConnections);
+      clearTimeout(timeout);
+    };
+  }, [nodes, pan, zoom, canvasWrapRef, contentRef]);
+
+  if (connections.length === 0) return null;
+
+  return (
+    <svg 
+      className="absolute inset-0 pointer-events-none z-40"
+      style={{ 
+        transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+        transformOrigin: '0 0',
+        overflow: 'visible'
+      }}
+    >
+      <defs>
+        <marker
+          id="goto-persistent-arrowhead"
+          markerWidth="10"
+          markerHeight="7"
+          refX="9"
+          refY="3.5"
+          orient="auto"
+        >
+          <polygon points="0 0, 10 3.5, 0 7" fill="#D97706" />
+        </marker>
+      </defs>
+      {connections.map(conn => {
+        // Create a curved path from source to target
+        const midX = (conn.sourceX + conn.targetX) / 2;
+        const controlOffset = Math.abs(conn.targetY - conn.sourceY) * 0.5 + 50;
+        
+        // Create a smooth bezier curve
+        const path = `M ${conn.sourceX} ${conn.sourceY} 
+          C ${conn.sourceX + controlOffset} ${conn.sourceY}, 
+            ${conn.targetX - controlOffset} ${conn.targetY}, 
+            ${conn.targetX} ${conn.targetY}`;
+        
+        return (
+          <path
+            key={`${conn.sourceId}-${conn.targetId}`}
+            d={path}
+            fill="none"
+            stroke="#D97706"
+            strokeWidth={2}
+            strokeDasharray="6,4"
+            markerEnd="url(#goto-persistent-arrowhead)"
+          />
+        );
+      })}
+    </svg>
   );
 };
 
@@ -1161,9 +1290,10 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                     )}
                     
                     <div
+                      data-node-id={node.id}
                       className={cn(
                         "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200",
-                        "min-w-[220px] max-w-[280px] shadow-sm hover:shadow-md group",
+                        "w-[220px] shadow-sm hover:shadow-md group",
                         selectedNodeId === node.id && "ring-2 ring-primary ring-offset-2 ring-offset-background",
                         // Highlight when being hovered during Go To connection
                         goToConnecting && hoveredNodeId === node.id && goToConnecting.sourceNodeId !== node.id && "ring-2 ring-amber-500 ring-offset-2 ring-offset-background"
@@ -1347,6 +1477,15 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         </div>
       </div>
 
+      {/* Persistent Go To connection lines */}
+      <GoToConnectorLines 
+        nodes={nodes} 
+        pan={pan} 
+        zoom={zoom} 
+        canvasWrapRef={canvasWrapRef}
+        contentRef={contentRef}
+      />
+      
       {/* Go To connector dragging line overlay */}
       {goToConnecting && (
         <svg 
