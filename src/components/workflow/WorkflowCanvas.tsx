@@ -169,34 +169,84 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
               </div>
             </div>
 
-            {isCondition ? (
+            {/* Branch handles and buttons for conditions */}
+            {isCondition && p.data.actionType === "split" ? (
+              // Split A/B node - two paths
               <>
-                <Handle type="source" position={Position.Bottom} id="yes" className="!w-3 !h-3 !bg-green-500 !border-2 !border-background" style={{ left: "25%" }} />
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  {(["yes", "no"] as const).map((handle, idx) => (
+                    <button
+                      key={handle}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddActionClick(p.id, handle);
+                      }}
+                      className={cn(
+                        "flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all",
+                        "border backdrop-blur-sm",
+                        handle === "yes" && "bg-blue-100 border-blue-300 text-blue-700 hover:bg-blue-200",
+                        handle === "no" && "bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200"
+                      )}
+                    >
+                      <Plus className="w-3 h-3" />
+                      {idx === 0 ? "Path A" : "Path B"}
+                    </button>
+                  ))}
+                </div>
+                <Handle type="source" position={Position.Bottom} id="yes" className="!w-3 !h-3 !bg-blue-500 !border-2 !border-background" style={{ left: "30%" }} />
+                <Handle type="source" position={Position.Bottom} id="no" className="!w-3 !h-3 !bg-purple-500 !border-2 !border-background" style={{ left: "70%" }} />
+              </>
+            ) : isCondition ? (
+              // If/Else condition - three paths (yes/no/none)
+              <>
+                <div className="mt-3 grid grid-cols-3 gap-1.5">
+                  {(["yes", "no", "none"] as const).map((handle) => (
+                    <button
+                      key={handle}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddActionClick(p.id, handle);
+                      }}
+                      className={cn(
+                        "flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-all",
+                        "border backdrop-blur-sm",
+                        handle === "yes" && "bg-green-100 border-green-300 text-green-700 hover:bg-green-200",
+                        handle === "no" && "bg-red-100 border-red-300 text-red-700 hover:bg-red-200",
+                        handle === "none" && "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
+                      )}
+                    >
+                      <Plus className="w-3 h-3" />
+                      {handle === "none" ? "None" : handle.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+                <Handle type="source" position={Position.Bottom} id="yes" className="!w-3 !h-3 !bg-green-500 !border-2 !border-background" style={{ left: "20%" }} />
                 <Handle type="source" position={Position.Bottom} id="no" className="!w-3 !h-3 !bg-red-500 !border-2 !border-background" style={{ left: "50%" }} />
-                <Handle type="source" position={Position.Bottom} id="none" className="!w-3 !h-3 !bg-gray-500 !border-2 !border-background" style={{ left: "75%" }} />
+                <Handle type="source" position={Position.Bottom} id="none" className="!w-3 !h-3 !bg-gray-500 !border-2 !border-background" style={{ left: "80%" }} />
               </>
             ) : (
-              <Handle type="source" position={Position.Bottom} id="default" className="!w-3 !h-3 !bg-muted-foreground !border-2 !border-background" />
-            )}
-
-            {!hasOutgoingEdge && !isCondition && (
-              <div className="absolute -bottom-14 left-1/2 -translate-x-1/2 flex flex-col items-center">
-                <div className="w-px h-4 bg-border" />
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddActionClick(p.id, "default");
-                  }}
-                  className={cn(
-                    "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
-                    "flex items-center justify-center",
-                    "hover:bg-primary hover:border-primary",
-                    "transition-all duration-200 group/plus cursor-pointer"
-                  )}
-                >
-                  <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover/plus:text-primary-foreground" />
-                </button>
-              </div>
+              <>
+                <Handle type="source" position={Position.Bottom} id="default" className="!w-3 !h-3 !bg-muted-foreground !border-2 !border-background" />
+                {!hasOutgoingEdge && (
+                  <div className="absolute -bottom-14 left-1/2 -translate-x-1/2 flex flex-col items-center">
+                    <div className="w-px h-4 bg-border" />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddActionClick(p.id, "default");
+                      }}
+                      className={cn(
+                        "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+                        "flex items-center justify-center",
+                        "hover:bg-primary hover:border-primary",
+                        "transition-all duration-200 group/plus cursor-pointer"
+                      )}
+                    >
+                      <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover/plus:text-primary-foreground" />
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         );
@@ -493,7 +543,51 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                       </div>
                     </div>
                     
-                    {!isCondition && (
+                    {/* Branch buttons for condition nodes */}
+                    {isCondition && node.data.actionType === "split" ? (
+                      <div className="mt-2 grid grid-cols-2 gap-2 w-full max-w-[220px]">
+                        {(["yes", "no"] as const).map((handle, idx) => (
+                          <button
+                            key={handle}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAddActionClick(node.id, handle);
+                            }}
+                            className={cn(
+                              "flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all",
+                              "border backdrop-blur-sm",
+                              handle === "yes" && "bg-blue-100 border-blue-300 text-blue-700 hover:bg-blue-200",
+                              handle === "no" && "bg-purple-100 border-purple-300 text-purple-700 hover:bg-purple-200"
+                            )}
+                          >
+                            <Plus className="w-3 h-3" />
+                            {idx === 0 ? "Path A" : "Path B"}
+                          </button>
+                        ))}
+                      </div>
+                    ) : isCondition ? (
+                      <div className="mt-2 grid grid-cols-3 gap-1.5 w-full max-w-[220px]">
+                        {(["yes", "no", "none"] as const).map((handle) => (
+                          <button
+                            key={handle}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAddActionClick(node.id, handle);
+                            }}
+                            className={cn(
+                              "flex items-center justify-center gap-1 rounded-lg py-1.5 text-xs font-medium transition-all",
+                              "border backdrop-blur-sm",
+                              handle === "yes" && "bg-green-100 border-green-300 text-green-700 hover:bg-green-200",
+                              handle === "no" && "bg-red-100 border-red-300 text-red-700 hover:bg-red-200",
+                              handle === "none" && "bg-gray-100 border-gray-300 text-gray-700 hover:bg-gray-200"
+                            )}
+                          >
+                            <Plus className="w-3 h-3" />
+                            {handle === "none" ? "None" : handle.toUpperCase()}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
                       <div className="flex flex-col items-center">
                         <div className="w-px h-4 bg-border" />
                         <PlusButton onClick={() => onAddActionClick(node.id, "default")} />
@@ -534,13 +628,42 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       <div className="absolute bottom-4 right-4 z-20">
         <div className="bg-card/90 border border-border rounded-lg shadow-sm p-2" style={{ width: 150, height: 100 }}>
           <div className="relative w-full h-full bg-muted/30 rounded overflow-hidden">
-            <div className="absolute inset-1/4 border border-primary/30 rounded bg-primary/5" />
+            {/* Triggers as rounded cards matching canvas style */}
             {triggers.map((trigger, i) => (
-              <div key={trigger.id} className="absolute w-2 h-2 rounded-full bg-orange-400" style={{ top: '10%', left: `${30 + i * 20}%` }} />
+              <div 
+                key={trigger.id} 
+                className="absolute w-4 h-2 rounded-sm" 
+                style={{ 
+                  top: '8%', 
+                  left: `${30 + i * 20}%`,
+                  backgroundColor: COLOR_HEX[trigger.color] || COLOR_HEX.purple,
+                }} 
+              />
             ))}
+            {/* Connector line from triggers to nodes */}
+            {triggers.length > 0 && nodes.length > 0 && (
+              <div className="absolute w-px bg-border" style={{ top: '18%', height: '15%', left: '50%' }} />
+            )}
+            {/* Nodes as rounded cards matching canvas style */}
             {nodes.map((node, i) => (
-              <div key={node.id} className="absolute w-2 h-2 rounded-sm" style={{ top: `${40 + i * 15}%`, left: '50%', transform: 'translateX(-50%)', backgroundColor: COLOR_HEX[node.data.color] }} />
+              <div 
+                key={node.id} 
+                className="absolute w-4 h-2 rounded-sm" 
+                style={{ 
+                  top: `${35 + i * 12}%`, 
+                  left: '50%', 
+                  transform: 'translateX(-50%)', 
+                  backgroundColor: COLOR_HEX[node.data.color] 
+                }} 
+              />
             ))}
+            {/* End node indicator */}
+            {nodes.length > 0 && (
+              <div 
+                className="absolute w-3 h-1.5 rounded-full bg-muted-foreground/50" 
+                style={{ bottom: '8%', left: '50%', transform: 'translateX(-50%)' }} 
+              />
+            )}
           </div>
         </div>
       </div>

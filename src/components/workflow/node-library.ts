@@ -118,7 +118,7 @@ export const ACTIONS: Record<string, NodeLibraryItem[]> = {
     { id: "wait", label: "Wait / Delay", icon: Clock, color: "orange", kind: "delay", group: "Logic & Flow" },
     { id: "wait_until", label: "Wait Until", icon: Calendar, color: "orange", kind: "delay", group: "Logic & Flow" },
     { id: "wait_for_event", label: "Wait For Event (Goal)", icon: Target, color: "orange", kind: "delay", group: "Logic & Flow" },
-    { id: "split", label: "Split (A/B Test)", icon: Split, color: "amber", kind: "action", group: "Logic & Flow" },
+    { id: "split", label: "Split (A/B Test)", icon: Split, color: "amber", kind: "condition", group: "Logic & Flow" },
     { id: "update_custom_value", label: "Update Custom Value", icon: Hash, color: "amber", kind: "action", group: "Logic & Flow" },
     { id: "go_to", label: "Go To", icon: ExternalLink, color: "amber", kind: "action", group: "Logic & Flow" },
     { id: "text_formatter", label: "Text Formatter", icon: Type, color: "amber", kind: "action", group: "Logic & Flow" },
@@ -598,7 +598,10 @@ export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
     title: "Configure",
     fields: [
       { name: "action_name", label: "Action Name", type: "text", placeholder: "A/B Split" },
-      { name: "split_ratio", label: "Split Ratio (A %)", type: "number", required: true, placeholder: "50" },
+      { name: "path_a_label", label: "Path A Label", type: "text", placeholder: "Path A" },
+      { name: "path_a_ratio", label: "Path A (%)", type: "number", required: true, placeholder: "50" },
+      { name: "path_b_label", label: "Path B Label", type: "text", placeholder: "Path B" },
+      { name: "path_b_ratio", label: "Path B (%)", type: "number", required: true, placeholder: "50" },
     ],
   },
   // Go To
