@@ -73,15 +73,172 @@ const colorIconClasses: Record<ColorKey, string> = {
   gray: "bg-gray-100 text-gray-600",
 };
 
+// Recursive component to render a node and its children
+const BranchNodeRenderer: React.FC<{
+  nodeId: string;
+  allNodes: RFNode[];
+  edges: RFEdge[];
+  selectedNodeId: string | null;
+  setSelectedNodeId: (id: string | null) => void;
+  setSelectedEdgeId: (id: string | null) => void;
+  setSelectedTriggerId: (id: string | null) => void;
+  setSidebarTab: (tab: SidebarTab) => void;
+  onAddActionClick: (sourceNodeId?: string, sourceHandle?: string) => void;
+  onDeleteNode: (nodeId: string) => void;
+  onDuplicateNode?: (nodeId: string) => void;
+}> = ({ 
+  nodeId, 
+  allNodes, 
+  edges, 
+  selectedNodeId, 
+  setSelectedNodeId, 
+  setSelectedEdgeId,
+  setSelectedTriggerId,
+  setSidebarTab,
+  onAddActionClick,
+  onDeleteNode,
+  onDuplicateNode
+}) => {
+  const node = allNodes.find(n => n.id === nodeId);
+  if (!node) return null;
+  
+  const Icon = node.data.icon;
+  const isCondition = node.data.builderType === "condition";
+  
+  // Find child nodes connected from this node
+  const childEdges = edges.filter(e => e.source === nodeId);
+  
+  return (
+    <div className="flex flex-col items-center">
+      <div className="w-0.5 h-4 bg-border" />
+      
+      {/* Node Card */}
+      <div
+        className={cn(
+          "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200",
+          "min-w-[180px] max-w-[200px] shadow-sm hover:shadow-md group",
+          selectedNodeId === node.id && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+        )}
+        onClick={() => {
+          setSelectedEdgeId(null);
+          setSelectedTriggerId(null);
+          setSelectedNodeId(node.id);
+          setSidebarTab("settings");
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", colorIconClasses[node.data.color])}>
+            <Icon className="w-4 h-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-medium text-foreground truncate">
+              {node.data.config?.action_name || node.data.label}
+            </div>
+          </div>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button onClick={(e) => e.stopPropagation()} className="p-1 hover:bg-muted rounded transition-colors">
+                <MoreHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedNodeId(node.id); setSidebarTab("settings"); }}>
+                <Settings className="w-4 h-4 mr-2" />
+                Configure
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDuplicateNode?.(node.id); }}>
+                <Copy className="w-4 h-4 mr-2" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDeleteNode(node.id); }} className="text-destructive focus:text-destructive">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      
+      {/* If this node has children, render them */}
+      {childEdges.length > 0 ? (
+        <div className="flex flex-col items-center">
+          {childEdges.map(edge => (
+            <BranchNodeRenderer
+              key={edge.target}
+              nodeId={edge.target}
+              allNodes={allNodes}
+              edges={edges}
+              selectedNodeId={selectedNodeId}
+              setSelectedNodeId={setSelectedNodeId}
+              setSelectedEdgeId={setSelectedEdgeId}
+              setSelectedTriggerId={setSelectedTriggerId}
+              setSidebarTab={setSidebarTab}
+              onAddActionClick={onAddActionClick}
+              onDeleteNode={onDeleteNode}
+              onDuplicateNode={onDuplicateNode}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Plus button and END for leaf nodes */
+        <div className="flex flex-col items-center">
+          <div className="w-0.5 h-4 bg-border" />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddActionClick(node.id, "default");
+            }}
+            className={cn(
+              "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+              "flex items-center justify-center",
+              "hover:bg-primary hover:border-primary hover:text-primary-foreground",
+              "transition-all duration-200 group"
+            )}
+          >
+            <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
+          </button>
+          <div className="w-0.5 h-4 bg-border" />
+          <div className="bg-muted border border-border rounded-full px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide shadow-sm">
+            END
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Branch Cards Section component for condition nodes with saved branches
 const BranchCardsSection: React.FC<{
   node: RFNode;
+  allNodes: RFNode[];
+  edges: RFEdge[];
+  selectedNodeId: string | null;
+  setSelectedNodeId: (id: string | null) => void;
+  setSelectedEdgeId: (id: string | null) => void;
+  setSelectedTriggerId: (id: string | null) => void;
+  setSidebarTab: (tab: SidebarTab) => void;
   onAddActionClick: (sourceNodeId?: string, sourceHandle?: string) => void;
-}> = ({ node, onAddActionClick }) => {
+  onDeleteNode: (nodeId: string) => void;
+  onDuplicateNode?: (nodeId: string) => void;
+}> = ({ 
+  node, 
+  allNodes, 
+  edges, 
+  selectedNodeId, 
+  setSelectedNodeId, 
+  setSelectedEdgeId,
+  setSelectedTriggerId,
+  setSidebarTab,
+  onAddActionClick,
+  onDeleteNode,
+  onDuplicateNode
+}) => {
   const branches = node.data.config?.branches || [];
   const showNoneBranch = node.data.config?.showNoneBranch !== false;
   const totalBranches = branches.length + (showNoneBranch ? 1 : 0);
-  const branchWidth = 200; // Width of each branch column
+  const branchWidth = 220; // Width of each branch column
   const gap = 24; // Gap between branches
   const totalWidth = totalBranches * branchWidth + (totalBranches - 1) * gap;
   const startY = 0;
@@ -90,6 +247,12 @@ const BranchCardsSection: React.FC<{
   const branchDropHeight = 35; // Height from horizontal line to cards
   const svgHeight = dropHeight + branchDropHeight + 10;
   const centerX = (totalWidth + 40) / 2;
+  
+  // Find edges from this condition node to child nodes
+  const getNodesForBranch = (branchHandle: string) => {
+    const edge = edges.find(e => e.source === node.id && e.sourceHandle === branchHandle);
+    return edge ? edge.target : null;
+  };
   
   // Calculate x positions for each branch
   const getBranchX = (idx: number) => 20 + branchWidth / 2 + idx * (branchWidth + gap);
@@ -156,47 +319,68 @@ const BranchCardsSection: React.FC<{
       {/* Branch cards container */}
       <div className="flex items-start" style={{ gap }}>
         {/* User-defined branches */}
-        {branches.map((branch: any, idx: number) => (
-          <div key={branch.id} className="flex flex-col items-center" style={{ width: branchWidth }}>
-            {/* Branch card */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 w-full">
-              <div className="flex items-center gap-2 text-blue-700">
-                <GitBranch className="w-4 h-4 flex-shrink-0" />
-                <span className="text-sm font-medium truncate">
-                  {branch.name || `Branch ${idx + 1}`}
-                </span>
+        {branches.map((branch: any, idx: number) => {
+          const branchHandle = `branch_${idx}`;
+          const connectedNodeId = getNodesForBranch(branchHandle);
+          
+          return (
+            <div key={branch.id} className="flex flex-col items-center" style={{ width: branchWidth }}>
+              {/* Branch card */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 w-full">
+                <div className="flex items-center gap-2 text-blue-700">
+                  <GitBranch className="w-4 h-4 flex-shrink-0" />
+                  <span className="text-sm font-medium truncate">
+                    {branch.name || `Branch ${idx + 1}`}
+                  </span>
+                </div>
+                {branch.segments && branch.segments[0]?.field && (
+                  <div className="text-xs text-blue-600/70 mt-1 truncate">
+                    If "{branch.segments[0].field}" {branch.segments[0].operator}...
+                  </div>
+                )}
               </div>
-              {branch.segments && branch.segments[0]?.field && (
-                <div className="text-xs text-blue-600/70 mt-1 truncate">
-                  If "{branch.segments[0].field}" {branch.segments[0].operator}...
+              
+              {/* Connected nodes or Plus button + END */}
+              {connectedNodeId ? (
+                <BranchNodeRenderer
+                  nodeId={connectedNodeId}
+                  allNodes={allNodes}
+                  edges={edges}
+                  selectedNodeId={selectedNodeId}
+                  setSelectedNodeId={setSelectedNodeId}
+                  setSelectedEdgeId={setSelectedEdgeId}
+                  setSelectedTriggerId={setSelectedTriggerId}
+                  setSidebarTab={setSidebarTab}
+                  onAddActionClick={onAddActionClick}
+                  onDeleteNode={onDeleteNode}
+                  onDuplicateNode={onDuplicateNode}
+                />
+              ) : (
+                <div className="flex flex-col items-center mt-2">
+                  <div className="w-0.5 h-4 bg-border" />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddActionClick(node.id, branchHandle);
+                    }}
+                    className={cn(
+                      "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+                      "flex items-center justify-center",
+                      "hover:bg-primary hover:border-primary hover:text-primary-foreground",
+                      "transition-all duration-200 group"
+                    )}
+                  >
+                    <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
+                  </button>
+                  <div className="w-0.5 h-4 bg-border" />
+                  <div className="bg-muted border border-border rounded-full px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide shadow-sm">
+                    END
+                  </div>
                 </div>
               )}
             </div>
-            
-            {/* Plus button and END */}
-            <div className="flex flex-col items-center mt-2">
-              <div className="w-0.5 h-4 bg-border" />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddActionClick(node.id, `branch_${idx}`);
-                }}
-                className={cn(
-                  "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
-                  "flex items-center justify-center",
-                  "hover:bg-primary hover:border-primary hover:text-primary-foreground",
-                  "transition-all duration-200 group"
-                )}
-              >
-                <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
-              </button>
-              <div className="w-0.5 h-4 bg-border" />
-              <div className="bg-muted border border-border rounded-full px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide shadow-sm">
-                END
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
         
         {/* None branch */}
         {showNoneBranch && (
@@ -211,28 +395,47 @@ const BranchCardsSection: React.FC<{
               </div>
             </div>
             
-            {/* Plus button and END */}
-            <div className="flex flex-col items-center mt-2">
-              <div className="w-0.5 h-4 bg-border" />
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddActionClick(node.id, "none");
-                }}
-                className={cn(
-                  "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
-                  "flex items-center justify-center",
-                  "hover:bg-primary hover:border-primary hover:text-primary-foreground",
-                  "transition-all duration-200 group"
-                )}
-              >
-                <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
-              </button>
-              <div className="w-0.5 h-4 bg-border" />
-              <div className="bg-muted border border-border rounded-full px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide shadow-sm">
-                END
-              </div>
-            </div>
+            {/* Connected nodes or Plus button + END */}
+            {(() => {
+              const connectedNodeId = getNodesForBranch("none");
+              return connectedNodeId ? (
+                <BranchNodeRenderer
+                  nodeId={connectedNodeId}
+                  allNodes={allNodes}
+                  edges={edges}
+                  selectedNodeId={selectedNodeId}
+                  setSelectedNodeId={setSelectedNodeId}
+                  setSelectedEdgeId={setSelectedEdgeId}
+                  setSelectedTriggerId={setSelectedTriggerId}
+                  setSidebarTab={setSidebarTab}
+                  onAddActionClick={onAddActionClick}
+                  onDeleteNode={onDeleteNode}
+                  onDuplicateNode={onDuplicateNode}
+                />
+              ) : (
+                <div className="flex flex-col items-center mt-2">
+                  <div className="w-0.5 h-4 bg-border" />
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddActionClick(node.id, "none");
+                    }}
+                    className={cn(
+                      "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+                      "flex items-center justify-center",
+                      "hover:bg-primary hover:border-primary hover:text-primary-foreground",
+                      "transition-all duration-200 group"
+                    )}
+                  >
+                    <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
+                  </button>
+                  <div className="w-0.5 h-4 bg-border" />
+                  <div className="bg-muted border border-border rounded-full px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide shadow-sm">
+                    END
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
@@ -648,13 +851,46 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       )}
 
       {/* Flow section */}
-      {hasTriggers && (
+      {hasTriggers && (() => {
+        // Find all nodes that are connected to condition branches (should not be in main column)
+        const branchConnectedNodeIds = new Set<string>();
+        
+        const collectBranchNodes = (nodeId: string) => {
+          branchConnectedNodeIds.add(nodeId);
+          // Find all children of this node
+          edges.filter(e => e.source === nodeId).forEach(e => collectBranchNodes(e.target));
+        };
+        
+        // Find condition nodes with branches and collect their connected nodes
+        nodes.forEach(node => {
+          if (node.data.builderType === "condition" && node.data.config?.branches?.length > 0) {
+            const branches = node.data.config.branches;
+            const showNoneBranch = node.data.config?.showNoneBranch !== false;
+            
+            // Collect nodes from each branch
+            branches.forEach((_: any, idx: number) => {
+              const edge = edges.find(e => e.source === node.id && e.sourceHandle === `branch_${idx}`);
+              if (edge) collectBranchNodes(edge.target);
+            });
+            
+            // Collect nodes from none branch
+            if (showNoneBranch) {
+              const noneEdge = edges.find(e => e.source === node.id && e.sourceHandle === "none");
+              if (noneEdge) collectBranchNodes(noneEdge.target);
+            }
+          }
+        });
+        
+        // Filter out branch-connected nodes from main column
+        const mainColumnNodes = nodes.filter(n => !branchConnectedNodeIds.has(n.id));
+        
+        return (
         <div className="absolute z-10 flex flex-col items-center" style={{ top: svgTop + triggerMergeHeight, left: '50%', transform: 'translateX(-50%)' }}>
           <PlusButton onClick={() => onAddActionClick()} />
           
-          {nodes.length > 0 && (
+          {mainColumnNodes.length > 0 && (
             <div className="flex flex-col items-center">
-              {nodes.map((node) => {
+              {mainColumnNodes.map((node) => {
                 const Icon = node.data.icon;
                 const isCondition = node.data.builderType === "condition";
                 
@@ -712,10 +948,19 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                     
                     {/* Branch buttons for condition nodes - only show if no branches configured yet */}
                     {isCondition && node.data.config?.branches?.length > 0 ? (
-                      // Show saved branches as cards
+                      // Show saved branches as cards with connected nodes
                       <BranchCardsSection 
-                        node={node} 
+                        node={node}
+                        allNodes={nodes}
+                        edges={edges}
+                        selectedNodeId={selectedNodeId}
+                        setSelectedNodeId={setSelectedNodeId}
+                        setSelectedEdgeId={setSelectedEdgeId}
+                        setSelectedTriggerId={setSelectedTriggerId}
+                        setSidebarTab={setSidebarTab}
                         onAddActionClick={onAddActionClick}
+                        onDeleteNode={onDeleteNode}
+                        onDuplicateNode={onDuplicateNode}
                       />
                     ) : !isCondition ? (
                       <div className="flex flex-col items-center">
@@ -739,7 +984,8 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
             </>
           )}
         </div>
-      )}
+        );
+      })()}
       </div>
       {/* End of zoomable content wrapper */}
 
