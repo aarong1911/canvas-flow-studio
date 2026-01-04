@@ -91,6 +91,11 @@ const BranchNodeRenderer: React.FC<{
   parentNodeId?: string;
   sourceHandle?: string;
   isFirstInBranch?: boolean;
+  // Go To connector props
+  goToConnecting?: { sourceNodeId: string } | null;
+  hoveredNodeId?: string | null;
+  setHoveredNodeId?: (id: string | null) => void;
+  onGoToConnectorMouseDown?: (e: React.MouseEvent, nodeId: string) => void;
 }> = ({ 
   nodeId, 
   allNodes, 
@@ -106,7 +111,11 @@ const BranchNodeRenderer: React.FC<{
   onInsertBetween,
   parentNodeId,
   sourceHandle,
-  isFirstInBranch = false
+  isFirstInBranch = false,
+  goToConnecting,
+  hoveredNodeId,
+  setHoveredNodeId,
+  onGoToConnectorMouseDown,
 }) => {
   const node = allNodes.find(n => n.id === nodeId);
   if (!node) return null;
@@ -151,7 +160,9 @@ const BranchNodeRenderer: React.FC<{
         className={cn(
           "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200",
           "min-w-[180px] max-w-[200px] shadow-sm hover:shadow-md group",
-          selectedNodeId === node.id && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+          selectedNodeId === node.id && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+          // Highlight when being hovered during Go To connection
+          goToConnecting && hoveredNodeId === node.id && goToConnecting.sourceNodeId !== node.id && "ring-2 ring-amber-500 ring-offset-2 ring-offset-background"
         )}
         onClick={() => {
           setSelectedEdgeId(null);
@@ -159,6 +170,8 @@ const BranchNodeRenderer: React.FC<{
           setSelectedNodeId(node.id);
           setSidebarTab("settings");
         }}
+        onMouseEnter={() => goToConnecting && setHoveredNodeId?.(node.id)}
+        onMouseLeave={() => goToConnecting && setHoveredNodeId?.(null)}
       >
         <div className="flex items-center gap-2">
           <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", colorIconClasses[node.data.color])}>
@@ -196,7 +209,14 @@ const BranchNodeRenderer: React.FC<{
         
         {/* Go To node - draggable connector indicator */}
         {isGoTo && (
-          <div className="absolute -bottom-2 -right-2 w-5 h-5 rounded-full bg-amber-100 border border-amber-300 flex items-center justify-center cursor-grab">
+          <div 
+            className={cn(
+              "absolute -bottom-2 -right-2 w-5 h-5 rounded-full bg-amber-100 border-2 border-dashed border-amber-400 flex items-center justify-center cursor-grab active:cursor-grabbing",
+              goToConnecting?.sourceNodeId === node.id && "ring-2 ring-amber-500 ring-offset-1"
+            )}
+            title="Drag to connect to another node"
+            onMouseDown={(e) => onGoToConnectorMouseDown?.(e, node.id)}
+          >
             <div className="w-2 h-2 rounded-full bg-amber-500" />
           </div>
         )}
@@ -239,6 +259,10 @@ const BranchNodeRenderer: React.FC<{
                 onInsertBetween={onInsertBetween}
                 parentNodeId={node.id}
                 sourceHandle={edge.sourceHandle || "default"}
+                goToConnecting={goToConnecting}
+                hoveredNodeId={hoveredNodeId}
+                setHoveredNodeId={setHoveredNodeId}
+                onGoToConnectorMouseDown={onGoToConnectorMouseDown}
               />
             </div>
           ))}
@@ -285,6 +309,11 @@ const BranchCardsSection: React.FC<{
   onDeleteNode: (nodeId: string) => void;
   onDuplicateNode?: (nodeId: string) => void;
   onInsertBetween?: (parentNodeId: string, childNodeId: string, sourceHandle: string) => void;
+  // Go To connector props
+  goToConnecting?: { sourceNodeId: string } | null;
+  hoveredNodeId?: string | null;
+  setHoveredNodeId?: (id: string | null) => void;
+  onGoToConnectorMouseDown?: (e: React.MouseEvent, nodeId: string) => void;
 }> = ({ 
   node, 
   allNodes, 
@@ -297,7 +326,11 @@ const BranchCardsSection: React.FC<{
   onAddActionClick,
   onDeleteNode,
   onDuplicateNode,
-  onInsertBetween
+  onInsertBetween,
+  goToConnecting,
+  hoveredNodeId,
+  setHoveredNodeId,
+  onGoToConnectorMouseDown,
 }) => {
   const branches = node.data.config?.branches || [];
   const showNoneBranch = node.data.config?.showNoneBranch !== false;
@@ -422,6 +455,10 @@ const BranchCardsSection: React.FC<{
                   parentNodeId={node.id}
                   sourceHandle={branchHandle}
                   isFirstInBranch={true}
+                  goToConnecting={goToConnecting}
+                  hoveredNodeId={hoveredNodeId}
+                  setHoveredNodeId={setHoveredNodeId}
+                  onGoToConnectorMouseDown={onGoToConnectorMouseDown}
                 />
               ) : (
                 <div className="flex flex-col items-center mt-2">
@@ -483,6 +520,10 @@ const BranchCardsSection: React.FC<{
                   parentNodeId={node.id}
                   sourceHandle="none"
                   isFirstInBranch={true}
+                  goToConnecting={goToConnecting}
+                  hoveredNodeId={hoveredNodeId}
+                  setHoveredNodeId={setHoveredNodeId}
+                  onGoToConnectorMouseDown={onGoToConnectorMouseDown}
                 />
               ) : (
                 <div className="flex flex-col items-center mt-2">
@@ -553,10 +594,112 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const contentRef = useRef<HTMLDivElement>(null);
+  
+  // Go To connector dragging state
+  const [goToConnecting, setGoToConnecting] = useState<{
+    sourceNodeId: string;
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
+  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
   }, []);
+  
+  // Handle Go To connector drag start
+  const handleGoToConnectorMouseDown = useCallback((e: React.MouseEvent, nodeId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const canvasRect = canvasWrapRef.current?.getBoundingClientRect();
+    if (!canvasRect) return;
+    
+    const x = (e.clientX - canvasRect.left - pan.x) / zoom;
+    const y = (e.clientY - canvasRect.top - pan.y) / zoom;
+    
+    setGoToConnecting({
+      sourceNodeId: nodeId,
+      startX: x,
+      startY: y,
+      currentX: x,
+      currentY: y,
+    });
+  }, [canvasWrapRef, pan, zoom]);
+  
+  // Handle Go To connector drag move
+  const handleGoToConnectorMouseMove = useCallback((e: MouseEvent) => {
+    if (!goToConnecting) return;
+    
+    const canvasRect = canvasWrapRef.current?.getBoundingClientRect();
+    if (!canvasRect) return;
+    
+    const x = (e.clientX - canvasRect.left - pan.x) / zoom;
+    const y = (e.clientY - canvasRect.top - pan.y) / zoom;
+    
+    setGoToConnecting(prev => prev ? { ...prev, currentX: x, currentY: y } : null);
+  }, [goToConnecting, canvasWrapRef, pan, zoom]);
+  
+  // Handle Go To connector drag end
+  const handleGoToConnectorMouseUp = useCallback(() => {
+    if (!goToConnecting) return;
+    
+    // If dropped on a valid node, create a "go_to" edge
+    if (hoveredNodeId && hoveredNodeId !== goToConnecting.sourceNodeId) {
+      // Update the Go To node config to point to the target node
+      setNodes(nds => nds.map(n => {
+        if (n.id === goToConnecting.sourceNodeId) {
+          return {
+            ...n,
+            data: {
+              ...n.data,
+              config: {
+                ...n.data.config,
+                target_node_id: hoveredNodeId,
+                target_node_label: nodes.find(nd => nd.id === hoveredNodeId)?.data.label || "Unknown",
+              }
+            }
+          };
+        }
+        return n;
+      }));
+      
+      // Create a visual edge for the Go To connection
+      setEdges(eds => {
+        // Remove any existing go_to edge from this source
+        const filtered = eds.filter(e => !(e.source === goToConnecting.sourceNodeId && e.data?.label === "Go To"));
+        return [...filtered, {
+          id: `goto_${goToConnecting.sourceNodeId}_${hoveredNodeId}`,
+          source: goToConnecting.sourceNodeId,
+          target: hoveredNodeId,
+          sourceHandle: "goto",
+          targetHandle: "in",
+          type: "smoothstep",
+          animated: true,
+          style: { stroke: "#D97706", strokeWidth: 2, strokeDasharray: "5,5" },
+          data: { label: "Go To" },
+        }];
+      });
+    }
+    
+    setGoToConnecting(null);
+    setHoveredNodeId(null);
+  }, [goToConnecting, hoveredNodeId, nodes, setNodes, setEdges]);
+  
+  // Set up global mouse event listeners for Go To connector
+  useEffect(() => {
+    if (goToConnecting) {
+      window.addEventListener("mousemove", handleGoToConnectorMouseMove);
+      window.addEventListener("mouseup", handleGoToConnectorMouseUp);
+      return () => {
+        window.removeEventListener("mousemove", handleGoToConnectorMouseMove);
+        window.removeEventListener("mouseup", handleGoToConnectorMouseUp);
+      };
+    }
+  }, [goToConnecting, handleGoToConnectorMouseMove, handleGoToConnectorMouseUp]);
 
   // Create custom node component
   const nodeTypes = useMemo(() => {
@@ -1021,7 +1164,9 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                       className={cn(
                         "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200",
                         "min-w-[220px] max-w-[280px] shadow-sm hover:shadow-md group",
-                        selectedNodeId === node.id && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                        selectedNodeId === node.id && "ring-2 ring-primary ring-offset-2 ring-offset-background",
+                        // Highlight when being hovered during Go To connection
+                        goToConnecting && hoveredNodeId === node.id && goToConnecting.sourceNodeId !== node.id && "ring-2 ring-amber-500 ring-offset-2 ring-offset-background"
                       )}
                       onClick={() => {
                         setSelectedEdgeId(null);
@@ -1029,6 +1174,8 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                         setSelectedNodeId(node.id);
                         setSidebarTab("settings");
                       }}
+                      onMouseEnter={() => goToConnecting && setHoveredNodeId(node.id)}
+                      onMouseLeave={() => goToConnecting && setHoveredNodeId(null)}
                     >
                       <div className="flex items-center gap-3">
                         <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0", colorIconClasses[node.data.color])}>
@@ -1067,8 +1214,12 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                       {/* Go To node - draggable connector indicator */}
                       {isGoTo && (
                         <div 
-                          className="absolute -bottom-2 -right-2 w-5 h-5 rounded-full bg-amber-100 border-2 border-dashed border-amber-400 flex items-center justify-center cursor-grab active:cursor-grabbing"
+                          className={cn(
+                            "absolute -bottom-2 -right-2 w-5 h-5 rounded-full bg-amber-100 border-2 border-dashed border-amber-400 flex items-center justify-center cursor-grab active:cursor-grabbing",
+                            goToConnecting?.sourceNodeId === node.id && "ring-2 ring-amber-500 ring-offset-1"
+                          )}
                           title="Drag to connect to another node"
+                          onMouseDown={(e) => handleGoToConnectorMouseDown(e, node.id)}
                         >
                           <div className="w-2 h-2 rounded-full bg-amber-500" />
                         </div>
@@ -1090,6 +1241,10 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                         onDeleteNode={onDeleteNode}
                         onDuplicateNode={onDuplicateNode}
                         onInsertBetween={onInsertBetween}
+                        goToConnecting={goToConnecting}
+                        hoveredNodeId={hoveredNodeId}
+                        setHoveredNodeId={setHoveredNodeId}
+                        onGoToConnectorMouseDown={handleGoToConnectorMouseDown}
                       />
                     ) : !isCondition && !nextNode ? (
                       /* Add plus button below last non-condition node */
@@ -1191,6 +1346,51 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Go To connector dragging line overlay */}
+      {goToConnecting && (
+        <svg 
+          className="absolute inset-0 pointer-events-none z-50"
+          style={{ 
+            transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            transformOrigin: '0 0'
+          }}
+        >
+          <defs>
+            <marker
+              id="goto-arrowhead"
+              markerWidth="10"
+              markerHeight="7"
+              refX="9"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon points="0 0, 10 3.5, 0 7" fill="#D97706" />
+            </marker>
+          </defs>
+          <line
+            x1={goToConnecting.startX}
+            y1={goToConnecting.startY}
+            x2={goToConnecting.currentX}
+            y2={goToConnecting.currentY}
+            stroke="#D97706"
+            strokeWidth={2}
+            strokeDasharray="6,4"
+            markerEnd="url(#goto-arrowhead)"
+          />
+          {/* Animated circle at the end */}
+          <circle
+            cx={goToConnecting.currentX}
+            cy={goToConnecting.currentY}
+            r={6}
+            fill="#D97706"
+            opacity={0.5}
+          >
+            <animate attributeName="r" values="6;10;6" dur="1s" repeatCount="indefinite" />
+            <animate attributeName="opacity" values="0.5;0.2;0.5" dur="1s" repeatCount="indefinite" />
+          </circle>
+        </svg>
+      )}
 
       {/* Hidden ReactFlow for edge management */}
       <div className="hidden">
