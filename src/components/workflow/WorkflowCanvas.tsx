@@ -968,31 +968,33 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                 const isCondition = node.data.builderType === "condition";
                 const isGoTo = node.data.actionType === "go_to";
                 const prevNode = nodeIndex > 0 ? mainColumnNodes[nodeIndex - 1] : null;
+                const nextNode = nodeIndex < mainColumnNodes.length - 1 ? mainColumnNodes[nodeIndex + 1] : null;
                 
                 return (
                   <div key={node.id} className="flex flex-col items-center">
-                    {/* Connector line with centered plus button */}
+                    {/* Connector line with centered plus button - above node */}
                     <div className="flex flex-col items-center">
                       <div className="w-0.5 h-4 bg-border" />
-                      {prevNode && (
-                        <>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onInsertBetween(prevNode.id, node.id, "default");
-                            }}
-                            className={cn(
-                              "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
-                              "flex items-center justify-center",
-                              "hover:bg-primary hover:border-primary hover:text-primary-foreground",
-                              "transition-all duration-200 group"
-                            )}
-                          >
-                            <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
-                          </button>
-                          <div className="w-0.5 h-4 bg-border" />
-                        </>
-                      )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (prevNode) {
+                            onInsertBetween(prevNode.id, node.id, "default");
+                          } else {
+                            // Insert before first node
+                            onAddActionClick(undefined, undefined);
+                          }
+                        }}
+                        className={cn(
+                          "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+                          "flex items-center justify-center",
+                          "hover:bg-primary hover:border-primary hover:text-primary-foreground",
+                          "transition-all duration-200 group"
+                        )}
+                      >
+                        <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
+                      </button>
+                      <div className="w-0.5 h-4 bg-border" />
                     </div>
                     
                     <div
@@ -1053,9 +1055,8 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                       )}
                     </div>
                     
-                    {/* Branch buttons for condition nodes - only show if no branches configured yet */}
+                    {/* Branch cards for condition nodes with branches */}
                     {isCondition && node.data.config?.branches?.length > 0 ? (
-                      // Show saved branches as cards with connected nodes
                       <BranchCardsSection 
                         node={node}
                         allNodes={nodes}
@@ -1070,10 +1071,24 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
                         onDuplicateNode={onDuplicateNode}
                         onInsertBetween={onInsertBetween}
                       />
-                    ) : !isCondition ? (
+                    ) : !isCondition && !nextNode ? (
+                      /* Add plus button below last non-condition node */
                       <div className="flex flex-col items-center">
-                        <div className="w-px h-4 bg-border" />
-                        <PlusButton onClick={() => onAddActionClick(node.id, "default")} />
+                        <div className="w-0.5 h-4 bg-border" />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAddActionClick(node.id, "default");
+                          }}
+                          className={cn(
+                            "w-6 h-6 rounded-full bg-card border border-border shadow-sm",
+                            "flex items-center justify-center",
+                            "hover:bg-primary hover:border-primary hover:text-primary-foreground",
+                            "transition-all duration-200 group"
+                          )}
+                        >
+                          <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
+                        </button>
                       </div>
                     ) : null}
                   </div>
