@@ -53,8 +53,11 @@ const FIELD_OPTIONS = [
   { value: "contact.last_name", label: "Last Name" },
   { value: "contact.tag", label: "Contact Tag" },
   { value: "contact.source", label: "Contact Source" },
+  { value: "contact.last_appointment_days", label: "Days Since Last Appointment" },
   { value: "deal.value", label: "Deal Value" },
   { value: "deal.stage", label: "Deal Stage" },
+  { value: "system.current_hour", label: "Current Hour (0-23)" },
+  { value: "system.day_of_week", label: "Day of Week" },
 ];
 
 const OPERATOR_OPTIONS = [
@@ -68,22 +71,102 @@ const OPERATOR_OPTIONS = [
   { value: "less_than", label: "Less Than" },
 ];
 
-function createSegment(): ConditionSegment {
+function createSegment(field = "", operator = "", value = ""): ConditionSegment {
   return {
     id: `seg_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-    field: "",
-    operator: "",
-    value: "",
+    field,
+    operator,
+    value,
   };
 }
 
-function createBranch(index: number): ConditionBranch {
+function createBranch(name = "Branch", segments?: ConditionSegment[], logic: "AND" | "OR" = "AND"): ConditionBranch {
   return {
     id: `branch_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-    name: `Branch`,
-    segments: [createSegment()],
-    logic: "AND",
+    name,
+    segments: segments || [createSegment()],
+    logic,
   };
+}
+
+// Template configurations for each scenario recipe
+function getTemplateForRecipe(recipe: string): ConditionBranch[] {
+  const timestamp = Date.now();
+  
+  switch (recipe) {
+    case "availability":
+      return [
+        {
+          id: `branch_${timestamp}_open`,
+          name: "Open Hours",
+          segments: [
+            { id: `seg_${timestamp}_1`, field: "system.current_hour", operator: "greater_than", value: "9" },
+            { id: `seg_${timestamp}_2`, field: "system.current_hour", operator: "less_than", value: "17" },
+          ],
+          logic: "AND",
+        },
+        {
+          id: `branch_${timestamp}_closed`,
+          name: "Closed Hours",
+          segments: [
+            { id: `seg_${timestamp}_3`, field: "system.current_hour", operator: "less_than", value: "9" },
+          ],
+          logic: "OR",
+        },
+      ];
+    
+    case "has_tag":
+      return [
+        {
+          id: `branch_${timestamp}_has`,
+          name: "Has Tag",
+          segments: [
+            { id: `seg_${timestamp}_1`, field: "contact.tag", operator: "contains", value: "" },
+          ],
+          logic: "AND",
+        },
+        {
+          id: `branch_${timestamp}_no`,
+          name: "Missing Tag",
+          segments: [
+            { id: `seg_${timestamp}_2`, field: "contact.tag", operator: "not_contains", value: "" },
+          ],
+          logic: "AND",
+        },
+      ];
+    
+    case "last_appointment_at":
+      return [
+        {
+          id: `branch_${timestamp}_recent`,
+          name: "Recent Appointment",
+          segments: [
+            { id: `seg_${timestamp}_1`, field: "contact.last_appointment_days", operator: "less_than", value: "30" },
+          ],
+          logic: "AND",
+        },
+        {
+          id: `branch_${timestamp}_old`,
+          name: "Overdue for Appointment",
+          segments: [
+            { id: `seg_${timestamp}_2`, field: "contact.last_appointment_days", operator: "greater_than", value: "90" },
+          ],
+          logic: "AND",
+        },
+        {
+          id: `branch_${timestamp}_none`,
+          name: "No Appointment",
+          segments: [
+            { id: `seg_${timestamp}_3`, field: "contact.last_appointment_days", operator: "is_empty", value: "" },
+          ],
+          logic: "AND",
+        },
+      ];
+    
+    case "build_your_own":
+    default:
+      return [createBranch("Branch")];
+  }
 }
 
 export const ConditionSettings: React.FC<ConditionSettingsProps> = ({
@@ -146,7 +229,7 @@ export const ConditionSettings: React.FC<ConditionSettingsProps> = ({
   const addBranch = () => {
     onChange({
       ...config,
-      branches: [...config.branches, createBranch(config.branches.length)],
+      branches: [...config.branches, createBranch()],
     });
   };
 
@@ -239,7 +322,14 @@ export const ConditionSettings: React.FC<ConditionSettingsProps> = ({
             <p className="text-xs text-muted-foreground">Select from one of the pre-built condition templates</p>
             <Select
               value={config.scenario_recipe || "build_your_own"}
-              onValueChange={(v) => onChange({ ...config, scenario_recipe: v })}
+              onValueChange={(v) => {
+                const templateBranches = getTemplateForRecipe(v);
+                onChange({ 
+                  ...config, 
+                  scenario_recipe: v,
+                  branches: templateBranches,
+                });
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a recipe" />
