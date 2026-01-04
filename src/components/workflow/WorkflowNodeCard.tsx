@@ -82,6 +82,7 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
   const Icon = data.icon;
   const styles = getNodeStyles(data.builderType, data.color);
   const isCondition = data.builderType === "condition";
+  const isSplit = data.actionType === "split";
   const isTrigger = data.builderType === "trigger";
 
   return (
@@ -146,7 +147,31 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
         </div>
 
         {/* Branch Buttons for Conditions */}
-        {isCondition ? (
+        {isCondition && isSplit ? (
+          // Split A/B - two paths
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {(["yes", "no"] as const).map((handle, idx) => (
+              <button
+                key={handle}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddAfter({ sourceNodeId: id, sourceHandle: handle });
+                }}
+                className={cn(
+                  "flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-medium transition-all",
+                  "border-2 backdrop-blur-sm",
+                  handle === "yes" && "bg-blue-500/90 border-blue-400 text-white hover:bg-blue-500",
+                  handle === "no" && "bg-purple-500/90 border-purple-400 text-white hover:bg-purple-500"
+                )}
+                title={`Add to ${idx === 0 ? "Path A" : "Path B"}`}
+              >
+                <Plus className="w-3 h-3" />
+                {idx === 0 ? "Path A" : "Path B"}
+              </button>
+            ))}
+          </div>
+        ) : isCondition ? (
+          // If/Else - three paths
           <div className="mt-4 grid grid-cols-3 gap-2">
             {(["yes", "no", "none"] as const).map((handle) => (
               <button
@@ -191,7 +216,26 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
       </div>
 
       {/* Source Handles */}
-      {isCondition ? (
+      {isCondition && isSplit ? (
+        // Split A/B - two handles
+        <>
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="yes"
+            className="!w-3 !h-3 !bg-blue-500 !border-2 !border-background"
+            style={{ left: "30%" }}
+          />
+          <Handle
+            type="source"
+            position={Position.Bottom}
+            id="no"
+            className="!w-3 !h-3 !bg-purple-500 !border-2 !border-background"
+            style={{ left: "70%" }}
+          />
+        </>
+      ) : isCondition ? (
+        // If/Else - three handles
         <>
           <Handle
             type="source"
