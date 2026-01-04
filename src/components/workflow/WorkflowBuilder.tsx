@@ -309,6 +309,7 @@ export const WorkflowBuilder: React.FC = () => {
   const handleAddNode = useCallback((item: NodeLibraryItem) => {
     const nodeId = crypto.randomUUID();
     const builderType = normalizeBuilderType(item.kind, item.id);
+    const insertBeforeNodeId = (connectFrom as any)?.insertBeforeNodeId;
     const pos = getNewNodePosition(connectFrom?.sourceNodeId, connectFrom?.sourceHandle);
 
     const newNode: RFNode = {
@@ -381,6 +382,57 @@ export const WorkflowBuilder: React.FC = () => {
       }
     }
 
+    // Check if we're inserting between two nodes in the main column (no edge exists)
+    if (insertBeforeNodeId) {
+      const targetNode = nodes.find(n => n.id === insertBeforeNodeId);
+      
+      // Handle special case: inserting before first node (source is __trigger__)
+      if (connectFrom?.sourceNodeId === "__trigger__") {
+        if (targetNode) {
+          // Position above the first node
+          newNode.position = {
+            x: targetNode.position.x,
+            y: targetNode.position.y - 120,
+          };
+        }
+        
+        // Insert at the beginning of nodes array
+        setNodes((nds) => [newNode, ...nds]);
+        
+        setConnectFrom(null);
+        setSelectedNodeId(nodeId);
+        setSidebarTab("settings");
+        toast.success(`Inserted: ${item.label}`);
+        return;
+      }
+      
+      const sourceNode = nodes.find(n => n.id === connectFrom?.sourceNodeId);
+      
+      if (sourceNode && targetNode) {
+        // Position between the two nodes
+        newNode.position = {
+          x: (sourceNode.position.x + targetNode.position.x) / 2,
+          y: (sourceNode.position.y + targetNode.position.y) / 2,
+        };
+      }
+      
+      // Insert the new node at the correct position in the nodes array
+      setNodes((nds) => {
+        const targetIndex = nds.findIndex(n => n.id === insertBeforeNodeId);
+        if (targetIndex === -1) return [...nds, newNode];
+        const newNodes = [...nds];
+        newNodes.splice(targetIndex, 0, newNode);
+        return newNodes;
+      });
+      
+      setConnectFrom(null);
+      setSelectedNodeId(nodeId);
+      setSidebarTab("settings");
+      toast.success(`Inserted: ${item.label}`);
+      return;
+    }
+
+    // Regular add - add to end or after source
     setNodes((nds) => [...nds, newNode]);
 
     if (connectFrom) {
@@ -440,14 +492,33 @@ export const WorkflowBuilder: React.FC = () => {
 
   // Handle inserting a node between two existing nodes (clicking plus button between nodes)
   const handleInsertBetween = useCallback((parentNodeId: string, childNodeId: string, sourceHandle: string) => {
+    // Special case: inserting before first node (parentNodeId is "__trigger__")
+    if (parentNodeId === "__trigger__") {
+      setConnectFrom({ 
+        sourceNodeId: "__trigger__", 
+        sourceHandle: "default" as any,
+        insertBeforeNodeId: childNodeId
+      } as any);
+      setSidebarTab("actions");
+      setSelectedNodeId(null);
+      setSelectedEdgeId(null);
+      setSelectedTriggerId(null);
+      return;
+    }
+    
     // Find the edge between parent and child
     const edge = edges.find(e => e.source === parentNodeId && e.target === childNodeId);
     if (edge) {
       // Use the existing edge insert logic
       handleInsertOnEdge(edge.id, parentNodeId, childNodeId);
     } else {
-      // Fallback: just add after parent
-      setConnectFrom({ sourceNodeId: parentNodeId, sourceHandle: sourceHandle as any });
+      // No edge exists between these nodes - we need to insert between them in the visual order
+      // Create a special state that tells handleAddNode to insert between these nodes
+      setConnectFrom({ 
+        sourceNodeId: parentNodeId, 
+        sourceHandle: sourceHandle as any,
+        insertBeforeNodeId: childNodeId  // Custom property to track insertion point
+      } as any);
       setSidebarTab("actions");
       setSelectedNodeId(null);
       setSelectedEdgeId(null);
