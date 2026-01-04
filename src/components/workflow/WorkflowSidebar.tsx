@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-import { Search, X, Settings, Link2Off, ChevronRight, GripVertical } from "lucide-react";
+import { Search, X, Settings, Link2Off, ChevronRight, GripVertical, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,6 +27,7 @@ import { TRIGGERS, ACTIONS, NODE_CONFIGS, ALL_LIBRARY_ITEMS } from "./node-libra
 import { CustomFieldInput } from "./CustomFieldInput";
 import { CustomFieldTextarea } from "./CustomFieldTextarea";
 import { RichTextEditor } from "./RichTextEditor";
+import { ConditionSettings, ConditionConfig, ConditionBranch } from "./ConditionSettings";
 
 interface WorkflowSidebarProps {
   tab: SidebarTab;
@@ -477,113 +478,23 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
           {/* Node Selected */}
           {selectedNode && !selectedTrigger && (
             <>
-              <ScrollArea className="flex-1">
-                <div className="p-4 space-y-4">
-                  {!nodeSchema ? (
-                    <div className="text-center py-10">
-                      <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                        <Settings className="w-8 h-8 text-muted-foreground" />
-                      </div>
-                      <p className="text-sm text-muted-foreground">No configuration needed for this node.</p>
-                    </div>
-                  ) : (
-                    nodeSchema.fields.map((field) => {
-                      const val = localConfig[field.name];
-                      const showVars = !!nodeSchema.variables?.length && (field.type === "text" || field.type === "textarea");
-
-                      return (
-                        <div key={field.name} className="space-y-2">
-                          <Label className="text-sm font-medium uppercase">
-                            {field.label}
-                            {"required" in field && field.required && <span className="text-destructive ml-1">*</span>}
-                          </Label>
-
-                          {"helperText" in field && field.helperText && (
-                            <div className="text-xs text-muted-foreground">{field.helperText}</div>
-                          )}
-
-                          {field.type === "text" && (
-                            <CustomFieldInput
-                              value={val ?? ""}
-                              onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
-                              placeholder={"placeholder" in field ? field.placeholder : ""}
-                              helperText={"helperText" in field ? field.helperText : undefined}
-                            />
-                          )}
-
-                          {field.type === "number" && (
-                            <Input
-                              type="number"
-                              value={val ?? ""}
-                              onChange={(e) => setLocalConfig((s) => ({ ...s, [field.name]: e.target.value }))}
-                            />
-                          )}
-
-                          {field.type === "textarea" && (
-                            <CustomFieldTextarea
-                              value={val ?? ""}
-                              onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
-                              rows={"rows" in field ? field.rows : 5}
-                              placeholder={"placeholder" in field ? field.placeholder : ""}
-                            />
-                          )}
-
-                          {field.type === "select" && (
-                            <Select
-                              value={val ?? ""}
-                              onValueChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder={`Select ${field.label}`} />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {field.options.map((opt) => (
-                                  <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          )}
-
-                          {field.type === "richtext" && (
-                            <RichTextEditor
-                              value={val ?? ""}
-                              onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
-                            />
-                          )}
-
-                          {field.type === "switch" && (
-                            <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
-                              <div className="text-sm text-foreground">{field.label}</div>
-                              <Switch
-                                className={BLUE_SWITCH_CLASS}
-                                checked={!!val}
-                                onCheckedChange={(checked) => setLocalConfig((s) => ({ ...s, [field.name]: checked }))}
-                              />
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </ScrollArea>
-
-              <div className="flex-shrink-0 p-4 border-t bg-muted/30 flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => {
-                    setLocalConfig(selectedNode.data.config || {});
-                    toast.message("Changes reverted");
+              {/* Check if this is a condition node */}
+              {selectedNode.data.builderType === "condition" ? (
+                <ConditionSettings
+                  config={{
+                    action_name: localConfig.action_name || "",
+                    scenario_recipe: localConfig.scenario_recipe || "build_your_own",
+                    branches: localConfig.branches || [
+                      {
+                        id: "branch_1",
+                        name: "Branch",
+                        segments: [{ id: "seg_1", field: "", operator: "", value: "" }],
+                        logic: "AND" as const,
+                      },
+                    ],
                   }}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
-                  onClick={async () => {
+                  onChange={(newConfig) => setLocalConfig({ ...localConfig, ...newConfig })}
+                  onSave={async () => {
                     if (!dirtyNodeId) return;
                     try {
                       await onPersistNodeConfig(dirtyNodeId, localConfig);
@@ -593,10 +504,144 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                       toast.error(e?.message || "Failed to save node settings");
                     }
                   }}
-                >
-                  Save
-                </Button>
-              </div>
+                  onCancel={() => {
+                    setLocalConfig(selectedNode.data.config || {});
+                    toast.message("Changes reverted");
+                  }}
+                  nodeLabel={selectedNode.data.label}
+                  nodeDescription={
+                    selectedNode.data.actionType === "if_else"
+                      ? "Fork the contact's journey through this workflow based on conditions"
+                      : selectedNode.data.actionType === "split"
+                      ? "Split contacts into different paths for A/B testing"
+                      : "Evaluate conditions to determine the contact's path"
+                  }
+                  icon={<GitBranch className="w-5 h-5 text-blue-600" />}
+                />
+              ) : (
+                <>
+                  <ScrollArea className="flex-1">
+                    <div className="p-4 space-y-4">
+                      {!nodeSchema ? (
+                        <div className="text-center py-10">
+                          <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                            <Settings className="w-8 h-8 text-muted-foreground" />
+                          </div>
+                          <p className="text-sm text-muted-foreground">No configuration needed for this node.</p>
+                        </div>
+                      ) : (
+                        nodeSchema.fields.map((field) => {
+                          const val = localConfig[field.name];
+                          const showVars = !!nodeSchema.variables?.length && (field.type === "text" || field.type === "textarea");
+
+                          return (
+                            <div key={field.name} className="space-y-2">
+                              <Label className="text-sm font-medium uppercase">
+                                {field.label}
+                                {"required" in field && field.required && <span className="text-destructive ml-1">*</span>}
+                              </Label>
+
+                              {"helperText" in field && field.helperText && (
+                                <div className="text-xs text-muted-foreground">{field.helperText}</div>
+                              )}
+
+                              {field.type === "text" && (
+                                <CustomFieldInput
+                                  value={val ?? ""}
+                                  onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
+                                  placeholder={"placeholder" in field ? field.placeholder : ""}
+                                  helperText={"helperText" in field ? field.helperText : undefined}
+                                />
+                              )}
+
+                              {field.type === "number" && (
+                                <Input
+                                  type="number"
+                                  value={val ?? ""}
+                                  onChange={(e) => setLocalConfig((s) => ({ ...s, [field.name]: e.target.value }))}
+                                />
+                              )}
+
+                              {field.type === "textarea" && (
+                                <CustomFieldTextarea
+                                  value={val ?? ""}
+                                  onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
+                                  rows={"rows" in field ? field.rows : 5}
+                                  placeholder={"placeholder" in field ? field.placeholder : ""}
+                                />
+                              )}
+
+                              {field.type === "select" && (
+                                <Select
+                                  value={val ?? ""}
+                                  onValueChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue placeholder={`Select ${field.label}`} />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {field.options.map((opt) => (
+                                      <SelectItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+
+                              {field.type === "richtext" && (
+                                <RichTextEditor
+                                  value={val ?? ""}
+                                  onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
+                                />
+                              )}
+
+                              {field.type === "switch" && (
+                                <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
+                                  <div className="text-sm text-foreground">{field.label}</div>
+                                  <Switch
+                                    className={BLUE_SWITCH_CLASS}
+                                    checked={!!val}
+                                    onCheckedChange={(checked) => setLocalConfig((s) => ({ ...s, [field.name]: checked }))}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </ScrollArea>
+
+                  <div className="flex-shrink-0 p-4 border-t bg-muted/30 flex gap-2">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => {
+                        setLocalConfig(selectedNode.data.config || {});
+                        toast.message("Changes reverted");
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                      onClick={async () => {
+                        if (!dirtyNodeId) return;
+                        try {
+                          await onPersistNodeConfig(dirtyNodeId, localConfig);
+                          onSaveNodeConfig(dirtyNodeId, localConfig);
+                        } catch (e: any) {
+                          console.error(e);
+                          toast.error(e?.message || "Failed to save node settings");
+                        }
+                      }}
+                    >
+                      Save
+                    </Button>
+                  </div>
+                </>
+              )}
             </>
           )}
         </div>
