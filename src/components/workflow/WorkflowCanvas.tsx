@@ -80,77 +80,80 @@ const BranchCardsSection: React.FC<{
 }> = ({ node, onAddActionClick }) => {
   const branches = node.data.config?.branches || [];
   const totalBranches = branches.length + 1; // +1 for None branch
-  const branchWidth = 180; // Width of each branch column
-  const gap = 16; // Gap between branches
+  const branchWidth = 200; // Width of each branch column
+  const gap = 24; // Gap between branches
   const totalWidth = totalBranches * branchWidth + (totalBranches - 1) * gap;
-  const verticalDropHeight = 30;
-  const horizontalLineY = verticalDropHeight;
+  const startY = 0;
+  const dropHeight = 20; // Initial vertical drop from node
+  const curveRadius = 12; // Radius for rounded corners
+  const branchDropHeight = 35; // Height from horizontal line to cards
+  const svgHeight = dropHeight + branchDropHeight + 10;
+  const centerX = (totalWidth + 40) / 2;
+  
+  // Calculate x positions for each branch
+  const getBranchX = (idx: number) => 20 + branchWidth / 2 + idx * (branchWidth + gap);
   
   return (
     <div className="mt-4 flex flex-col items-center relative">
-      {/* SVG Connector Lines */}
+      {/* SVG Connector Lines with curves */}
       <svg 
         className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
         width={totalWidth + 40}
-        height={verticalDropHeight + 30}
+        height={svgHeight}
         style={{ overflow: 'visible' }}
       >
-        {/* Central vertical line from node */}
-        <line
-          x1={(totalWidth + 40) / 2}
-          y1={0}
-          x2={(totalWidth + 40) / 2}
-          y2={horizontalLineY}
-          stroke="hsl(var(--border))"
-          strokeWidth={2}
-        />
-        
-        {/* Horizontal line connecting all branches */}
-        <line
-          x1={20 + branchWidth / 2}
-          y1={horizontalLineY}
-          x2={totalWidth + 20 - branchWidth / 2}
-          y2={horizontalLineY}
-          stroke="hsl(var(--border))"
-          strokeWidth={2}
-        />
-        
-        {/* Vertical lines dropping to each branch */}
+        {/* Draw curved paths from center to each branch */}
         {[...Array(totalBranches)].map((_, idx) => {
-          const xPos = 20 + branchWidth / 2 + idx * (branchWidth + gap);
+          const branchX = getBranchX(idx);
+          const horizontalY = dropHeight;
+          
+          // Create a smooth curved path from center down to each branch
+          let pathD: string;
+          
+          if (branchX === centerX) {
+            // Center branch - straight line down
+            pathD = `M ${centerX} ${startY} L ${centerX} ${horizontalY + branchDropHeight}`;
+          } else if (branchX < centerX) {
+            // Left branches - curve left then down
+            pathD = `
+              M ${centerX} ${startY}
+              L ${centerX} ${horizontalY - curveRadius}
+              Q ${centerX} ${horizontalY}, ${centerX - curveRadius} ${horizontalY}
+              L ${branchX + curveRadius} ${horizontalY}
+              Q ${branchX} ${horizontalY}, ${branchX} ${horizontalY + curveRadius}
+              L ${branchX} ${horizontalY + branchDropHeight}
+            `;
+          } else {
+            // Right branches - curve right then down
+            pathD = `
+              M ${centerX} ${startY}
+              L ${centerX} ${horizontalY - curveRadius}
+              Q ${centerX} ${horizontalY}, ${centerX + curveRadius} ${horizontalY}
+              L ${branchX - curveRadius} ${horizontalY}
+              Q ${branchX} ${horizontalY}, ${branchX} ${horizontalY + curveRadius}
+              L ${branchX} ${horizontalY + branchDropHeight}
+            `;
+          }
+          
           return (
-            <line
+            <path
               key={idx}
-              x1={xPos}
-              y1={horizontalLineY}
-              x2={xPos}
-              y2={horizontalLineY + 25}
+              d={pathD}
+              fill="none"
               stroke="hsl(var(--border))"
               strokeWidth={2}
-            />
-          );
-        })}
-        
-        {/* Small circles at connection points */}
-        {[...Array(totalBranches)].map((_, idx) => {
-          const xPos = 20 + branchWidth / 2 + idx * (branchWidth + gap);
-          return (
-            <circle
-              key={`dot-${idx}`}
-              cx={xPos}
-              cy={horizontalLineY}
-              r={3}
-              fill="hsl(var(--border))"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
           );
         })}
       </svg>
       
       {/* Spacer for SVG height */}
-      <div style={{ height: verticalDropHeight + 25 }} />
+      <div style={{ height: svgHeight }} />
       
       {/* Branch cards container */}
-      <div className="flex gap-4 items-start">
+      <div className="flex items-start" style={{ gap }}>
         {/* User-defined branches */}
         {branches.map((branch: any, idx: number) => (
           <div key={branch.id} className="flex flex-col items-center" style={{ width: branchWidth }}>
