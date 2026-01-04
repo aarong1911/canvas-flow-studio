@@ -496,6 +496,7 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                           logic: "AND" as const,
                         },
                       ],
+                      showNoneBranch: localConfig.showNoneBranch,
                     }}
                     onChange={(newConfig) => setLocalConfig({ ...localConfig, ...newConfig })}
                     onSave={async () => {

@@ -495,7 +495,7 @@ export const ConditionSettings: React.FC<ConditionSettingsProps> = ({
           </div>
 
           {/* None Branch Info */}
-          {config.showNoneBranch !== false && (
+          {config.showNoneBranch !== false ? (
             <div className="border rounded-lg p-4 bg-muted/20">
               <div className="flex items-center justify-between">
                 <div className="flex items-start gap-2">
@@ -522,6 +522,14 @@ export const ConditionSettings: React.FC<ConditionSettingsProps> = ({
                 </DropdownMenu>
               </div>
             </div>
+          ) : (
+            <button
+              onClick={() => onChange({ ...config, showNoneBranch: true })}
+              className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
+            >
+              <Plus className="w-4 h-4" />
+              Add None Branch
+            </button>
           )}
         </div>
       </ScrollArea>
