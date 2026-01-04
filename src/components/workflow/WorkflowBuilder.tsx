@@ -274,9 +274,34 @@ export const WorkflowBuilder: React.FC = () => {
     }
     const src = nodes.find((n) => n.id === sourceId);
     if (!src) return { x: 0, y: 0 };
-    const base = { x: 0, y: src.position.y + 120 };
+    const base = { x: 0, y: src.position.y + 180 };
+    
+    // Handle legacy yes/no handles
     if (sourceHandle === "yes") return { x: base.x - 260, y: base.y };
     if (sourceHandle === "no") return { x: base.x + 260, y: base.y };
+    
+    // Handle branch-based handles (branch_0, branch_1, etc. and none)
+    if (sourceHandle?.startsWith("branch_") || sourceHandle === "none") {
+      const branches = src.data.config?.branches || [];
+      const showNoneBranch = src.data.config?.showNoneBranch !== false;
+      const totalBranches = branches.length + (showNoneBranch ? 1 : 0);
+      
+      let branchIndex: number;
+      if (sourceHandle === "none") {
+        branchIndex = branches.length; // None is always last
+      } else {
+        branchIndex = parseInt(sourceHandle.replace("branch_", ""), 10);
+      }
+      
+      // Calculate x offset based on branch position
+      const branchWidth = 220;
+      const totalWidth = totalBranches * branchWidth;
+      const startX = -totalWidth / 2 + branchWidth / 2;
+      const xOffset = startX + branchIndex * branchWidth;
+      
+      return { x: xOffset, y: base.y };
+    }
+    
     return base;
   }, [nodes]);
 
@@ -359,6 +384,18 @@ export const WorkflowBuilder: React.FC = () => {
     setNodes((nds) => [...nds, newNode]);
 
     if (connectFrom) {
+      // Get branch label for edge
+      let edgeLabel: string | undefined;
+      if (connectFrom.sourceHandle === "yes") edgeLabel = "Yes";
+      else if (connectFrom.sourceHandle === "no") edgeLabel = "No";
+      else if (connectFrom.sourceHandle === "none") edgeLabel = "None";
+      else if (connectFrom.sourceHandle?.startsWith("branch_")) {
+        const srcNode = nodes.find(n => n.id === connectFrom.sourceNodeId);
+        const branchIdx = parseInt(connectFrom.sourceHandle.replace("branch_", ""), 10);
+        const branch = srcNode?.data.config?.branches?.[branchIdx];
+        edgeLabel = branch?.name || `Branch ${branchIdx + 1}`;
+      }
+      
       setEdges((eds) => [...eds, {
         id: crypto.randomUUID(),
         source: connectFrom.sourceNodeId,
@@ -368,7 +405,7 @@ export const WorkflowBuilder: React.FC = () => {
         type: "plusEdge",
         markerEnd: { type: MarkerType.ArrowClosed },
         style: { strokeWidth: 2 },
-        label: connectFrom.sourceHandle === "yes" ? "Yes" : connectFrom.sourceHandle === "no" ? "No" : connectFrom.sourceHandle === "none" ? "None" : undefined,
+        label: edgeLabel,
       }]);
     }
 
