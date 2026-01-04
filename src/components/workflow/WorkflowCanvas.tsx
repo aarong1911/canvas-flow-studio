@@ -79,21 +79,85 @@ const BranchCardsSection: React.FC<{
   onAddActionClick: (sourceNodeId?: string, sourceHandle?: string) => void;
 }> = ({ node, onAddActionClick }) => {
   const branches = node.data.config?.branches || [];
+  const totalBranches = branches.length + 1; // +1 for None branch
+  const branchWidth = 180; // Width of each branch column
+  const gap = 16; // Gap between branches
+  const totalWidth = totalBranches * branchWidth + (totalBranches - 1) * gap;
+  const verticalDropHeight = 30;
+  const horizontalLineY = verticalDropHeight;
   
   return (
-    <div className="mt-4 flex flex-col items-center">
-      {/* Vertical line from node */}
-      <div className="w-px h-6 bg-border" />
+    <div className="mt-4 flex flex-col items-center relative">
+      {/* SVG Connector Lines */}
+      <svg 
+        className="absolute top-0 left-1/2 -translate-x-1/2 pointer-events-none"
+        width={totalWidth + 40}
+        height={verticalDropHeight + 30}
+        style={{ overflow: 'visible' }}
+      >
+        {/* Central vertical line from node */}
+        <line
+          x1={(totalWidth + 40) / 2}
+          y1={0}
+          x2={(totalWidth + 40) / 2}
+          y2={horizontalLineY}
+          stroke="hsl(var(--border))"
+          strokeWidth={2}
+        />
+        
+        {/* Horizontal line connecting all branches */}
+        <line
+          x1={20 + branchWidth / 2}
+          y1={horizontalLineY}
+          x2={totalWidth + 20 - branchWidth / 2}
+          y2={horizontalLineY}
+          stroke="hsl(var(--border))"
+          strokeWidth={2}
+        />
+        
+        {/* Vertical lines dropping to each branch */}
+        {[...Array(totalBranches)].map((_, idx) => {
+          const xPos = 20 + branchWidth / 2 + idx * (branchWidth + gap);
+          return (
+            <line
+              key={idx}
+              x1={xPos}
+              y1={horizontalLineY}
+              x2={xPos}
+              y2={horizontalLineY + 25}
+              stroke="hsl(var(--border))"
+              strokeWidth={2}
+            />
+          );
+        })}
+        
+        {/* Small circles at connection points */}
+        {[...Array(totalBranches)].map((_, idx) => {
+          const xPos = 20 + branchWidth / 2 + idx * (branchWidth + gap);
+          return (
+            <circle
+              key={`dot-${idx}`}
+              cx={xPos}
+              cy={horizontalLineY}
+              r={3}
+              fill="hsl(var(--border))"
+            />
+          );
+        })}
+      </svg>
+      
+      {/* Spacer for SVG height */}
+      <div style={{ height: verticalDropHeight + 25 }} />
       
       {/* Branch cards container */}
       <div className="flex gap-4 items-start">
         {/* User-defined branches */}
         {branches.map((branch: any, idx: number) => (
-          <div key={branch.id} className="flex flex-col items-center">
+          <div key={branch.id} className="flex flex-col items-center" style={{ width: branchWidth }}>
             {/* Branch card */}
-            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 min-w-[160px] max-w-[200px]">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 w-full">
               <div className="flex items-center gap-2 text-blue-700">
-                <GitBranch className="w-4 h-4" />
+                <GitBranch className="w-4 h-4 flex-shrink-0" />
                 <span className="text-sm font-medium truncate">
                   {branch.name || `Branch ${idx + 1}`}
                 </span>
@@ -107,7 +171,7 @@ const BranchCardsSection: React.FC<{
             
             {/* Plus button and END */}
             <div className="flex flex-col items-center mt-2">
-              <div className="w-px h-4 bg-border" />
+              <div className="w-0.5 h-4 bg-border" />
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -122,7 +186,7 @@ const BranchCardsSection: React.FC<{
               >
                 <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
               </button>
-              <div className="w-px h-4 bg-border" />
+              <div className="w-0.5 h-4 bg-border" />
               <div className="bg-muted border border-border rounded-full px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide shadow-sm">
                 END
               </div>
@@ -131,20 +195,20 @@ const BranchCardsSection: React.FC<{
         ))}
         
         {/* None branch */}
-        <div className="flex flex-col items-center">
-          <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 min-w-[140px]">
+        <div className="flex flex-col items-center" style={{ width: branchWidth }}>
+          <div className="bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 w-full">
             <div className="flex items-center gap-2 text-gray-600">
-              <AlertTriangle className="w-4 h-4" />
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
               <span className="text-sm font-medium">None</span>
             </div>
             <div className="text-xs text-gray-500 mt-1">
-              When no conditions are met
+              When no conditions match
             </div>
           </div>
           
           {/* Plus button and END */}
           <div className="flex flex-col items-center mt-2">
-            <div className="w-px h-4 bg-border" />
+            <div className="w-0.5 h-4 bg-border" />
             <button
               onClick={(e) => {
                 e.stopPropagation();
@@ -159,7 +223,7 @@ const BranchCardsSection: React.FC<{
             >
               <Plus className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary-foreground" />
             </button>
-            <div className="w-px h-4 bg-border" />
+            <div className="w-0.5 h-4 bg-border" />
             <div className="bg-muted border border-border rounded-full px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wide shadow-sm">
               END
             </div>
