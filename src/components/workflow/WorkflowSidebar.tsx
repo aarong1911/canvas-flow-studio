@@ -331,25 +331,28 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
       {/* SETTINGS TAB - Configure selected node, trigger, or edge */}
       {tab === "settings" && (
         <div className="flex flex-col flex-1 min-h-0">
-          <div className="flex-shrink-0 p-4 border-b flex items-start justify-between">
-            <div>
-              <div className="text-sm font-semibold text-foreground">
-                {selectedTrigger ? "Workflow Trigger" : selectedNode ? selectedNode.data.label : selectedEdge ? "Connection" : "Configure"}
+          {/* Hide header for condition nodes since ConditionSettings has its own */}
+          {!(selectedNode && !selectedTrigger && selectedNode.data.builderType === "condition") && (
+            <div className="flex-shrink-0 p-4 border-b flex items-start justify-between">
+              <div>
+                <div className="text-sm font-semibold text-foreground">
+                  {selectedTrigger ? "Workflow Trigger" : selectedNode ? selectedNode.data.label : selectedEdge ? "Connection" : "Configure"}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {selectedTrigger 
+                    ? "Adds a workflow trigger, and on execution, the contact gets added to the workflow."
+                    : selectedNode 
+                      ? "Configure this action" 
+                      : selectedEdge 
+                        ? "Connection details" 
+                        : "Select a node to configure"}
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground">
-                {selectedTrigger 
-                  ? "Adds a workflow trigger, and on execution, the contact gets added to the workflow."
-                  : selectedNode 
-                    ? "Configure this action" 
-                    : selectedEdge 
-                      ? "Connection details" 
-                      : "Select a node to configure"}
-              </div>
+              <button onClick={() => setTab("triggers")} className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="Close">
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
             </div>
-            <button onClick={() => setTab("triggers")} className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="Close">
-              <X className="w-4 h-4 text-muted-foreground" />
-            </button>
-          </div>
+          )}
 
           {/* Trigger Configuration */}
           {selectedTrigger && (
@@ -480,44 +483,47 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
             <>
               {/* Check if this is a condition node */}
               {selectedNode.data.builderType === "condition" ? (
-                <ConditionSettings
-                  config={{
-                    action_name: localConfig.action_name || "",
-                    scenario_recipe: localConfig.scenario_recipe || "build_your_own",
-                    branches: localConfig.branches || [
-                      {
-                        id: "branch_1",
-                        name: "Branch",
-                        segments: [{ id: "seg_1", field: "", operator: "", value: "" }],
-                        logic: "AND" as const,
-                      },
-                    ],
-                  }}
-                  onChange={(newConfig) => setLocalConfig({ ...localConfig, ...newConfig })}
-                  onSave={async () => {
-                    if (!dirtyNodeId) return;
-                    try {
-                      await onPersistNodeConfig(dirtyNodeId, localConfig);
-                      onSaveNodeConfig(dirtyNodeId, localConfig);
-                    } catch (e: any) {
-                      console.error(e);
-                      toast.error(e?.message || "Failed to save node settings");
+                <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+                  <ConditionSettings
+                    config={{
+                      action_name: localConfig.action_name || "",
+                      scenario_recipe: localConfig.scenario_recipe || "build_your_own",
+                      branches: localConfig.branches || [
+                        {
+                          id: "branch_1",
+                          name: "Branch",
+                          segments: [{ id: "seg_1", field: "", operator: "", value: "" }],
+                          logic: "AND" as const,
+                        },
+                      ],
+                    }}
+                    onChange={(newConfig) => setLocalConfig({ ...localConfig, ...newConfig })}
+                    onSave={async () => {
+                      if (!dirtyNodeId) return;
+                      try {
+                        await onPersistNodeConfig(dirtyNodeId, localConfig);
+                        onSaveNodeConfig(dirtyNodeId, localConfig);
+                      } catch (e: any) {
+                        console.error(e);
+                        toast.error(e?.message || "Failed to save node settings");
+                      }
+                    }}
+                    onCancel={() => {
+                      setLocalConfig(selectedNode.data.config || {});
+                      toast.message("Changes reverted");
+                    }}
+                    onClose={() => setTab("triggers")}
+                    nodeLabel={selectedNode.data.label}
+                    nodeDescription={
+                      selectedNode.data.actionType === "if_else"
+                        ? "Fork the contact's journey through this workflow based on conditions"
+                        : selectedNode.data.actionType === "split"
+                        ? "Split contacts into different paths for A/B testing"
+                        : "Evaluate conditions to determine the contact's path"
                     }
-                  }}
-                  onCancel={() => {
-                    setLocalConfig(selectedNode.data.config || {});
-                    toast.message("Changes reverted");
-                  }}
-                  nodeLabel={selectedNode.data.label}
-                  nodeDescription={
-                    selectedNode.data.actionType === "if_else"
-                      ? "Fork the contact's journey through this workflow based on conditions"
-                      : selectedNode.data.actionType === "split"
-                      ? "Split contacts into different paths for A/B testing"
-                      : "Evaluate conditions to determine the contact's path"
-                  }
-                  icon={<GitBranch className="w-5 h-5 text-blue-600" />}
-                />
+                    icon={<GitBranch className="w-5 h-5 text-blue-600" />}
+                  />
+                </div>
               ) : (
                 <>
                   <ScrollArea className="flex-1">

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Plus, GripVertical, MoreVertical, ChevronUp, ChevronDown, Clock, Tag, Calendar, CheckSquare } from "lucide-react";
+import { Plus, GripVertical, MoreVertical, ChevronUp, ChevronDown, Clock, Tag, Calendar, CheckSquare, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,7 @@ interface ConditionSettingsProps {
   onChange: (config: ConditionConfig) => void;
   onSave: () => void;
   onCancel: () => void;
+  onClose?: () => void;
   nodeLabel: string;
   nodeDescription?: string;
   icon?: React.ReactNode;
@@ -90,6 +91,7 @@ export const ConditionSettings: React.FC<ConditionSettingsProps> = ({
   onChange,
   onSave,
   onCancel,
+  onClose,
   nodeLabel,
   nodeDescription,
   icon,
@@ -191,18 +193,25 @@ export const ConditionSettings: React.FC<ConditionSettingsProps> = ({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex-shrink-0 p-4 border-b">
-        <div className="flex items-start gap-3">
-          {icon && (
-            <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-              {icon}
-            </div>
-          )}
-          <div>
-            <div className="text-base font-semibold text-foreground">{nodeLabel}</div>
-            <div className="text-sm text-muted-foreground">
-              {nodeDescription || "Fork the contact's journey through this workflow based on conditions"}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            {icon && (
+              <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
+                {icon}
+              </div>
+            )}
+            <div>
+              <div className="text-base font-semibold text-foreground">{nodeLabel}</div>
+              <div className="text-sm text-muted-foreground">
+                {nodeDescription || "Fork the contact's journey through this workflow based on conditions"}
+              </div>
             </div>
           </div>
+          {onClose && (
+            <button onClick={onClose} className="p-1.5 hover:bg-muted rounded-lg transition-colors" title="Close">
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          )}
         </div>
       </div>
 
