@@ -72,6 +72,7 @@ export default {
           error: "hsl(var(--workflow-error))",
           "error-foreground": "hsl(var(--workflow-error-foreground))",
           connector: "hsl(var(--workflow-connector))",
+          goto: "hsl(var(--workflow-goto))",
         },
       },
       borderRadius: {

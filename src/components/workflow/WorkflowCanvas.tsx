@@ -594,68 +594,66 @@ const GoToConnectorLines: React.FC<{
 
   useEffect(() => {
     const updateConnections = () => {
-      if (!contentRef.current) return;
-      
+      if (!contentRef.current || !canvasWrapRef.current) return;
+
       const newConnections: typeof connections = [];
-      
+      const canvasRect = canvasWrapRef.current.getBoundingClientRect();
+
       // Find all Go To nodes with target_node_id configured
-      nodes.forEach(node => {
+      nodes.forEach((node) => {
         if (node.data.actionType === "go_to" && node.data.config?.target_node_id) {
           const targetNodeId = node.data.config.target_node_id;
-          
+
           // Find the DOM elements for source and target nodes
           const sourceEl = contentRef.current?.querySelector(`[data-node-id="${node.id}"]`);
           const targetEl = contentRef.current?.querySelector(`[data-node-id="${targetNodeId}"]`);
-          
+
           if (sourceEl && targetEl) {
-            const contentRect = contentRef.current?.getBoundingClientRect();
             const sourceRect = sourceEl.getBoundingClientRect();
             const targetRect = targetEl.getBoundingClientRect();
-            
-            if (contentRect) {
-              // Calculate positions relative to the content container (already in transformed space)
-              const sourceX = sourceRect.right - contentRect.left + 4;
-              const sourceY = sourceRect.top + sourceRect.height / 2 - contentRect.top;
-              const targetX = targetRect.left - contentRect.left - 4;
-              const targetY = targetRect.top + targetRect.height / 2 - contentRect.top;
-              
-              newConnections.push({
-                sourceId: node.id,
-                targetId: targetNodeId,
-                sourceX,
-                sourceY,
-                targetX,
-                targetY,
-              });
-            }
+
+            // Coordinates in the *canvas* coordinate space (viewport), which matches the SVG overlay.
+            const sourceX = sourceRect.right - canvasRect.left + 4;
+            const sourceY = sourceRect.top + sourceRect.height / 2 - canvasRect.top;
+            const targetX = targetRect.left - canvasRect.left - 4;
+            const targetY = targetRect.top + targetRect.height / 2 - canvasRect.top;
+
+            newConnections.push({
+              sourceId: node.id,
+              targetId: targetNodeId,
+              sourceX,
+              sourceY,
+              targetX,
+              targetY,
+            });
           }
         }
       });
-      
+
       setConnections(newConnections);
     };
 
     // Initial update
     updateConnections();
-    
+
     // Update on DOM changes
     const observer = new MutationObserver(updateConnections);
     if (contentRef.current) {
       observer.observe(contentRef.current, { childList: true, subtree: true, attributes: true });
     }
-    window.addEventListener('resize', updateConnections);
-    
+    window.addEventListener("resize", updateConnections);
+
     // Also update after a short delay to catch layout changes
     const timeout = setTimeout(updateConnections, 100);
     const timeout2 = setTimeout(updateConnections, 300);
-    
+
     return () => {
       observer.disconnect();
-      window.removeEventListener('resize', updateConnections);
+      window.removeEventListener("resize", updateConnections);
       clearTimeout(timeout);
       clearTimeout(timeout2);
     };
-  }, [nodes, contentRef]);
+  }, [nodes, contentRef, canvasWrapRef]);
 
   if (connections.length === 0) return null;
 
@@ -673,31 +671,26 @@ const GoToConnectorLines: React.FC<{
           refY="3.5"
           orient="auto"
         >
-          <polygon points="0 0, 10 3.5, 0 7" fill="#D97706" />
+          <polygon points="0 0, 10 3.5, 0 7" fill="hsl(var(--workflow-goto))" />
         </marker>
       </defs>
-      {connections.map(conn => {
-        // Determine curve direction based on target position
-        const goingUp = conn.targetY < conn.sourceY;
-        const goingLeft = conn.targetX < conn.sourceX;
-        
+      {connections.map((conn) => {
         // Calculate control points for a nice curve
         const dx = Math.abs(conn.targetX - conn.sourceX);
-        const dy = Math.abs(conn.targetY - conn.sourceY);
         const controlOffset = Math.max(dx * 0.5, 60);
-        
+
         // Create a smooth bezier curve going right first, then curving to target
         const path = `M ${conn.sourceX} ${conn.sourceY} 
           C ${conn.sourceX + controlOffset} ${conn.sourceY}, 
             ${conn.targetX - controlOffset} ${conn.targetY}, 
             ${conn.targetX} ${conn.targetY}`;
-        
+
         return (
           <path
             key={`${conn.sourceId}-${conn.targetId}`}
             d={path}
             fill="none"
-            stroke="#D97706"
+            stroke="hsl(var(--workflow-goto))"
             strokeWidth={2}
             strokeDasharray="6,4"
             markerEnd="url(#goto-persistent-arrowhead)"
@@ -1531,7 +1524,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
               refY="3.5"
               orient="auto"
             >
-              <polygon points="0 0, 10 3.5, 0 7" fill="#D97706" />
+              <polygon points="0 0, 10 3.5, 0 7" fill="hsl(var(--workflow-goto))" />
             </marker>
           </defs>
           <line
@@ -1539,7 +1532,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
             y1={goToConnecting.startY}
             x2={goToConnecting.currentX}
             y2={goToConnecting.currentY}
-            stroke="#D97706"
+            stroke="hsl(var(--workflow-goto))"
             strokeWidth={2}
             strokeDasharray="6,4"
             markerEnd="url(#goto-arrowhead)"

@@ -62,6 +62,7 @@ All colors MUST be HSL.
     --workflow-error: 0 84% 60%;
     --workflow-error-foreground: 0 0% 100%;
     --workflow-connector: 215 20% 65%;
+    --workflow-goto: 32 95% 44%;
   }
 
   .dark {
@@ -117,6 +118,7 @@ All colors MUST be HSL.
     --workflow-error: 0 74% 50%;
     --workflow-error-foreground: 0 0% 100%;
     --workflow-connector: 215 20% 45%;
+    --workflow-goto: 32 95% 55%;
   }
 }
 
