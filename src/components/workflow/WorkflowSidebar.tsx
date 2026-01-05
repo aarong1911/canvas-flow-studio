@@ -636,8 +636,19 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                       onClick={async () => {
                         if (!dirtyNodeId) return;
                         try {
-                          await onPersistNodeConfig(dirtyNodeId, localConfig);
-                          onSaveNodeConfig(dirtyNodeId, localConfig);
+                          // Preserve Go To connector properties that are set via canvas drag
+                          const preservedConfig = { ...localConfig };
+                          if (selectedNode?.data.actionType === "go_to") {
+                            const existingConfig = selectedNode.data.config || {};
+                            if (existingConfig.target_node_id) {
+                              preservedConfig.target_node_id = existingConfig.target_node_id;
+                            }
+                            if (existingConfig.target_node_label) {
+                              preservedConfig.target_node_label = existingConfig.target_node_label;
+                            }
+                          }
+                          await onPersistNodeConfig(dirtyNodeId, preservedConfig);
+                          onSaveNodeConfig(dirtyNodeId, preservedConfig);
                         } catch (e: any) {
                           console.error(e);
                           toast.error(e?.message || "Failed to save node settings");
