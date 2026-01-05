@@ -577,12 +577,11 @@ const BranchCardsSection: React.FC<{
   );
 };
 
-// Component to render persistent Go To connection lines
+// Component to render persistent Go To connection lines - rendered inside content area
 const GoToConnectorLines: React.FC<{
   nodes: RFNode[];
-  canvasWrapRef: React.RefObject<HTMLDivElement>;
   contentRef: React.RefObject<HTMLDivElement>;
-}> = ({ nodes, canvasWrapRef, contentRef }) => {
+}> = ({ nodes, contentRef }) => {
   const [connections, setConnections] = useState<Array<{
     sourceId: string;
     targetId: string;
@@ -594,10 +593,14 @@ const GoToConnectorLines: React.FC<{
 
   useEffect(() => {
     const updateConnections = () => {
-      if (!contentRef.current || !canvasWrapRef.current) return;
-
       const newConnections: typeof connections = [];
-      const canvasRect = canvasWrapRef.current.getBoundingClientRect();
+
+      if (!contentRef.current) {
+        setConnections([]);
+        return;
+      }
+
+      const contentRect = contentRef.current.getBoundingClientRect();
 
       // Find all Go To nodes with target_node_id configured
       nodes.forEach((node) => {
@@ -612,11 +615,11 @@ const GoToConnectorLines: React.FC<{
             const sourceRect = sourceEl.getBoundingClientRect();
             const targetRect = targetEl.getBoundingClientRect();
 
-            // Coordinates in the *canvas* coordinate space (viewport), which matches the SVG overlay.
-            const sourceX = sourceRect.right - canvasRect.left + 4;
-            const sourceY = sourceRect.top + sourceRect.height / 2 - canvasRect.top;
-            const targetX = targetRect.left - canvasRect.left - 4;
-            const targetY = targetRect.top + targetRect.height / 2 - canvasRect.top;
+            // Convert to content-relative coordinates (moves with pan/zoom automatically)
+            const sourceX = sourceRect.right - contentRect.left + 4;
+            const sourceY = sourceRect.top + sourceRect.height / 2 - contentRect.top;
+            const targetX = targetRect.left - contentRect.left - 4;
+            const targetY = targetRect.top + targetRect.height / 2 - contentRect.top;
 
             newConnections.push({
               sourceId: node.id,
@@ -653,27 +656,12 @@ const GoToConnectorLines: React.FC<{
       clearTimeout(timeout);
       clearTimeout(timeout2);
     };
-  }, [nodes, contentRef, canvasWrapRef]);
+  }, [nodes, contentRef]);
 
   if (connections.length === 0) return null;
 
   return (
-    <svg 
-      className="absolute inset-0 pointer-events-none"
-      style={{ overflow: 'visible' }}
-    >
-      <defs>
-        <marker
-          id="goto-persistent-arrowhead"
-          markerWidth="10"
-          markerHeight="7"
-          refX="9"
-          refY="3.5"
-          orient="auto"
-        >
-          <polygon points="0 0, 10 3.5, 0 7" fill="hsl(var(--workflow-goto))" />
-        </marker>
-      </defs>
+    <>
       {connections.map((conn) => {
         // Calculate control points for a nice curve
         const dx = Math.abs(conn.targetX - conn.sourceX);
@@ -686,18 +674,39 @@ const GoToConnectorLines: React.FC<{
             ${conn.targetX} ${conn.targetY}`;
 
         return (
-          <path
+          <svg
             key={`${conn.sourceId}-${conn.targetId}`}
-            d={path}
-            fill="none"
-            stroke="hsl(var(--workflow-goto))"
-            strokeWidth={2}
-            strokeDasharray="6,4"
-            markerEnd="url(#goto-persistent-arrowhead)"
-          />
+            className="absolute top-0 left-0 pointer-events-none"
+            style={{ 
+              overflow: 'visible',
+              width: '100%',
+              height: '100%',
+            }}
+          >
+            <defs>
+              <marker
+                id={`goto-arrow-${conn.sourceId}`}
+                markerWidth="10"
+                markerHeight="7"
+                refX="9"
+                refY="3.5"
+                orient="auto"
+              >
+                <polygon points="0 0, 10 3.5, 0 7" fill="hsl(var(--workflow-goto))" />
+              </marker>
+            </defs>
+            <path
+              d={path}
+              fill="none"
+              stroke="hsl(var(--workflow-goto))"
+              strokeWidth={2}
+              strokeDasharray="6,4"
+              markerEnd={`url(#goto-arrow-${conn.sourceId})`}
+            />
+          </svg>
         );
       })}
-    </svg>
+    </>
   );
 };
 
@@ -1436,6 +1445,12 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         </div>
         );
       })()}
+      
+      {/* Persistent Go To connection lines - inside content area so they pan/zoom together */}
+      <GoToConnectorLines 
+        nodes={nodes} 
+        contentRef={contentRef}
+      />
       </div>
       {/* End of zoomable content wrapper */}
 
@@ -1499,12 +1514,6 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
         </div>
       </div>
 
-      {/* Persistent Go To connection lines */}
-      <GoToConnectorLines 
-        nodes={nodes} 
-        canvasWrapRef={canvasWrapRef}
-        contentRef={contentRef}
-      />
       
       {/* Go To connector dragging line overlay */}
       {goToConnecting && (
