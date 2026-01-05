@@ -112,7 +112,7 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
         <div
           onClick={() => onSelectNode(id)}
           className={cn(
-            "relative rounded-xl border bg-card px-4 py-3 cursor-pointer transition-all duration-200",
+            "relative rounded-xl border bg-card px-4 py-3 cursor-pointer transition-all duration-200 select-none",
             "min-w-[180px]",
             "shadow-md hover:shadow-lg",
             selected && "ring-2 ring-offset-2 ring-primary ring-offset-background"
@@ -153,7 +153,7 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
         <div
           onClick={() => onSelectNode(id)}
           className={cn(
-            "relative rounded-xl border-2 px-4 py-3 cursor-pointer transition-all duration-200",
+            "relative rounded-xl border-2 px-4 py-3 cursor-pointer transition-all duration-200 select-none",
             "min-w-[260px] max-w-[320px]",
             "shadow-lg hover:shadow-xl",
             styles.bg,

@@ -41,7 +41,7 @@ export const TriggerCard: React.FC<TriggerCardProps> = ({
       data-configured={isConfigured}
       onClick={onClick}
       className={cn(
-        "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200",
+        "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200 select-none",
         "min-w-[200px] max-w-[240px]",
         "shadow-sm hover:shadow-md",
         selected && "ring-2 ring-primary ring-offset-2 ring-offset-background",
