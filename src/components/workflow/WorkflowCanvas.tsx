@@ -600,26 +600,38 @@ const GoToConnectorLines: React.FC<{
         return;
       }
 
-      const contentRect = contentRef.current.getBoundingClientRect();
-
       // Find all Go To nodes with target_node_id configured
       nodes.forEach((node) => {
         if (node.data.actionType === "go_to" && node.data.config?.target_node_id) {
           const targetNodeId = node.data.config.target_node_id;
 
           // Find the DOM elements for source and target nodes
-          const sourceEl = contentRef.current?.querySelector(`[data-node-id="${node.id}"]`);
-          const targetEl = contentRef.current?.querySelector(`[data-node-id="${targetNodeId}"]`);
+          const sourceEl = contentRef.current?.querySelector(`[data-node-id="${node.id}"]`) as HTMLElement;
+          const targetEl = contentRef.current?.querySelector(`[data-node-id="${targetNodeId}"]`) as HTMLElement;
 
           if (sourceEl && targetEl) {
-            const sourceRect = sourceEl.getBoundingClientRect();
-            const targetRect = targetEl.getBoundingClientRect();
+            // Use offsetLeft/offsetTop which are in content space (not affected by zoom)
+            // We need to walk up to get the actual position relative to content container
+            const getOffsetPosition = (el: HTMLElement, container: HTMLElement): { x: number, y: number } => {
+              let x = 0;
+              let y = 0;
+              let current: HTMLElement | null = el;
+              while (current && current !== container) {
+                x += current.offsetLeft;
+                y += current.offsetTop;
+                current = current.offsetParent as HTMLElement;
+              }
+              return { x, y };
+            };
 
-            // Convert to content-relative coordinates (moves with pan/zoom automatically)
-            const sourceX = sourceRect.right - contentRect.left + 4;
-            const sourceY = sourceRect.top + sourceRect.height / 2 - contentRect.top;
-            const targetX = targetRect.left - contentRect.left - 4;
-            const targetY = targetRect.top + targetRect.height / 2 - contentRect.top;
+            const sourcePos = getOffsetPosition(sourceEl, contentRef.current!);
+            const targetPos = getOffsetPosition(targetEl, contentRef.current!);
+
+            // Calculate anchor points
+            const sourceX = sourcePos.x + sourceEl.offsetWidth + 4; // right side
+            const sourceY = sourcePos.y + sourceEl.offsetHeight / 2; // center vertically
+            const targetX = targetPos.x - 4; // left side
+            const targetY = targetPos.y + targetEl.offsetHeight / 2; // center vertically
 
             newConnections.push({
               sourceId: node.id,
