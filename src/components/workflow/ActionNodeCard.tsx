@@ -41,7 +41,7 @@ export const ActionNodeCard: React.FC<ActionNodeCardProps> = ({
     <div
       onClick={onClick}
       className={cn(
-        "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200",
+        "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200 select-none",
         "min-w-[220px] max-w-[280px]",
         "shadow-sm hover:shadow-md",
         selected && "ring-2 ring-primary ring-offset-2 ring-offset-background"
@@ -84,7 +84,7 @@ export const PlaceholderNode: React.FC<PlaceholderNodeProps> = ({ onClick }) => 
     <div
       onClick={onClick}
       className={cn(
-        "bg-muted/50 border border-dashed border-muted-foreground/30 rounded-xl px-6 py-3 cursor-pointer transition-all duration-200",
+        "bg-muted/50 border border-dashed border-muted-foreground/30 rounded-xl px-6 py-3 cursor-pointer transition-all duration-200 select-none",
         "min-w-[200px]",
         "hover:bg-muted hover:border-muted-foreground/50",
         "flex items-center justify-center"
