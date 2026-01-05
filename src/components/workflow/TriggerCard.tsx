@@ -1,8 +1,14 @@
 import React from "react";
 import { cn } from "@/lib/utils";
-import { Plus } from "lucide-react";
+import { MoreHorizontal, Trash2 } from "lucide-react";
 import { RFNodeData, ColorKey } from "./types";
 import { LucideIcon } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface TriggerCardProps {
   id: string;
@@ -13,6 +19,7 @@ interface TriggerCardProps {
   isConfigured: boolean;
   selected: boolean;
   onClick: () => void;
+  onDelete?: (id: string) => void;
 }
 
 const colorIconClasses: Record<ColorKey, string> = {
@@ -34,6 +41,7 @@ export const TriggerCard: React.FC<TriggerCardProps> = ({
   isConfigured,
   selected,
   onClick,
+  onDelete,
 }) => {
   return (
     <div
@@ -41,7 +49,7 @@ export const TriggerCard: React.FC<TriggerCardProps> = ({
       data-configured={isConfigured}
       onClick={onClick}
       className={cn(
-        "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200 select-none",
+        "relative bg-card border rounded-xl px-4 py-3 cursor-pointer transition-all duration-200 select-none group",
         "min-w-[200px] max-w-[240px]",
         "shadow-sm hover:shadow-md",
         selected && "ring-2 ring-primary ring-offset-2 ring-offset-background",
@@ -63,6 +71,34 @@ export const TriggerCard: React.FC<TriggerCardProps> = ({
             {sublabel || label}
           </div>
         </div>
+        {isConfigured && onDelete && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                onClick={(e) => e.stopPropagation()}
+                className={cn(
+                  "p-1.5 rounded-lg transition-colors",
+                  "opacity-0 group-hover:opacity-100",
+                  "hover:bg-muted"
+                )}
+              >
+                <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(id);
+                }}
+                className="text-destructive focus:text-destructive"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </div>
   );

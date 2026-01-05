@@ -49,6 +49,7 @@ interface WorkflowCanvasProps {
   setIsInteractive: (interactive: boolean) => void;
   onAddTriggerClick: () => void;
   onTriggerClick: (triggerId: string) => void;
+  onDeleteTrigger: (triggerId: string) => void;
   onAddActionClick: (sourceNodeId?: string, sourceHandle?: string) => void;
   onInsertOnEdge: (edgeId: string, sourceId: string, targetId: string) => void;
   onInsertBetween: (parentNodeId: string, childNodeId: string, sourceHandle: string) => void;
@@ -736,6 +737,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
   setIsInteractive,
   onAddTriggerClick,
   onTriggerClick,
+  onDeleteTrigger,
   onAddActionClick,
   onInsertOnEdge,
   onInsertBetween,
@@ -1196,6 +1198,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
               isConfigured={trigger.isConfigured}
               selected={selectedTriggerId === trigger.id}
               onClick={() => onTriggerClick(trigger.id)}
+              onDelete={onDeleteTrigger}
             />
           ))}
         </div>

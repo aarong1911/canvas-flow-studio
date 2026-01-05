@@ -637,6 +637,20 @@ export const WorkflowBuilder: React.FC = () => {
               setIsInteractive={setIsInteractive}
               onAddTriggerClick={handleAddTriggerClick}
               onTriggerClick={handleTriggerClick}
+              onDeleteTrigger={(triggerId) => {
+                const trigger = triggers.find(t => t.id === triggerId);
+                if (trigger?.isConfigured) {
+                  setTriggers((ts) => {
+                    const filtered = ts.filter((t) => t.id !== triggerId);
+                    if (filtered.length === 0 || filtered.every(t => t.isConfigured)) {
+                      return [...filtered, createEmptyTrigger()];
+                    }
+                    return filtered;
+                  });
+                  setSelectedTriggerId(null);
+                  toast.success("Trigger removed");
+                }
+              }}
               onAddActionClick={handleAddActionClick}
               onInsertOnEdge={handleInsertOnEdge}
               onInsertBetween={handleInsertBetween}
