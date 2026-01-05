@@ -581,7 +581,8 @@ const BranchCardsSection: React.FC<{
 const GoToConnectorLines: React.FC<{
   nodes: RFNode[];
   contentRef: React.RefObject<HTMLDivElement>;
-}> = ({ nodes, contentRef }) => {
+  zoom: number;
+}> = ({ nodes, contentRef, zoom }) => {
   const [connections, setConnections] = useState<Array<{
     sourceId: string;
     targetId: string;
@@ -600,6 +601,8 @@ const GoToConnectorLines: React.FC<{
         return;
       }
 
+      const contentRect = contentRef.current.getBoundingClientRect();
+
       // Find all Go To nodes with target_node_id configured
       nodes.forEach((node) => {
         if (node.data.actionType === "go_to" && node.data.config?.target_node_id) {
@@ -610,28 +613,15 @@ const GoToConnectorLines: React.FC<{
           const targetEl = contentRef.current?.querySelector(`[data-node-id="${targetNodeId}"]`) as HTMLElement;
 
           if (sourceEl && targetEl) {
-            // Use offsetLeft/offsetTop which are in content space (not affected by zoom)
-            // We need to walk up to get the actual position relative to content container
-            const getOffsetPosition = (el: HTMLElement, container: HTMLElement): { x: number, y: number } => {
-              let x = 0;
-              let y = 0;
-              let current: HTMLElement | null = el;
-              while (current && current !== container) {
-                x += current.offsetLeft;
-                y += current.offsetTop;
-                current = current.offsetParent as HTMLElement;
-              }
-              return { x, y };
-            };
+            const sourceRect = sourceEl.getBoundingClientRect();
+            const targetRect = targetEl.getBoundingClientRect();
 
-            const sourcePos = getOffsetPosition(sourceEl, contentRef.current!);
-            const targetPos = getOffsetPosition(targetEl, contentRef.current!);
-
-            // Calculate anchor points
-            const sourceX = sourcePos.x + sourceEl.offsetWidth + 4; // right side
-            const sourceY = sourcePos.y + sourceEl.offsetHeight / 2; // center vertically
-            const targetX = targetPos.x - 4; // left side
-            const targetY = targetPos.y + targetEl.offsetHeight / 2; // center vertically
+            // Convert screen coordinates to content-space coordinates by dividing by zoom
+            // The contentRef is the transformed element, so its bounding rect is already transformed
+            const sourceX = (sourceRect.right - contentRect.left) / zoom + 4;
+            const sourceY = (sourceRect.top + sourceRect.height / 2 - contentRect.top) / zoom;
+            const targetX = (targetRect.left - contentRect.left) / zoom - 4;
+            const targetY = (targetRect.top + targetRect.height / 2 - contentRect.top) / zoom;
 
             newConnections.push({
               sourceId: node.id,
@@ -668,7 +658,7 @@ const GoToConnectorLines: React.FC<{
       clearTimeout(timeout);
       clearTimeout(timeout2);
     };
-  }, [nodes, contentRef]);
+  }, [nodes, contentRef, zoom]);
 
   if (connections.length === 0) return null;
 
@@ -1462,6 +1452,7 @@ export const WorkflowCanvas: React.FC<WorkflowCanvasProps> = ({
       <GoToConnectorLines 
         nodes={nodes} 
         contentRef={contentRef}
+        zoom={zoom}
       />
       </div>
       {/* End of zoomable content wrapper */}
