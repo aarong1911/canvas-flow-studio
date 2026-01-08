@@ -1,9 +1,11 @@
-// src/pages/workflows/workflowRepository.ts
+// src/components/workflow/workflowRepository.ts
 // ✅ FIXED VERSION - Handles duplicate draft constraint
-// REPLACE YOUR CURRENT FILE WITH THIS ONE
-import { supabase } from "@/lib/supabase";
-import { getCurrentOrgId } from "@/lib/org";
+// Using localStorage fallback until Supabase is configured
 import { Zap } from "lucide-react";
+
+// Placeholder - will be replaced with real Supabase when Cloud is enabled
+const supabase: any = null;
+const getCurrentOrgId = async (): Promise<string> => "local-org";
 
 import type { RFEdge, RFNode, RFNodeData, WorkflowSettings, TriggerData } from "./types";
 import { ALL_LIBRARY_ITEMS } from "./node-library";
@@ -140,84 +142,66 @@ function deriveTriggerType(triggers?: TriggerData[]): string {
   return "manual";
 }
 
-/* ---------------- Queries ---------------- */
-export async function fetchWorkflow(workflowId: string) {
-  console.log("[fetchWorkflow] Starting fetch for:", workflowId);
-  
-  const orgId = await getCurrentOrgId();
-  if (!orgId) {
-    console.error("[fetchWorkflow] No org ID found");
-    throw new Error("No org selected");
+/* ---------------- localStorage helpers ---------------- */
+const STORAGE_KEY = "lovable_workflows";
+
+function getStoredWorkflows(): { workflows: WorkflowRecord[]; versions: WorkflowVersionRecord[] } {
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (!stored) return { workflows: [], versions: [] };
+  try {
+    return JSON.parse(stored);
+  } catch {
+    return { workflows: [], versions: [] };
   }
-
-  console.log("[fetchWorkflow] Using org ID:", orgId);
-
-  const { data, error } = await supabase
-    .from("workflows")
-    .select("*")
-    .eq("id", workflowId)
-    .eq("org_id", orgId)
-    .single();
-
-  if (error) {
-    console.error("[fetchWorkflow] Database error:", error);
-    throw error;
-  }
-
-  console.log("[fetchWorkflow] Workflow fetched:", {
-    id: data?.id,
-    name: data?.name,
-    status: data?.status,
-  });
-
-  return data as WorkflowRecord;
 }
 
-export async function fetchLatestWorkflowVersion(workflowId: string) {
+function saveStoredWorkflows(data: { workflows: WorkflowRecord[]; versions: WorkflowVersionRecord[] }) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+/* ---------------- Queries ---------------- */
+export async function fetchWorkflow(workflowId: string): Promise<WorkflowRecord> {
+  console.log("[fetchWorkflow] Starting fetch for:", workflowId);
+  
+  // Use localStorage fallback
+  const { workflows } = getStoredWorkflows();
+  const workflow = workflows.find(w => w.id === workflowId);
+  
+  if (!workflow) {
+    throw new Error("Workflow not found");
+  }
+  
+  console.log("[fetchWorkflow] Workflow fetched:", {
+    id: workflow.id,
+    name: workflow.name,
+    status: workflow.status,
+  });
+
+  return workflow;
+}
+
+export async function fetchLatestWorkflowVersion(workflowId: string): Promise<WorkflowVersionRecord | null> {
   console.log("[fetchLatestWorkflowVersion] Starting fetch for:", workflowId);
   
-  const orgId = await getCurrentOrgId();
-  if (!orgId) {
-    console.error("[fetchLatestWorkflowVersion] No org ID found");
-    throw new Error("No org selected");
-  }
-
-  const { data, error } = await supabase
-    .from("workflow_versions")
-    .select("*, workflows!inner(id, org_id)")
-    .eq("workflow_id", workflowId)
-    .eq("workflows.org_id", orgId)
-    .order("version_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    console.error("[fetchLatestWorkflowVersion] Database error:", error);
-    
-    if (error.code === '42703') {
-      console.error("❌ CRITICAL: 'definition' column does not exist in workflow_versions table!");
-      console.error("Run this SQL in Supabase:");
-      console.error("ALTER TABLE workflow_versions ADD COLUMN definition JSONB NOT NULL DEFAULT '{}'::jsonb;");
-      throw new Error("Database schema error: 'definition' column missing. Check console for SQL fix.");
-    }
-    
-    throw error;
-  }
-
-  if (!data) {
+  // Use localStorage fallback
+  const { versions } = getStoredWorkflows();
+  const workflowVersions = versions
+    .filter(v => v.workflow_id === workflowId)
+    .sort((a, b) => (b.version_number || 0) - (a.version_number || 0));
+  
+  const latestVersion = workflowVersions[0] || null;
+  
+  if (!latestVersion) {
     console.warn("[fetchLatestWorkflowVersion] No version found for workflow:", workflowId);
     return null;
   }
 
-  console.log("[fetchLatestWorkflowVersion] Raw version data:", {
-    id: data.id,
-    workflow_id: data.workflow_id,
-    version_number: data.version_number,
-    has_definition: !!data.definition,
-    definition_preview: data.definition ? JSON.stringify(data.definition).substring(0, 100) : null,
+  console.log("[fetchLatestWorkflowVersion] Version found:", {
+    id: latestVersion.id,
+    version_number: latestVersion.version_number,
   });
 
-  const hydrated = hydrateVersionRecord(data);
+  const hydrated = hydrateVersionRecord(latestVersion);
   console.log("[fetchLatestWorkflowVersion] Hydrated version:", {
     id: hydrated.id,
     nodes_count: hydrated.definition?.nodes?.length || 0,
@@ -248,205 +232,104 @@ export async function saveDraft(input: {
   });
 
   const orgId = await getCurrentOrgId();
-  if (!orgId) {
-    console.error("[saveDraft] No org ID found");
-    throw new Error("No org selected");
-  }
-
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    console.error("[saveDraft] No user found");
-    throw new Error("Not authenticated");
-  }
-
   const category = input.category ?? "general";
   const trigger_type = input.trigger_type ?? deriveTriggerType(input.triggers);
+  const now = new Date().toISOString();
 
-  console.log("[saveDraft] Saving with category:", category, "trigger_type:", trigger_type);
-
-  // 1) Insert or update workflow
+  // Use localStorage fallback
+  const stored = getStoredWorkflows();
+  
   let wf: WorkflowRecord;
-
+  
   if (input.workflowId) {
-    console.log("[saveDraft] Updating existing workflow:", input.workflowId);
-    
-    const { data, error } = await supabase
-      .from("workflows")
-      .update({
-        name: input.name,
-        status: input.status,
-        category,
-        trigger_type,
-        settings: input.settings,
-        last_updated: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", input.workflowId)
-      .eq("org_id", orgId)
-      .select("*")
-      .single();
-
-    if (error) {
-      console.error("[saveDraft] Error updating workflow:", error);
-      throw error;
+    // Update existing workflow
+    const idx = stored.workflows.findIndex(w => w.id === input.workflowId);
+    if (idx === -1) {
+      throw new Error("Workflow not found");
     }
-
-    wf = data as WorkflowRecord;
+    
+    wf = {
+      ...stored.workflows[idx],
+      name: input.name,
+      status: input.status,
+      category,
+      trigger_type,
+      settings: input.settings,
+      last_updated: now,
+      updated_at: now,
+    };
+    stored.workflows[idx] = wf;
     console.log("[saveDraft] Workflow updated:", wf.id);
   } else {
-    console.log("[saveDraft] Creating new workflow");
-    
-    const { data, error } = await supabase
-      .from("workflows")
-      .insert({
-        org_id: orgId,
-        name: input.name,
-        status: input.status,
-        category,
-        trigger_type,
-        settings: input.settings,
-        total_enrolled: 0,
-        active_enrolled: 0,
-      })
-      .select("*")
-      .single();
-
-    if (error) {
-      console.error("[saveDraft] Error creating workflow:", error);
-      throw error;
-    }
-
-    wf = data as WorkflowRecord;
+    // Create new workflow
+    wf = {
+      id: `wf_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      org_id: orgId,
+      name: input.name,
+      status: input.status,
+      category,
+      trigger_type,
+      settings: input.settings,
+      total_enrolled: 0,
+      active_enrolled: 0,
+      created_at: now,
+      last_updated: now,
+      updated_at: now,
+    };
+    stored.workflows.push(wf);
     console.log("[saveDraft] Workflow created:", wf.id);
   }
 
-  // 2) Get next version number
-  console.log("[saveDraft] Fetching latest version number for:", wf.id);
-  
-  const { data: latestVersion, error: versionFetchError } = await supabase
-    .from("workflow_versions")
-    .select("version_number")
-    .eq("workflow_id", wf.id)
-    .order("version_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Get next version number
+  const existingVersions = stored.versions.filter(v => v.workflow_id === wf.id);
+  const latestVersionNum = Math.max(0, ...existingVersions.map(v => v.version_number || 0));
+  const nextVersionNumber = latestVersionNum + 1;
 
-  if (versionFetchError && versionFetchError.code !== 'PGRST116') {
-    console.error("[saveDraft] Error fetching version:", versionFetchError);
-    throw versionFetchError;
-  }
-
-  const nextVersionNumber = (latestVersion?.version_number ?? 0) + 1;
-  console.log("[saveDraft] Next version number:", nextVersionNumber);
-
-  // 3) Serialize nodes for storage
+  // Serialize nodes
   const serializedNodes = serializeNodesForDb(input.nodes);
-  console.log("[saveDraft] Serialized nodes:", serializedNodes.length);
 
-  // 4) Create version payload
-  const versionPayload = {
-    workflow_id: wf.id,
-    version_number: nextVersionNumber,
-    status: input.status,
-    created_by: user.id,
-    definition: {
-      nodes: serializedNodes,
-      edges: input.edges,
-      settings: input.settings,
-    },
-  };
+  // Check for existing draft
+  const existingDraftIdx = stored.versions.findIndex(
+    v => v.workflow_id === wf.id && v.status === "draft"
+  );
 
-  console.log("[saveDraft] Preparing version save with payload:", {
-    workflow_id: versionPayload.workflow_id,
-    version_number: versionPayload.version_number,
-    status: versionPayload.status,
-    definition_nodes: versionPayload.definition.nodes.length,
-    definition_edges: versionPayload.definition.edges.length,
-  });
+  let version: WorkflowVersionRecord;
 
-  // ✅ FIX: Check if draft already exists (constraint: uq_workflow_versions_one_draft)
-  console.log("[saveDraft] Checking for existing draft version...");
-  const { data: existingDraft, error: draftCheckError } = await supabase
-    .from("workflow_versions")
-    .select("*")
-    .eq("workflow_id", wf.id)
-    .eq("status", "draft")
-    .maybeSingle();
-
-  if (draftCheckError) {
-    console.error("[saveDraft] Error checking for existing draft:", draftCheckError);
-    throw draftCheckError;
-  }
-
-  let v;
-  let vErr;
-
-  if (existingDraft) {
-    // UPDATE existing draft
-    console.log("[saveDraft] Updating existing draft version:", existingDraft.id);
-    
-    const { data: updatedVersion, error: updateError } = await supabase
-      .from("workflow_versions")
-      .update({
-        definition: versionPayload.definition,
-      })
-      .eq("id", existingDraft.id)
-      .select("*")
-      .single();
-
-    v = updatedVersion;
-    vErr = updateError;
-
-    if (!updateError) {
-      console.log("[saveDraft] ✅ Draft updated successfully:", v?.id);
-    }
+  if (existingDraftIdx !== -1) {
+    // Update existing draft
+    version = {
+      ...stored.versions[existingDraftIdx],
+      definition: {
+        nodes: serializedNodes as any,
+        edges: input.edges,
+        settings: input.settings,
+      },
+    };
+    stored.versions[existingDraftIdx] = version;
+    console.log("[saveDraft] Draft updated:", version.id);
   } else {
-    // INSERT new draft
-    console.log("[saveDraft] Creating new draft version (no existing draft found)");
-    
-    const { data: newVersion, error: insertError } = await supabase
-      .from("workflow_versions")
-      .insert(versionPayload as any)
-      .select("*")
-      .single();
-
-    v = newVersion;
-    vErr = insertError;
-
-    if (!insertError) {
-      console.log("[saveDraft] ✅ Draft created successfully:", v?.id);
-    }
+    // Create new draft
+    version = {
+      id: `ver_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      workflow_id: wf.id,
+      version_number: nextVersionNumber,
+      status: "draft",
+      definition: {
+        nodes: serializedNodes as any,
+        edges: input.edges,
+        settings: input.settings,
+      },
+      created_at: now,
+    };
+    stored.versions.push(version);
+    console.log("[saveDraft] Draft created:", version.id);
   }
 
-  if (vErr) {
-    console.error("[saveDraft] ❌ Error saving version:", vErr);
-    
-    // Check for specific error codes
-    if (vErr.code === '42703') {
-      console.error("❌ CRITICAL: Column does not exist!");
-      console.error("Missing 'definition' column in workflow_versions table");
-      console.error("Run: ALTER TABLE workflow_versions ADD COLUMN definition JSONB;");
-      throw new Error(`Database schema error: ${vErr.message}`);
-    }
-    
-    if (vErr.code === '23505') {
-      console.error("❌ CRITICAL: Duplicate draft constraint violation!");
-      console.error("This should not happen - draft check logic may have failed");
-      console.error("Existing draft ID was:", existingDraft?.id);
-    }
-    
-    throw vErr;
-  }
+  saveStoredWorkflows(stored);
 
-  console.log("[saveDraft] Version saved successfully:", {
-    id: v.id,
-    version_number: v.version_number,
-    action: existingDraft ? "UPDATED" : "CREATED",
-  });
-
-  const result = { 
-    workflow: wf, 
-    version: hydrateVersionRecord(v) 
+  const result = {
+    workflow: wf,
+    version: hydrateVersionRecord(version),
   };
 
   console.log("[saveDraft] ✅ Save completed successfully");
