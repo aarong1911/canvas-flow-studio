@@ -682,15 +682,42 @@ export const WorkflowBuilder: React.FC = () => {
     }
   }, [edges, handleInsertOnEdge]);
 
+  // Track current workflow ID (from URL or after first save)
+  const [workflowId, setWorkflowId] = useState<string | undefined>(workflowIdParam);
+
   // Save workflow
   const handleSave = async () => {
     setIsSaving(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    setHasUnsavedChanges(false);
-    setShowSavedMessage(true);
-    setTimeout(() => setShowSavedMessage(false), 4000);
+    try {
+      // Dynamic import of saveDraft
+      const { saveDraft } = await import("./workflowRepository");
+      
+      const result = await saveDraft({
+        workflowId,
+        name: workflowName,
+        status: workflowStatus,
+        triggers,
+        settings: wfSettings,
+        nodes,
+        edges,
+      });
+      
+      // Update workflowId if this was a new workflow
+      if (!workflowId && result?.workflow?.id) {
+        setWorkflowId(result.workflow.id);
+        // Update URL without reload
+        navigate(`/workflow/${result.workflow.id}`, { replace: true });
+      }
+      
+      setHasUnsavedChanges(false);
+      setShowSavedMessage(true);
+      setTimeout(() => setShowSavedMessage(false), 4000);
+    } catch (error: any) {
+      console.error("Save failed:", error);
+      toast.error(error?.message || "Failed to save workflow");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDismissSavedMessage = () => {
