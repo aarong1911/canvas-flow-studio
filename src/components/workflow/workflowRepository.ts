@@ -1,16 +1,9 @@
-// src/components/workflow/workflowRepository.ts
-// Workflow persistence layer - localStorage fallback (Supabase integration can be added later)
+// src/pages/workflows/workflowRepository.ts
+// ✅ FIXED VERSION - Handles duplicate draft constraint
+// REPLACE YOUR CURRENT FILE WITH THIS ONE
+import { supabase } from "@/lib/supabase";
+import { getCurrentOrgId } from "@/lib/org";
 import { Zap } from "lucide-react";
-
-// Supabase integration placeholders - set these when connecting to a real backend
-let supabase: any = null;
-let getCurrentOrgId: (() => Promise<string | null>) | null = null;
-
-// Export function to configure Supabase integration
-export function configureSupabase(client: any, orgIdFn: () => Promise<string | null>) {
-  supabase = client;
-  getCurrentOrgId = orgIdFn;
-}
 
 import type { RFEdge, RFNode, RFNodeData, WorkflowSettings, TriggerData } from "./types";
 import { ALL_LIBRARY_ITEMS } from "./node-library";
@@ -151,16 +144,6 @@ function deriveTriggerType(triggers?: TriggerData[]): string {
 export async function fetchWorkflow(workflowId: string) {
   console.log("[fetchWorkflow] Starting fetch for:", workflowId);
   
-  // Check if Supabase is configured
-  if (!supabase || !getCurrentOrgId) {
-    console.warn("[fetchWorkflow] Supabase not configured - using local storage fallback");
-    const stored = localStorage.getItem(`workflow_${workflowId}`);
-    if (stored) {
-      return JSON.parse(stored) as WorkflowRecord;
-    }
-    throw new Error("Workflow not found");
-  }
-
   const orgId = await getCurrentOrgId();
   if (!orgId) {
     console.error("[fetchWorkflow] No org ID found");
@@ -193,25 +176,6 @@ export async function fetchWorkflow(workflowId: string) {
 export async function fetchLatestWorkflowVersion(workflowId: string) {
   console.log("[fetchLatestWorkflowVersion] Starting fetch for:", workflowId);
   
-  // Check if Supabase is configured
-  if (!supabase || !getCurrentOrgId) {
-    console.warn("[fetchLatestWorkflowVersion] Supabase not configured - using local storage fallback");
-    const stored = localStorage.getItem(`workflow_${workflowId}`);
-    if (stored) {
-      const workflow = JSON.parse(stored);
-      return {
-        id: workflowId,
-        workflow_id: workflowId,
-        definition: {
-          nodes: workflow.nodes || [],
-          edges: workflow.edges || [],
-          settings: workflow.settings || {},
-        },
-      } as WorkflowVersionRecord;
-    }
-    return null;
-  }
-
   const orgId = await getCurrentOrgId();
   if (!orgId) {
     console.error("[fetchLatestWorkflowVersion] No org ID found");
@@ -282,25 +246,6 @@ export async function saveDraft(input: {
     edges_count: input.edges.length,
     triggers_count: input.triggers?.length || 0,
   });
-
-  // Check if Supabase is configured
-  if (!supabase || !getCurrentOrgId) {
-    console.warn("[saveDraft] Supabase not configured - using local storage fallback");
-    // Fallback to localStorage for demo/development
-    const localId = input.workflowId || crypto.randomUUID();
-    const localWorkflow = {
-      id: localId,
-      name: input.name,
-      status: input.status,
-      nodes: input.nodes,
-      edges: input.edges,
-      triggers: input.triggers,
-      settings: input.settings,
-      updatedAt: new Date().toISOString(),
-    };
-    localStorage.setItem(`workflow_${localId}`, JSON.stringify(localWorkflow));
-    return { workflow: { id: localId, ...localWorkflow }, version: null };
-  }
 
   const orgId = await getCurrentOrgId();
   if (!orgId) {

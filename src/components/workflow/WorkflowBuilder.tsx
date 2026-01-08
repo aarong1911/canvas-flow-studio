@@ -11,6 +11,7 @@ import { WorkflowSidebar } from "./WorkflowSidebar";
 import { WorkflowSettingsPage } from "./WorkflowSettingsPage";
 import { TRIGGERS, ALL_LIBRARY_ITEMS } from "./node-library";
 import { getTemplateById } from "./templates";
+import { saveDraft, fetchWorkflow, fetchLatestWorkflowVersion } from "./workflowRepository";
 
 // Helper functions
 function normalizeBuilderType(maybe: any, actionType: string): BuilderNodeType {
@@ -689,9 +690,6 @@ export const WorkflowBuilder: React.FC = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Dynamic import of saveDraft
-      const { saveDraft } = await import("./workflowRepository");
-      
       const result = await saveDraft({
         workflowId,
         name: workflowName,
@@ -705,7 +703,6 @@ export const WorkflowBuilder: React.FC = () => {
       // Update workflowId if this was a new workflow
       if (!workflowId && result?.workflow?.id) {
         setWorkflowId(result.workflow.id);
-        // Update URL without reload
         navigate(`/workflow/${result.workflow.id}`, { replace: true });
       }
       
