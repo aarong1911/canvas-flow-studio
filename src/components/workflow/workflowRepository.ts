@@ -1,19 +1,15 @@
 // src/components/workflow/workflowRepository.ts
-// Workflow persistence layer
+// Workflow persistence layer - localStorage fallback (Supabase integration can be added later)
 import { Zap } from "lucide-react";
 
-// Dynamic imports for optional Supabase integration
+// Supabase integration placeholders - set these when connecting to a real backend
 let supabase: any = null;
 let getCurrentOrgId: (() => Promise<string | null>) | null = null;
 
-// Try to load supabase and org utilities if they exist
-try {
-  // @ts-ignore - Optional dependency
-  import("@/lib/supabase").then(mod => { supabase = mod.supabase; }).catch(() => {});
-  // @ts-ignore - Optional dependency
-  import("@/lib/org").then(mod => { getCurrentOrgId = mod.getCurrentOrgId; }).catch(() => {});
-} catch (e) {
-  // Supabase not configured
+// Export function to configure Supabase integration
+export function configureSupabase(client: any, orgIdFn: () => Promise<string | null>) {
+  supabase = client;
+  getCurrentOrgId = orgIdFn;
 }
 
 import type { RFEdge, RFNode, RFNodeData, WorkflowSettings, TriggerData } from "./types";
