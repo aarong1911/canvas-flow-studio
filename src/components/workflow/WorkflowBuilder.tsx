@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { addEdge, Connection, MarkerType, useEdgesState, useNodesState, ReactFlowInstance, OnConnectStartParams } from "reactflow";
 import { toast } from "sonner";
 import { Zap } from "lucide-react";
@@ -9,7 +9,8 @@ import { WorkflowHeader } from "./WorkflowHeader";
 import { WorkflowCanvas } from "./WorkflowCanvas";
 import { WorkflowSidebar } from "./WorkflowSidebar";
 import { WorkflowSettingsPage } from "./WorkflowSettingsPage";
-import { TRIGGERS } from "./node-library";
+import { TRIGGERS, ALL_LIBRARY_ITEMS } from "./node-library";
+import { getTemplateById } from "./templates";
 
 // Helper functions
 function normalizeBuilderType(maybe: any, actionType: string): BuilderNodeType {
@@ -47,9 +48,20 @@ function createEmptyTrigger(): TriggerData {
   };
 }
 
+// Helper: Look up icon from node library by actionType
+function getIconForActionType(actionType: string): any {
+  const item = ALL_LIBRARY_ITEMS.find(i => i.id === actionType);
+  return item?.icon || Zap;
+}
+
 export const WorkflowBuilder: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id: workflowIdParam } = useParams<{ id?: string }>();
+
+  // Get template info from navigation state
+  const templateId = location.state?.templateId;
+  const isFromTemplate = location.state?.isFromTemplate;
 
   const [isInteractive, setIsInteractive] = useState(true);
   const [topTab, setTopTab] = useState<TopTab>("builder");
@@ -85,11 +97,114 @@ export const WorkflowBuilder: React.FC = () => {
   // Track if initial load is done to avoid showing unsaved on mount
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Initialize after first render
+  // Load template data when navigating from template selection
   useEffect(() => {
+    if (!templateId || !isFromTemplate) return;
+
+    try {
+      const template = getTemplateById(templateId);
+      if (!template) {
+        console.error("Template not found:", templateId);
+        toast.error("Template not found");
+        setIsInitialized(true);
+        return;
+      }
+
+      console.log("📦 [Template] Loading template:", template.name);
+
+      // Load triggers from template
+      if (template.triggers && Array.isArray(template.triggers)) {
+        const loadedTriggers: TriggerData[] = template.triggers.map((t) => {
+          const icon = getIconForActionType(t.actionType);
+          return {
+            id: t.id || crypto.randomUUID(),
+            actionType: t.actionType,
+            label: t.label,
+            icon: icon,
+            color: (t.color || "purple") as any,
+            config: t.config || {},
+            isConfigured: t.isConfigured ?? true,
+          };
+        });
+        // Add empty trigger slot
+        loadedTriggers.push(createEmptyTrigger());
+        setTriggers(loadedTriggers);
+      }
+
+      // Load nodes from template
+      if (template.nodes && Array.isArray(template.nodes)) {
+        const loadedNodes: RFNode[] = template.nodes.map((n, idx) => {
+          const icon = getIconForActionType(n.data.actionType);
+          return {
+            id: n.id,
+            type: n.type || "workflowNode",
+            position: { x: 0, y: idx * 150 }, // Stack vertically
+            data: {
+              builderType: normalizeBuilderType(n.data.builderType, n.data.actionType),
+              actionType: normalizeActionType(n.data.actionType),
+              label: n.data.label,
+              icon: icon,
+              color: (n.data.color || "blue") as any,
+              config: n.data.config || {},
+              isConfigured: true,
+            },
+          };
+        });
+        setNodes(loadedNodes);
+      }
+
+      // Load edges from template
+      if (template.edges && Array.isArray(template.edges)) {
+        const loadedEdges: RFEdge[] = template.edges.map((e) => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          sourceHandle: e.sourceHandle,
+          targetHandle: "in",
+          type: "plusEdge",
+          markerEnd: { type: MarkerType.ArrowClosed },
+          style: { strokeWidth: 2 },
+        }));
+        setEdges(loadedEdges);
+      }
+
+      // Load workflow name from template
+      if (template.name) {
+        setWorkflowName(template.name);
+      }
+
+      // Load settings from template
+      if (template.settings) {
+        setWfSettings(prev => ({ 
+          ...prev, 
+          allowReEntry: template.settings?.allowReEntry ?? prev.allowReEntry,
+          timezone: (template.settings?.timezone as "account" | "contact") ?? prev.timezone,
+        }));
+      }
+
+      toast.success(`Template loaded: ${template.name}`, {
+        description: `${template.nodes?.length || 0} nodes ready to customize`,
+      });
+
+      // Clear navigation state to prevent reload on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+
+      console.log("✅ [Template] Load complete");
+      setIsInitialized(true);
+
+    } catch (error) {
+      console.error("❌ [Template] Load failed:", error);
+      toast.error("Failed to load template");
+      setIsInitialized(true);
+    }
+  }, [templateId, isFromTemplate, navigate, location.pathname, setNodes, setEdges]);
+
+  // Initialize after first render (only if not loading template)
+  useEffect(() => {
+    if (templateId && isFromTemplate) return; // Skip if loading template
     const timer = setTimeout(() => setIsInitialized(true), 100);
     return () => clearTimeout(timer);
-  }, []);
+  }, [templateId, isFromTemplate]);
 
   // Mark changes as unsaved when things change (only after initialization)
   useEffect(() => {

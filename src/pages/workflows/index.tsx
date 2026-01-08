@@ -1,15 +1,55 @@
-import React from "react";
+import React, { useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, MoreVertical, Play, Pause, Trash2 } from "lucide-react";
+import { Plus, Search, MoreVertical, Play, Pause, Trash2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getAllTemplateIds, getTemplateById } from "@/components/workflow/templates";
+
+type TemplateMeta = {
+  id: string;
+  name: string;
+  description: string;
+  category: "sales" | "communication" | "projects" | "finance" | "general";
+  color: "blue" | "green" | "amber" | "purple" | "red" | "gray";
+  expectedResults?: string;
+};
+
+// Build template metadata from the templates registry
+const WORKFLOW_TEMPLATES: TemplateMeta[] = getAllTemplateIds().map(id => {
+  const template = getTemplateById(id);
+  return {
+    id: template?.id || id,
+    name: template?.name || id,
+    description: template?.description || "",
+    category: template?.category || "general",
+    color: "blue" as const,
+    expectedResults: template?.expectedResults,
+  };
+});
+
+const COLOR: Record<TemplateMeta["color"], { bg: string; fg: string }> = {
+  blue: { bg: "bg-blue-100", fg: "text-blue-600" },
+  green: { bg: "bg-green-100", fg: "text-green-600" },
+  amber: { bg: "bg-amber-100", fg: "text-amber-600" },
+  purple: { bg: "bg-purple-100", fg: "text-purple-600" },
+  red: { bg: "bg-red-100", fg: "text-red-600" },
+  gray: { bg: "bg-gray-100", fg: "text-gray-600" },
+};
 
 // Sample workflows data
 const SAMPLE_WORKFLOWS = [
@@ -53,7 +93,8 @@ const SAMPLE_WORKFLOWS = [
 
 export default function WorkflowsPage() {
   const navigate = useNavigate();
-  const [search, setSearch] = React.useState("");
+  const [search, setSearch] = useState("");
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   const filteredWorkflows = SAMPLE_WORKFLOWS.filter((wf) =>
     wf.name.toLowerCase().includes(search.toLowerCase())
@@ -68,19 +109,43 @@ export default function WorkflowsPage() {
     return config[status];
   };
 
+  const handleCreateWorkflow = () => {
+    navigate("/workflow");
+  };
+
+  const handleCreateFromTemplate = useCallback((meta: TemplateMeta) => {
+    setTemplatesOpen(false);
+    navigate(`/workflow`, {
+      state: {
+        isFromTemplate: true,
+        templateId: meta.id,
+      },
+    });
+  }, [navigate]);
+
   return (
     <div className="min-h-[calc(100vh-64px)] bg-muted/30">
       <div className="max-w-6xl mx-auto p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-semibold text-foreground">Workflows</h1>
-          <Button
-            onClick={() => navigate("/workflow")}
-            className="gap-2 bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4" />
-            Create Workflow
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setTemplatesOpen(true)}
+              className="gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              Use Template
+            </Button>
+            <Button
+              onClick={handleCreateWorkflow}
+              className="gap-2 bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4" />
+              Create Workflow
+            </Button>
+          </div>
         </div>
 
         {/* Search */}
@@ -164,6 +229,54 @@ export default function WorkflowsPage() {
           )}
         </div>
       </div>
+
+      {/* Templates Dialog */}
+      <Dialog open={templatesOpen} onOpenChange={setTemplatesOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-amber-500" />
+              Choose a Template
+            </DialogTitle>
+            <DialogDescription>
+              Start with a pre-built workflow and customize it for your needs
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+            {WORKFLOW_TEMPLATES.map((template) => {
+              const color = COLOR[template.color];
+              return (
+                <Card
+                  key={template.id}
+                  className="p-4 cursor-pointer hover:shadow-md transition-shadow border-2 hover:border-primary/30"
+                  onClick={() => handleCreateFromTemplate(template)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`w-10 h-10 rounded-lg ${color.bg} flex items-center justify-center flex-shrink-0`}>
+                      <Sparkles className={`w-5 h-5 ${color.fg}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-foreground">{template.name}</div>
+                      <div className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                        {template.description}
+                      </div>
+                      {template.expectedResults && (
+                        <div className="text-xs text-green-600 mt-2 font-medium">
+                          {template.expectedResults}
+                        </div>
+                      )}
+                      <Badge variant="secondary" className="mt-2 capitalize">
+                        {template.category}
+                      </Badge>
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
