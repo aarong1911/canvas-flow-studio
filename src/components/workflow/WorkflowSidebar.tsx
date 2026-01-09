@@ -27,6 +27,7 @@ import { TRIGGERS, ACTIONS, NODE_CONFIGS, ALL_LIBRARY_ITEMS } from "./node-libra
 import { CustomFieldInput } from "./CustomFieldInput";
 import { CustomFieldTextarea } from "./CustomFieldTextarea";
 import { RichTextEditor } from "./RichTextEditor";
+import { SMSTextarea } from "./SMSTextarea";
 import { ConditionSettings, ConditionConfig, ConditionBranch } from "./ConditionSettings";
 import { AttachmentPicker, AttachmentFile } from "./AttachmentPicker";
 
@@ -587,6 +588,15 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
 
                               {field.type === "textarea" && (
                                 <CustomFieldTextarea
+                                  value={val ?? ""}
+                                  onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
+                                  rows={"rows" in field ? field.rows : 5}
+                                  placeholder={"placeholder" in field ? field.placeholder : ""}
+                                />
+                              )}
+
+                              {field.type === "sms_textarea" && (
+                                <SMSTextarea
                                   value={val ?? ""}
                                   onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
                                   rows={"rows" in field ? field.rows : 5}

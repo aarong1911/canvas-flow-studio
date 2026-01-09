@@ -36,23 +36,325 @@ interface RichTextEditorProps {
   attachmentsSection?: React.ReactNode;
 }
 
-const TEMPLATES = {
-  welcome: `<h2>Welcome to our platform!</h2>
-<p>We're excited to have you on board. Here's what you can expect:</p>
+// Email templates with full body content - organized by category
+const EMAIL_BODY_TEMPLATES: Record<string, { label: string; category: string; body: string }> = {
+  // Welcome & Onboarding
+  welcome_new_lead: {
+    label: "Welcome - New Lead",
+    category: "Welcome",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Thank you for your interest in {{company.name}}! We're excited to have you here.</p>
+<p>I wanted to personally reach out and let you know that I'm here to help with anything you need.</p>
+<p>What brought you to us today? I'd love to learn more about your goals so I can point you in the right direction.</p>
+<p>Looking forward to connecting!</p>
+<p>Best regards,<br/>{{user.name}}</p>`,
+  },
+  welcome_customer: {
+    label: "Welcome - New Customer",
+    category: "Welcome",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Congratulations and welcome to the {{company.name}} family!</p>
+<p>We're thrilled to have you as a customer. Here's what happens next:</p>
 <ul>
-<li>Easy-to-use interface</li>
-<li>24/7 customer support</li>
-<li>Regular updates and improvements</li>
+<li>You'll receive your login credentials shortly</li>
+<li>Our team will reach out within 24 hours for onboarding</li>
+<li>Check out our getting started guide: [Link]</li>
 </ul>
-<p>Best regards,<br>The Team</p>`,
-  follow_up: `<p>Hi there,</p>
-<p>I wanted to follow up on our previous conversation. Have you had a chance to review our proposal?</p>
-<p>Please let me know if you have any questions or need additional information.</p>
-<p>Best regards</p>`,
-  confirmation: `<h2>Confirmation</h2>
-<p>Thank you for your submission. We have received your request and will process it shortly.</p>
-<p>Your reference number is: <strong>[REF-NUMBER]</strong></p>
-<p>If you have any questions, please don't hesitate to contact us.</p>`
+<p>If you have any questions, don't hesitate to reach out!</p>
+<p>Cheers,<br/>{{user.name}}</p>`,
+  },
+  onboarding_day_1: {
+    label: "Onboarding - Day 1",
+    category: "Onboarding",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Welcome to Day 1! Let's get you set up for success.</p>
+<p><strong>Today's Quick Win:</strong></p>
+<p>Complete your profile setup - it takes just 2 minutes and unlocks all features.</p>
+<p><a href="{{profile.setup_link}}">Complete Your Profile →</a></p>
+<p>Need help? Reply to this email or schedule a call with our team.</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  // Follow-up Emails
+  follow_up_no_response: {
+    label: "Follow-up - No Response",
+    category: "Follow-up",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>I wanted to follow up on my previous message. I know things get busy!</p>
+<p>Is there anything I can help clarify or answer for you?</p>
+<p>If now isn't the right time, just let me know and I'll check back later.</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  follow_up_after_meeting: {
+    label: "Follow-up - After Meeting",
+    category: "Follow-up",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>It was great speaking with you today!</p>
+<p>As discussed, here's a quick recap:</p>
+<ul>
+<li>[Key point 1]</li>
+<li>[Key point 2]</li>
+<li>Next steps: [Action items]</li>
+</ul>
+<p>I'll follow up on {{follow_up_date}}. In the meantime, feel free to reach out with any questions.</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  follow_up_proposal: {
+    label: "Follow-up - Proposal Sent",
+    category: "Follow-up",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>I wanted to check in regarding the proposal I sent over.</p>
+<p>Have you had a chance to review it? I'd be happy to walk through any questions or make adjustments based on your feedback.</p>
+<p>What's the best way to move forward?</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  // Reviews
+  review_request: {
+    label: "Review - Request",
+    category: "Reviews",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Thank you for choosing {{company.name}}! We hope you had a great experience.</p>
+<p>Would you mind taking a moment to share your feedback? It helps us improve and helps others find us.</p>
+<p><a href="{{review.link}}">Leave a Review →</a></p>
+<p>Thank you so much for your time!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  review_post_service: {
+    label: "Review - Post Service Request",
+    category: "Reviews",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>We hope you're enjoying your recent experience with {{company.name}}!</p>
+<p>Your feedback means the world to us. Would you take just 30 seconds to share your thoughts?</p>
+<p style="text-align: center;"><a href="{{review.link}}" style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Leave a Review ⭐</a></p>
+<p>Your review helps other customers find us and helps us improve our service.</p>
+<p>Thank you so much!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  review_thank_you_positive: {
+    label: "Review - Thank You (Positive)",
+    category: "Reviews",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>WOW! Thank you so much for the wonderful review you left us!</p>
+<p>Reviews like yours make our entire team smile. We're so grateful to have you as a customer.</p>
+<p>As a thank you, here's a special discount for your next visit:</p>
+<p style="text-align: center;"><strong style="font-size: 18px;">{{promo.code}} - {{promo.discount}}% OFF</strong></p>
+<p>We can't wait to see you again!</p>
+<p>With gratitude,<br/>{{user.name}}</p>`,
+  },
+  review_follow_up_negative: {
+    label: "Review - Follow Up (Negative)",
+    category: "Reviews",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>I personally read your recent feedback, and I'm truly sorry we didn't meet your expectations.</p>
+<p>Your experience matters to us, and I'd love the opportunity to make this right.</p>
+<p>Would you be open to a quick call so I can understand what happened and how we can improve?</p>
+<p><a href="{{booking.link}}">Schedule a Call With Me →</a></p>
+<p>I'm committed to turning this around for you.</p>
+<p>Sincerely,<br/>{{user.name}}</p>`,
+  },
+  // Re-engagement
+  reengagement_30_days: {
+    label: "Re-engagement - 30 Days Inactive",
+    category: "Re-engagement",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>It's been a while since we've heard from you, and we wanted to check in.</p>
+<p>Is there anything we can help with? We've got some exciting updates I'd love to share:</p>
+<ul>
+<li>[New feature or update 1]</li>
+<li>[New feature or update 2]</li>
+</ul>
+<p>Let me know if you'd like to reconnect!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  reengagement_win_back: {
+    label: "Re-engagement - Win Back",
+    category: "Re-engagement",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>We noticed you've been away for a while, and we'd love to have you back!</p>
+<p>As a thank you for being part of our community, here's an exclusive offer:</p>
+<p><strong>{{offer.details}}</strong></p>
+<p>This offer expires on {{offer.expiry_date}}. Don't miss out!</p>
+<p><a href="{{offer.link}}">Claim Your Offer →</a></p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  reengagement_break_up: {
+    label: "Re-engagement - Break-up Email",
+    category: "Re-engagement",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>I've reached out a few times but haven't heard back. I want to be respectful of your inbox.</p>
+<p>Should I close your file and stop reaching out?</p>
+<p>If things have changed and you'd like to continue our conversation, just hit reply and let me know.</p>
+<p>Either way, I wish you all the best!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  // Appointments
+  appointment_confirmation: {
+    label: "Appointment - Confirmation",
+    category: "Appointments",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Great news! Your appointment is confirmed:</p>
+<p><strong>Date:</strong> {{appointment.date}}<br/>
+<strong>Time:</strong> {{appointment.time}}<br/>
+<strong>Location:</strong> {{appointment.location}}</p>
+<p>Please arrive 10 minutes early. If you need to reschedule, click the link below:</p>
+<p><a href="{{appointment.reschedule_link}}">Reschedule Appointment</a></p>
+<p>See you soon!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  appointment_reminder_24h: {
+    label: "Appointment - 24hr Reminder",
+    category: "Appointments",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Just a friendly reminder that your appointment is tomorrow:</p>
+<p><strong>Date:</strong> {{appointment.date}}<br/>
+<strong>Time:</strong> {{appointment.time}}<br/>
+<strong>Location:</strong> {{appointment.location}}</p>
+<p>Need to make changes? <a href="{{appointment.reschedule_link}}">Reschedule here</a></p>
+<p>See you soon!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  appointment_no_show: {
+    label: "Appointment - No Show Follow-up",
+    category: "Appointments",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>We noticed you couldn't make it to your appointment today. No worries – things happen!</p>
+<p>Would you like to reschedule? We have availability this week:</p>
+<p><a href="{{booking.link}}">Reschedule Your Appointment →</a></p>
+<p>If something came up, just let us know. We're here to help!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  appointment_post_visit: {
+    label: "Appointment - Post Visit Thank You",
+    category: "Appointments",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Thank you for your visit today! It was great seeing you.</p>
+<p>If you have any questions about what we discussed, don't hesitate to reach out.</p>
+<p>Ready to book your next appointment?</p>
+<p><a href="{{booking.link}}">Book Your Next Visit →</a></p>
+<p>See you soon!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  // Payments
+  invoice_sent: {
+    label: "Invoice - Sent",
+    category: "Payments",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Please find attached your invoice:</p>
+<p><strong>Invoice #:</strong> {{invoice.number}}<br/>
+<strong>Amount:</strong> {{invoice.amount}}<br/>
+<strong>Due Date:</strong> {{invoice.due_date}}</p>
+<p><a href="{{invoice.payment_link}}">Pay Now →</a></p>
+<p>If you have any questions about this invoice, please don't hesitate to reach out.</p>
+<p>Thank you for your business!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  payment_reminder: {
+    label: "Payment - Reminder",
+    category: "Payments",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>This is a friendly reminder that your invoice is due soon:</p>
+<p><strong>Invoice #:</strong> {{invoice.number}}<br/>
+<strong>Amount:</strong> {{invoice.amount}}<br/>
+<strong>Due Date:</strong> {{invoice.due_date}}</p>
+<p><a href="{{invoice.payment_link}}">Pay Now →</a></p>
+<p>If you've already sent payment, please disregard this message.</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  payment_received: {
+    label: "Payment - Received",
+    category: "Payments",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>We've received your payment. Thank you!</p>
+<p><strong>Amount:</strong> {{payment.amount}}<br/>
+<strong>Date:</strong> {{payment.date}}<br/>
+<strong>Invoice #:</strong> {{invoice.number}}</p>
+<p>Your receipt is attached to this email.</p>
+<p>Thank you for your business!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  // Nurturing
+  nurture_educational: {
+    label: "Nurture - Educational Tip",
+    category: "Nurturing",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>I wanted to share a quick tip that's helped many of our clients:</p>
+<p><strong>{{tip.title}}</strong></p>
+<p>{{tip.content}}</p>
+<p>Want to learn more? Check out our full guide:</p>
+<p><a href="{{guide.link}}">Read the Full Guide →</a></p>
+<p>Stay tuned for more tips!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  nurture_case_study: {
+    label: "Nurture - Case Study",
+    category: "Nurturing",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>I thought you'd find this interesting...</p>
+<p>{{case_study.company}} was facing the same challenges you mentioned, and here's what happened:</p>
+<ul>
+<li>Challenge: {{case_study.challenge}}</li>
+<li>Solution: {{case_study.solution}}</li>
+<li>Result: {{case_study.result}}</li>
+</ul>
+<p><a href="{{case_study.link}}">Read the Full Case Study →</a></p>
+<p>Would you like to discuss how we could achieve similar results for you?</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  // Promotions
+  promo_flash_sale: {
+    label: "Promo - Flash Sale",
+    category: "Promotions",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p><strong>FLASH SALE - {{promo.hours}} Hours Only!</strong></p>
+<p>Get {{promo.discount}}% off everything with code: <strong>{{promo.code}}</strong></p>
+<p>This deal expires at midnight, so don't wait!</p>
+<p><a href="{{promo.link}}">Shop Now →</a></p>
+<p>Happy shopping!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  promo_vip_exclusive: {
+    label: "Promo - VIP Exclusive",
+    category: "Promotions",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>As one of our valued VIP customers, you get early access to our exclusive offer:</p>
+<p><strong>{{promo.details}}</strong></p>
+<p>This offer is only available to our VIP members and expires on {{promo.expiry_date}}.</p>
+<p><a href="{{promo.link}}">Claim Your VIP Offer →</a></p>
+<p>Thank you for being a loyal customer!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  // Transactions
+  order_confirmation: {
+    label: "Order - Confirmation",
+    category: "Transactions",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Great news – your order has been confirmed!</p>
+<p><strong>Order Details:</strong></p>
+<ul>
+<li>Order #: {{order.number}}</li>
+<li>Items: {{order.items}}</li>
+<li>Total: {{order.total}}</li>
+</ul>
+<p>You'll receive a shipping confirmation once your order is on its way.</p>
+<p><a href="{{order.tracking_link}}">Track Your Order →</a></p>
+<p>Thanks for shopping with us!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
+  subscription_welcome: {
+    label: "Subscription - Welcome",
+    category: "Subscriptions",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Your subscription to {{subscription.plan}} is now active!</p>
+<p><strong>Here's what you get:</strong></p>
+<ul>
+<li>{{subscription.benefit_1}}</li>
+<li>{{subscription.benefit_2}}</li>
+<li>{{subscription.benefit_3}}</li>
+</ul>
+<p>Your next billing date is {{subscription.next_billing_date}}.</p>
+<p><a href="{{subscription.portal_link}}">Manage Your Subscription →</a></p>
+<p>Welcome aboard!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+  },
 };
 
 const CUSTOM_FIELDS = [
@@ -221,9 +523,9 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   const handleTemplateChange = useCallback((templateKey: string) => {
     setSelectedTemplate(templateKey);
-    const templateContent = TEMPLATES[templateKey as keyof typeof TEMPLATES];
-    if (templateContent && editorRef.current) {
-      editorRef.current.innerHTML = templateContent;
+    const template = EMAIL_BODY_TEMPLATES[templateKey];
+    if (template && editorRef.current) {
+      editorRef.current.innerHTML = template.body;
       handleInput();
       onTemplateSelect?.(templateKey);
       toast.success("Template applied");
@@ -292,10 +594,22 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           <SelectTrigger className="w-full">
             <SelectValue placeholder="Please Select" />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="welcome">Welcome Email</SelectItem>
-            <SelectItem value="follow_up">Follow Up</SelectItem>
-            <SelectItem value="confirmation">Confirmation</SelectItem>
+          <SelectContent className="max-h-80">
+            {Object.entries(
+              Object.entries(EMAIL_BODY_TEMPLATES).reduce((acc, [key, template]) => {
+                const cat = template.category;
+                if (!acc[cat]) acc[cat] = [];
+                acc[cat].push({ key, label: template.label });
+                return acc;
+              }, {} as Record<string, Array<{ key: string; label: string }>>)
+            ).map(([category, templates]) => (
+              <div key={category}>
+                <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">{category}</div>
+                {templates.map(({ key, label }) => (
+                  <SelectItem key={key} value={key}>{label}</SelectItem>
+                ))}
+              </div>
+            ))}
           </SelectContent>
         </Select>
         <p className="text-xs text-muted-foreground">Select Template</p>

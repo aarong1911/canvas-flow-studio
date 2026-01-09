@@ -1837,7 +1837,6 @@ export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
     variables: DEFAULT_VARIABLES,
     fields: [
       { name: "action_name", label: "Action Name", type: "text", required: true, placeholder: "Send Email" },
-      { name: "template", label: "Email Template", type: "select", options: EMAIL_TEMPLATES.map(t => ({ value: t.id, label: t.name })), helperText: "Select a pre-built template or create custom" },
       { name: "from_name", label: "From Name", type: "text", placeholder: "{{user.name}}", helperText: "Optional. Defaults to workflow sender settings." },
       { name: "from_email", label: "From Email", type: "text", placeholder: "noreply@yourdomain.com", helperText: "Optional. Defaults to workflow sender settings." },
       { name: "reply_to", label: "Reply-To", type: "text", placeholder: "support@yourdomain.com" },
@@ -1856,9 +1855,8 @@ export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
     variables: DEFAULT_VARIABLES,
     fields: [
       { name: "action_name", label: "Action Name", type: "text", placeholder: "Send SMS" },
-      { name: "template", label: "SMS Template", type: "select", options: SMS_TEMPLATES.map(t => ({ value: t.id, label: t.name })), helperText: "Select a pre-built template or create custom" },
       { name: "to", label: "Phone", type: "text", required: true, placeholder: "{{contact.phone}}" },
-      { name: "message", label: "Message", type: "textarea", required: true, rows: 5 },
+      { name: "message", label: "Message", type: "sms_textarea", required: true, rows: 5 },
     ],
   },
   if_else: {

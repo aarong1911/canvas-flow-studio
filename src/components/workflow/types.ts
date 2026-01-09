@@ -37,6 +37,15 @@ export type NodeConfigSchemaField =
   | {
       name: string;
       label: string;
+      type: "sms_textarea";
+      required?: boolean;
+      placeholder?: string;
+      rows?: number;
+      helperText?: string;
+    }
+  | {
+      name: string;
+      label: string;
       type: "richtext";
       required?: boolean;
       helperText?: string;
