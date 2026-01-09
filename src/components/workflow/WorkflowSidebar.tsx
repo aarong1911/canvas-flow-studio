@@ -609,6 +609,14 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                                 <RichTextEditor
                                   value={val ?? ""}
                                   onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
+                                  attachmentsSection={
+                                    selectedNode?.data.actionType === "send_email" ? (
+                                      <AttachmentPicker
+                                        attachments={(localConfig["attachments"] as AttachmentFile[]) || []}
+                                        onChange={(files) => setLocalConfig((s) => ({ ...s, attachments: files }))}
+                                      />
+                                    ) : undefined
+                                  }
                                 />
                               )}
 
@@ -623,7 +631,7 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                                 </div>
                               )}
 
-                              {field.type === "attachments" && (
+                              {field.type === "attachments" && selectedNode?.data.actionType !== "send_email" && (
                                 <AttachmentPicker
                                   attachments={(val as AttachmentFile[]) || []}
                                   onChange={(files) => setLocalConfig((s) => ({ ...s, [field.name]: files }))}

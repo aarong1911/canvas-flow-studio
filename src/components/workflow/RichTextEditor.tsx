@@ -17,7 +17,6 @@ import {
   Zap,
   Type,
   Highlighter,
-  Paperclip,
   AlignJustify
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,7 +33,7 @@ interface RichTextEditorProps {
   placeholder?: string;
   onTemplateSelect?: (template: string) => void;
   onSendTestEmail?: (email: string) => void;
-  onAddAttachment?: () => void;
+  attachmentsSection?: React.ReactNode;
 }
 
 const TEMPLATES = {
@@ -94,7 +93,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   placeholder = "Write your message...",
   onTemplateSelect,
   onSendTestEmail,
-  onAddAttachment
+  attachmentsSection
 }) => {
   const editorRef = useRef<HTMLDivElement>(null);
   const [charCount, setCharCount] = useState(0);
@@ -262,10 +261,6 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     toast.success(`Test email sent to ${testEmail}`);
   }, [testEmail, onSendTestEmail]);
 
-  const handleAddAttachment = useCallback(() => {
-    onAddAttachment?.();
-    toast.info("Attachment dialog would open here");
-  }, [onAddAttachment]);
 
   const ToolbarButton = ({ 
     icon: Icon, 
@@ -586,11 +581,8 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         {charCount} characters | {wordCount} words
       </div>
 
-      {/* Add attachment button */}
-      <Button variant="outline" size="sm" className="gap-2" onClick={handleAddAttachment}>
-        <Paperclip className="w-4 h-4" />
-        Add attachment
-      </Button>
+      {/* Attachments section - rendered above Test Emails */}
+      {attachmentsSection}
 
       {/* Test email section */}
       <div className="space-y-2 pt-4">
