@@ -124,17 +124,9 @@ export const AttachmentPicker: React.FC<AttachmentPickerProps> = ({
                 key={file.id}
                 className="flex items-center gap-3 p-2 rounded-lg border bg-muted/30 group"
               >
-                {file.thumbnail ? (
-                  <img
-                    src={file.thumbnail}
-                    alt={file.name}
-                    className="w-10 h-10 rounded object-cover"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
-                    <FileIcon className="w-5 h-5 text-muted-foreground" />
-                  </div>
-                )}
+                <div className="w-10 h-10 rounded bg-muted flex items-center justify-center">
+                  <FileIcon className="w-5 h-5 text-muted-foreground" />
+                </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium truncate">{file.name}</div>
                   <div className="text-xs text-muted-foreground">{formatFileSize(file.size)}</div>
@@ -206,17 +198,9 @@ export const AttachmentPicker: React.FC<AttachmentPickerProps> = ({
                             : "border-border hover:border-muted-foreground/50"
                         )}
                       >
-                        {file.thumbnail ? (
-                          <img
-                            src={file.thumbnail}
-                            alt={file.name}
-                            className="w-10 h-10 rounded object-cover flex-shrink-0"
-                          />
-                        ) : (
-                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
-                            <FileIcon className="w-5 h-5 text-muted-foreground" />
-                          </div>
-                        )}
+                        <div className="w-10 h-10 rounded bg-muted flex items-center justify-center flex-shrink-0">
+                          <FileIcon className="w-5 h-5 text-muted-foreground" />
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-xs font-medium truncate">{file.name}</div>
                           <div className="text-xs text-muted-foreground">
