@@ -432,6 +432,802 @@ export function formatOperatorLabel(operator: string): string {
   return labels[operator] || operator;
 }
 
+// =============================================================================
+// PRE-BUILT EMAIL TEMPLATES
+// =============================================================================
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  category: string;
+  subject: string;
+  body: string;
+  description?: string;
+}
+
+export const EMAIL_TEMPLATES: EmailTemplate[] = [
+  // Welcome & Onboarding
+  {
+    id: "welcome_new_lead",
+    name: "Welcome - New Lead",
+    category: "Welcome",
+    subject: "Welcome to {{company.name}}, {{contact.first_name}}!",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Thank you for your interest in {{company.name}}! We're excited to have you here.</p>
+<p>I wanted to personally reach out and let you know that I'm here to help with anything you need.</p>
+<p>What brought you to us today? I'd love to learn more about your goals so I can point you in the right direction.</p>
+<p>Looking forward to connecting!</p>
+<p>Best regards,<br/>{{user.name}}</p>`,
+    description: "First touchpoint for new leads",
+  },
+  {
+    id: "welcome_customer",
+    name: "Welcome - New Customer",
+    category: "Welcome",
+    subject: "Welcome aboard, {{contact.first_name}}! 🎉",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Congratulations and welcome to the {{company.name}} family!</p>
+<p>We're thrilled to have you as a customer. Here's what happens next:</p>
+<ul>
+<li>You'll receive your login credentials shortly</li>
+<li>Our team will reach out within 24 hours for onboarding</li>
+<li>Check out our getting started guide: [Link]</li>
+</ul>
+<p>If you have any questions, don't hesitate to reach out!</p>
+<p>Cheers,<br/>{{user.name}}</p>`,
+    description: "Welcome email for new customers",
+  },
+  {
+    id: "onboarding_day_1",
+    name: "Onboarding - Day 1",
+    category: "Onboarding",
+    subject: "Getting started with {{company.name}}",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Welcome to Day 1! Let's get you set up for success.</p>
+<p><strong>Today's Quick Win:</strong></p>
+<p>Complete your profile setup - it takes just 2 minutes and unlocks all features.</p>
+<p><a href="{{profile.setup_link}}">Complete Your Profile →</a></p>
+<p>Need help? Reply to this email or schedule a call with our team.</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "First day onboarding email",
+  },
+  // Follow-up Emails
+  {
+    id: "follow_up_no_response",
+    name: "Follow-up - No Response",
+    category: "Follow-up",
+    subject: "Quick follow-up, {{contact.first_name}}",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>I wanted to follow up on my previous message. I know things get busy!</p>
+<p>Is there anything I can help clarify or answer for you?</p>
+<p>If now isn't the right time, just let me know and I'll check back later.</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Follow-up when no response received",
+  },
+  {
+    id: "follow_up_after_meeting",
+    name: "Follow-up - After Meeting",
+    category: "Follow-up",
+    subject: "Great chatting with you, {{contact.first_name}}!",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>It was great speaking with you today!</p>
+<p>As discussed, here's a quick recap:</p>
+<ul>
+<li>[Key point 1]</li>
+<li>[Key point 2]</li>
+<li>Next steps: [Action items]</li>
+</ul>
+<p>I'll follow up on {{follow_up_date}}. In the meantime, feel free to reach out with any questions.</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Follow-up after a meeting or call",
+  },
+  {
+    id: "follow_up_proposal",
+    name: "Follow-up - Proposal Sent",
+    category: "Follow-up",
+    subject: "Checking in on the proposal, {{contact.first_name}}",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>I wanted to check in regarding the proposal I sent over.</p>
+<p>Have you had a chance to review it? I'd be happy to walk through any questions or make adjustments based on your feedback.</p>
+<p>What's the best way to move forward?</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Follow-up after sending a proposal",
+  },
+  // Re-engagement Emails
+  {
+    id: "reengagement_30_days",
+    name: "Re-engagement - 30 Days Inactive",
+    category: "Re-engagement",
+    subject: "We miss you, {{contact.first_name}}!",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>It's been a while since we've heard from you, and we wanted to check in.</p>
+<p>Is there anything we can help with? We've got some exciting updates I'd love to share:</p>
+<ul>
+<li>[New feature or update 1]</li>
+<li>[New feature or update 2]</li>
+</ul>
+<p>Let me know if you'd like to reconnect!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Re-engage contacts after 30 days of inactivity",
+  },
+  {
+    id: "reengagement_win_back",
+    name: "Re-engagement - Win Back",
+    category: "Re-engagement",
+    subject: "Special offer just for you, {{contact.first_name}}",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>We noticed you've been away for a while, and we'd love to have you back!</p>
+<p>As a thank you for being part of our community, here's an exclusive offer:</p>
+<p><strong>{{offer.details}}</strong></p>
+<p>This offer expires on {{offer.expiry_date}}. Don't miss out!</p>
+<p><a href="{{offer.link}}">Claim Your Offer →</a></p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Win-back email with special offer",
+  },
+  // Appointment Emails
+  {
+    id: "appointment_confirmation",
+    name: "Appointment - Confirmation",
+    category: "Appointments",
+    subject: "Your appointment is confirmed, {{contact.first_name}}!",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Great news! Your appointment is confirmed:</p>
+<p><strong>Date:</strong> {{appointment.date}}<br/>
+<strong>Time:</strong> {{appointment.time}}<br/>
+<strong>Location:</strong> {{appointment.location}}</p>
+<p>Please arrive 10 minutes early. If you need to reschedule, click the link below:</p>
+<p><a href="{{appointment.reschedule_link}}">Reschedule Appointment</a></p>
+<p>See you soon!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Appointment confirmation email",
+  },
+  {
+    id: "appointment_reminder_24h",
+    name: "Appointment - 24hr Reminder",
+    category: "Appointments",
+    subject: "Reminder: Your appointment is tomorrow, {{contact.first_name}}",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Just a friendly reminder that your appointment is tomorrow:</p>
+<p><strong>Date:</strong> {{appointment.date}}<br/>
+<strong>Time:</strong> {{appointment.time}}<br/>
+<strong>Location:</strong> {{appointment.location}}</p>
+<p>Need to make changes? <a href="{{appointment.reschedule_link}}">Reschedule here</a></p>
+<p>See you soon!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "24-hour appointment reminder",
+  },
+  // Payment & Invoice Emails
+  {
+    id: "invoice_sent",
+    name: "Invoice - Sent",
+    category: "Payments",
+    subject: "Invoice #{{invoice.number}} from {{company.name}}",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Please find attached your invoice:</p>
+<p><strong>Invoice #:</strong> {{invoice.number}}<br/>
+<strong>Amount:</strong> {{invoice.amount}}<br/>
+<strong>Due Date:</strong> {{invoice.due_date}}</p>
+<p><a href="{{invoice.payment_link}}">Pay Now →</a></p>
+<p>If you have any questions about this invoice, please don't hesitate to reach out.</p>
+<p>Thank you for your business!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Invoice email with payment link",
+  },
+  {
+    id: "payment_reminder",
+    name: "Payment - Reminder",
+    category: "Payments",
+    subject: "Friendly reminder: Invoice #{{invoice.number}} is due soon",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>This is a friendly reminder that your invoice is due soon:</p>
+<p><strong>Invoice #:</strong> {{invoice.number}}<br/>
+<strong>Amount:</strong> {{invoice.amount}}<br/>
+<strong>Due Date:</strong> {{invoice.due_date}}</p>
+<p><a href="{{invoice.payment_link}}">Pay Now →</a></p>
+<p>If you've already sent payment, please disregard this message.</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Payment reminder email",
+  },
+  {
+    id: "payment_received",
+    name: "Payment - Received",
+    category: "Payments",
+    subject: "Payment received - Thank you, {{contact.first_name}}!",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>We've received your payment. Thank you!</p>
+<p><strong>Amount:</strong> {{payment.amount}}<br/>
+<strong>Date:</strong> {{payment.date}}<br/>
+<strong>Invoice #:</strong> {{invoice.number}}</p>
+<p>Your receipt is attached to this email.</p>
+<p>Thank you for your business!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Payment confirmation/thank you email",
+  },
+  // Review & Feedback Emails
+  {
+    id: "review_request",
+    name: "Review - Request",
+    category: "Reviews",
+    subject: "{{contact.first_name}}, how did we do?",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Thank you for choosing {{company.name}}! We hope you had a great experience.</p>
+<p>Would you mind taking a moment to share your feedback? It helps us improve and helps others find us.</p>
+<p><a href="{{review.link}}">Leave a Review →</a></p>
+<p>Thank you so much for your time!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Request a review from customers",
+  },
+  {
+    id: "feedback_survey",
+    name: "Feedback - Survey",
+    category: "Reviews",
+    subject: "Quick question, {{contact.first_name}}",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>We're always looking to improve, and your feedback means a lot to us.</p>
+<p>Could you spare 2 minutes to answer a few questions about your experience?</p>
+<p><a href="{{survey.link}}">Take the Survey →</a></p>
+<p>As a thank you, we'll enter you into a drawing for [prize]!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Feedback survey request",
+  },
+  // Promotional Emails
+  {
+    id: "promo_flash_sale",
+    name: "Promo - Flash Sale",
+    category: "Promotions",
+    subject: "⚡ Flash Sale: {{promo.discount}}% off for {{contact.first_name}}!",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p><strong>FLASH SALE - {{promo.hours}} Hours Only!</strong></p>
+<p>Get {{promo.discount}}% off everything with code: <strong>{{promo.code}}</strong></p>
+<p>This deal expires at midnight, so don't wait!</p>
+<p><a href="{{promo.link}}">Shop Now →</a></p>
+<p>Happy shopping!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Flash sale promotional email",
+  },
+  {
+    id: "promo_exclusive_offer",
+    name: "Promo - Exclusive VIP Offer",
+    category: "Promotions",
+    subject: "🌟 VIP Exclusive: Special offer inside, {{contact.first_name}}",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>As one of our valued VIP customers, you get early access to our exclusive offer:</p>
+<p><strong>{{promo.details}}</strong></p>
+<p>This offer is only available to our VIP members and expires on {{promo.expiry_date}}.</p>
+<p><a href="{{promo.link}}">Claim Your VIP Offer →</a></p>
+<p>Thank you for being a loyal customer!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "VIP exclusive promotional email",
+  },
+];
+
+// =============================================================================
+// PRE-BUILT SMS TEMPLATES
+// =============================================================================
+export interface SMSTemplate {
+  id: string;
+  name: string;
+  category: string;
+  message: string;
+  description?: string;
+}
+
+export const SMS_TEMPLATES: SMSTemplate[] = [
+  // Welcome & Onboarding
+  {
+    id: "sms_welcome",
+    name: "Welcome - New Lead",
+    category: "Welcome",
+    message: "Hi {{contact.first_name}}! Thanks for reaching out to {{company.name}}. I'm {{user.first_name}} and I'll be helping you. What can I assist with today?",
+    description: "Welcome SMS for new leads",
+  },
+  {
+    id: "sms_welcome_customer",
+    name: "Welcome - New Customer",
+    category: "Welcome",
+    message: "Welcome to {{company.name}}, {{contact.first_name}}! 🎉 We're excited to have you. Reply to this text anytime if you need help!",
+    description: "Welcome SMS for new customers",
+  },
+  // Follow-ups
+  {
+    id: "sms_follow_up_quick",
+    name: "Follow-up - Quick Check-in",
+    category: "Follow-up",
+    message: "Hi {{contact.first_name}}, just checking in! Did you get my email? Let me know if you have any questions. - {{user.first_name}}",
+    description: "Quick follow-up SMS",
+  },
+  {
+    id: "sms_follow_up_no_response",
+    name: "Follow-up - No Response",
+    category: "Follow-up",
+    message: "Hey {{contact.first_name}}, haven't heard back from you. Still interested in {{topic}}? Just reply YES or NO. Thanks! - {{user.first_name}}",
+    description: "Follow-up after no response",
+  },
+  {
+    id: "sms_follow_up_meeting",
+    name: "Follow-up - After Meeting",
+    category: "Follow-up",
+    message: "Great chatting with you today, {{contact.first_name}}! I'll send over the details we discussed. Text me if you need anything!",
+    description: "Follow-up after a meeting",
+  },
+  // Appointments
+  {
+    id: "sms_appointment_confirm",
+    name: "Appointment - Confirmation",
+    category: "Appointments",
+    message: "Hi {{contact.first_name}}! Your appointment is confirmed for {{appointment.date}} at {{appointment.time}}. Reply C to confirm or R to reschedule.",
+    description: "Appointment confirmation",
+  },
+  {
+    id: "sms_appointment_reminder_24h",
+    name: "Appointment - 24hr Reminder",
+    category: "Appointments",
+    message: "Reminder: Your appointment is tomorrow at {{appointment.time}}. Location: {{appointment.location}}. See you then! Reply R to reschedule.",
+    description: "24-hour appointment reminder",
+  },
+  {
+    id: "sms_appointment_reminder_1h",
+    name: "Appointment - 1hr Reminder",
+    category: "Appointments",
+    message: "{{contact.first_name}}, your appointment is in 1 hour! We're looking forward to seeing you at {{appointment.location}}. 📍",
+    description: "1-hour appointment reminder",
+  },
+  {
+    id: "sms_appointment_no_show",
+    name: "Appointment - No Show",
+    category: "Appointments",
+    message: "Hi {{contact.first_name}}, we missed you today! Would you like to reschedule? Reply YES to book a new time.",
+    description: "No-show follow-up",
+  },
+  // Payments
+  {
+    id: "sms_payment_reminder",
+    name: "Payment - Reminder",
+    category: "Payments",
+    message: "Hi {{contact.first_name}}, friendly reminder that invoice #{{invoice.number}} ({{invoice.amount}}) is due {{invoice.due_date}}. Pay here: {{invoice.payment_link}}",
+    description: "Payment reminder SMS",
+  },
+  {
+    id: "sms_payment_overdue",
+    name: "Payment - Overdue",
+    category: "Payments",
+    message: "{{contact.first_name}}, your payment of {{invoice.amount}} is now overdue. Please pay ASAP to avoid late fees: {{invoice.payment_link}}",
+    description: "Overdue payment notification",
+  },
+  {
+    id: "sms_payment_received",
+    name: "Payment - Received",
+    category: "Payments",
+    message: "Thanks {{contact.first_name}}! We received your payment of {{payment.amount}}. Receipt sent to your email. 🙏",
+    description: "Payment confirmation",
+  },
+  // Reviews & Feedback
+  {
+    id: "sms_review_request",
+    name: "Review - Request",
+    category: "Reviews",
+    message: "Hi {{contact.first_name}}! How was your experience with us? We'd love a quick review: {{review.link}} - Thanks! 🌟",
+    description: "Review request SMS",
+  },
+  {
+    id: "sms_feedback_nps",
+    name: "Feedback - NPS",
+    category: "Reviews",
+    message: "Hi {{contact.first_name}}! On a scale of 1-10, how likely are you to recommend us? Reply with a number. Thanks!",
+    description: "NPS feedback request",
+  },
+  // Promotions
+  {
+    id: "sms_promo_flash",
+    name: "Promo - Flash Sale",
+    category: "Promotions",
+    message: "⚡ FLASH SALE! {{promo.discount}}% off for the next {{promo.hours}} hours. Use code {{promo.code}}. Shop now: {{promo.link}}",
+    description: "Flash sale promotion",
+  },
+  {
+    id: "sms_promo_exclusive",
+    name: "Promo - VIP Exclusive",
+    category: "Promotions",
+    message: "🌟 VIP Alert, {{contact.first_name}}! You get early access to our sale. {{promo.discount}}% off with code {{promo.code}}. Ends {{promo.expiry_date}}!",
+    description: "VIP exclusive promotion",
+  },
+  {
+    id: "sms_promo_birthday",
+    name: "Promo - Birthday",
+    category: "Promotions",
+    message: "Happy Birthday, {{contact.first_name}}! 🎂 Here's a special gift: {{promo.discount}}% off with code BDAY{{promo.code}}. Valid for 7 days!",
+    description: "Birthday promotion",
+  },
+  // Re-engagement
+  {
+    id: "sms_reengagement_miss_you",
+    name: "Re-engagement - We Miss You",
+    category: "Re-engagement",
+    message: "Hey {{contact.first_name}}, we miss you! It's been a while. Anything we can help with? Reply to chat!",
+    description: "Re-engagement for inactive contacts",
+  },
+  {
+    id: "sms_reengagement_win_back",
+    name: "Re-engagement - Win Back Offer",
+    category: "Re-engagement",
+    message: "{{contact.first_name}}, we want you back! Here's {{promo.discount}}% off your next order. Use code COMEBACK. Expires in 48hrs!",
+    description: "Win-back offer SMS",
+  },
+  // Service Updates
+  {
+    id: "sms_service_update",
+    name: "Service - Update",
+    category: "Service",
+    message: "Hi {{contact.first_name}}, update on your {{service.type}}: {{service.status}}. Questions? Reply to this text!",
+    description: "Service status update",
+  },
+  {
+    id: "sms_delivery_update",
+    name: "Delivery - Update",
+    category: "Service",
+    message: "{{contact.first_name}}, your order is {{delivery.status}}! Track here: {{delivery.tracking_link}}",
+    description: "Delivery status update",
+  },
+];
+
+// =============================================================================
+// PRE-BUILT CONDITION TEMPLATES
+// =============================================================================
+export interface ConditionTemplate {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
+  branches: Array<{
+    id: string;
+    name: string;
+    segments: Array<{
+      field: string;
+      operator: string;
+      value: string;
+    }>;
+  }>;
+}
+
+export const CONDITION_TEMPLATES: ConditionTemplate[] = [
+  // Contact Reply Conditions
+  {
+    id: "condition_contact_replied",
+    name: "Contact Replied",
+    category: "Engagement",
+    description: "Check if contact has replied to messages",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "contact_replied", operator: "equals", value: "true" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "contact_replied", operator: "equals", value: "false" }],
+      },
+    ],
+  },
+  {
+    id: "condition_sms_replied",
+    name: "SMS Replied",
+    category: "Engagement",
+    description: "Check if contact replied to SMS",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "sms_replied", operator: "equals", value: "true" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "sms_replied", operator: "equals", value: "false" }],
+      },
+    ],
+  },
+  // Email Engagement Conditions
+  {
+    id: "condition_email_opened",
+    name: "Email Opened",
+    category: "Engagement",
+    description: "Check if contact opened the email",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "email_opened", operator: "equals", value: "true" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "email_opened", operator: "equals", value: "false" }],
+      },
+    ],
+  },
+  {
+    id: "condition_email_clicked",
+    name: "Email Link Clicked",
+    category: "Engagement",
+    description: "Check if contact clicked a link in the email",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "email_clicked", operator: "equals", value: "true" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "email_clicked", operator: "equals", value: "false" }],
+      },
+    ],
+  },
+  // Lead Score Conditions
+  {
+    id: "condition_lead_score_tier",
+    name: "Lead Score Tier",
+    category: "Lead Scoring",
+    description: "Route based on lead score tier (hot/warm/cold)",
+    branches: [
+      {
+        id: "hot",
+        name: "Hot (80+)",
+        segments: [{ field: "lead_score_tier", operator: "equals", value: "hot" }],
+      },
+      {
+        id: "warm",
+        name: "Warm (50-79)",
+        segments: [{ field: "lead_score_tier", operator: "equals", value: "warm" }],
+      },
+      {
+        id: "cold",
+        name: "Cold (<50)",
+        segments: [{ field: "lead_score_tier", operator: "equals", value: "cold" }],
+      },
+    ],
+  },
+  {
+    id: "condition_lead_score_hot",
+    name: "Is Hot Lead",
+    category: "Lead Scoring",
+    description: "Check if lead score is 80 or higher",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "lead_score", operator: "greater_than", value: "79" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "lead_score", operator: "less_than", value: "80" }],
+      },
+    ],
+  },
+  // Contact Type Conditions
+  {
+    id: "condition_contact_type",
+    name: "Contact Type",
+    category: "Contact",
+    description: "Route based on contact type",
+    branches: [
+      {
+        id: "customer",
+        name: "Customer",
+        segments: [{ field: "contact_type", operator: "equals", value: "customer" }],
+      },
+      {
+        id: "lead",
+        name: "Lead",
+        segments: [{ field: "contact_type", operator: "equals", value: "lead" }],
+      },
+    ],
+  },
+  {
+    id: "condition_is_customer",
+    name: "Is Customer",
+    category: "Contact",
+    description: "Check if contact is an existing customer",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "contact_type", operator: "equals", value: "customer" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "contact_type", operator: "not_equals", value: "customer" }],
+      },
+    ],
+  },
+  // Time-Based Conditions
+  {
+    id: "condition_business_hours",
+    name: "Is Business Hours",
+    category: "Time-Based",
+    description: "Check if current time is within business hours",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "is_business_hours", operator: "equals", value: "true" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "is_business_hours", operator: "equals", value: "false" }],
+      },
+    ],
+  },
+  {
+    id: "condition_day_of_week",
+    name: "Day of Week",
+    category: "Time-Based",
+    description: "Route based on current day of week",
+    branches: [
+      {
+        id: "weekday",
+        name: "Weekday",
+        segments: [{ field: "day_of_week", operator: "in", value: "monday,tuesday,wednesday,thursday,friday" }],
+      },
+      {
+        id: "weekend",
+        name: "Weekend",
+        segments: [{ field: "day_of_week", operator: "in", value: "saturday,sunday" }],
+      },
+    ],
+  },
+  {
+    id: "condition_time_of_day",
+    name: "Time of Day",
+    category: "Time-Based",
+    description: "Route based on time of day",
+    branches: [
+      {
+        id: "morning",
+        name: "Morning",
+        segments: [{ field: "time_of_day", operator: "equals", value: "morning" }],
+      },
+      {
+        id: "afternoon",
+        name: "Afternoon",
+        segments: [{ field: "time_of_day", operator: "equals", value: "afternoon" }],
+      },
+      {
+        id: "evening",
+        name: "Evening",
+        segments: [{ field: "time_of_day", operator: "equals", value: "evening" }],
+      },
+    ],
+  },
+  // Lead Source Conditions
+  {
+    id: "condition_lead_source",
+    name: "Lead Source",
+    category: "Lead Routing",
+    description: "Route based on where the lead came from",
+    branches: [
+      {
+        id: "website",
+        name: "Website",
+        segments: [{ field: "lead_source", operator: "equals", value: "website" }],
+      },
+      {
+        id: "referral",
+        name: "Referral",
+        segments: [{ field: "lead_source", operator: "equals", value: "referral" }],
+      },
+      {
+        id: "social",
+        name: "Social Media",
+        segments: [{ field: "lead_source", operator: "equals", value: "social" }],
+      },
+    ],
+  },
+  // Conversion Conditions
+  {
+    id: "condition_goal_achieved",
+    name: "Goal Achieved",
+    category: "Conversion",
+    description: "Check if conversion goal was achieved",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "goal_achieved", operator: "equals", value: "true" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "goal_achieved", operator: "equals", value: "false" }],
+      },
+    ],
+  },
+  {
+    id: "condition_conversion_status",
+    name: "Conversion Status",
+    category: "Conversion",
+    description: "Route based on conversion status",
+    branches: [
+      {
+        id: "converted",
+        name: "Converted",
+        segments: [{ field: "conversion_status", operator: "equals", value: "converted" }],
+      },
+      {
+        id: "pending",
+        name: "Pending",
+        segments: [{ field: "conversion_status", operator: "equals", value: "pending" }],
+      },
+      {
+        id: "timeout",
+        name: "Timeout",
+        segments: [{ field: "conversion_status", operator: "equals", value: "timeout" }],
+      },
+    ],
+  },
+  // Engagement Level Conditions
+  {
+    id: "condition_days_inactive",
+    name: "Days Inactive",
+    category: "Engagement",
+    description: "Route based on inactivity period",
+    branches: [
+      {
+        id: "active",
+        name: "Active (<7 days)",
+        segments: [{ field: "days_since_last_activity", operator: "less_than", value: "7" }],
+      },
+      {
+        id: "cooling",
+        name: "Cooling (7-30 days)",
+        segments: [{ field: "days_since_last_activity", operator: "less_than", value: "31" }],
+      },
+      {
+        id: "inactive",
+        name: "Inactive (30+ days)",
+        segments: [{ field: "days_since_last_activity", operator: "greater_than", value: "30" }],
+      },
+    ],
+  },
+  // Has Tag Conditions
+  {
+    id: "condition_has_vip_tag",
+    name: "Has VIP Tag",
+    category: "Contact",
+    description: "Check if contact has VIP tag",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "has_tag", operator: "equals", value: "vip" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "has_tag", operator: "not_equals", value: "vip" }],
+      },
+    ],
+  },
+];
+
+// Helper to get a condition template by ID
+export function getConditionTemplate(templateId: string): ConditionTemplate | undefined {
+  return CONDITION_TEMPLATES.find((t) => t.id === templateId);
+}
+
+// Helper to get an email template by ID
+export function getEmailTemplate(templateId: string): EmailTemplate | undefined {
+  return EMAIL_TEMPLATES.find((t) => t.id === templateId);
+}
+
+// Helper to get an SMS template by ID
+export function getSMSTemplate(templateId: string): SMSTemplate | undefined {
+  return SMS_TEMPLATES.find((t) => t.id === templateId);
+}
+
 export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
   form_submitted: {
     title: "Configure",
@@ -454,6 +1250,7 @@ export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
     variables: DEFAULT_VARIABLES,
     fields: [
       { name: "action_name", label: "Action Name", type: "text", required: true, placeholder: "Send Email" },
+      { name: "template", label: "Email Template", type: "select", options: EMAIL_TEMPLATES.map(t => ({ value: t.id, label: t.name })), helperText: "Select a pre-built template or create custom" },
       { name: "from_name", label: "From Name", type: "text", placeholder: "{{user.name}}", helperText: "Optional. Defaults to workflow sender settings." },
       { name: "from_email", label: "From Email", type: "text", placeholder: "noreply@yourdomain.com", helperText: "Optional. Defaults to workflow sender settings." },
       { name: "reply_to", label: "Reply-To", type: "text", placeholder: "support@yourdomain.com" },
@@ -472,6 +1269,7 @@ export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
     variables: DEFAULT_VARIABLES,
     fields: [
       { name: "action_name", label: "Action Name", type: "text", placeholder: "Send SMS" },
+      { name: "template", label: "SMS Template", type: "select", options: SMS_TEMPLATES.map(t => ({ value: t.id, label: t.name })), helperText: "Select a pre-built template or create custom" },
       { name: "to", label: "Phone", type: "text", required: true, placeholder: "{{contact.phone}}" },
       { name: "message", label: "Message", type: "textarea", required: true, rows: 5 },
     ],
@@ -480,6 +1278,7 @@ export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
     title: "Configure",
     fields: [
       { name: "action_name", label: "Condition Name", type: "text", placeholder: "If/Else Condition" },
+      { name: "condition_template", label: "Condition Template", type: "select", options: CONDITION_TEMPLATES.map(t => ({ value: t.id, label: `${t.name} (${t.category})` })), helperText: "Select a pre-built condition template" },
       { name: "question", label: "Question", type: "text", required: true, placeholder: "Is the contact tagged VIP?" },
       {
         name: "condition_type",
