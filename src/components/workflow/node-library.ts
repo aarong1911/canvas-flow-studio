@@ -185,6 +185,17 @@ export const TAG_OPTIONS = [
   { value: "unqualified", label: "Unqualified" },
   { value: "website_lead", label: "Website Lead" },
   { value: "social_lead", label: "Social Media Lead" },
+  { value: "reviewer", label: "Reviewer" },
+  { value: "reviewed", label: "Reviewed" },
+  { value: "pending_review", label: "Pending Review" },
+  { value: "positive_review", label: "Positive Review" },
+  { value: "negative_review", label: "Negative Review" },
+  { value: "booked", label: "Booked" },
+  { value: "no_show", label: "No Show" },
+  { value: "cancelled", label: "Cancelled" },
+  { value: "high_value", label: "High Value" },
+  { value: "churned", label: "Churned" },
+  { value: "at_risk", label: "At Risk" },
 ];
 
 // Segment field options for If/Else conditions
@@ -412,6 +423,138 @@ export const SEGMENT_FIELD_OPTIONS: SegmentFieldOption[] = [
     operators: ["greater_than", "less_than", "equals"],
     valueType: "number",
     placeholder: "Enter score (0-100)",
+  },
+  // Review & Feedback Conditions
+  {
+    value: "review_submitted",
+    label: "Review submitted",
+    description: "Whether the contact has submitted a review",
+    operators: ["equals"],
+    valueType: "boolean",
+    valueOptions: [
+      { label: "True", value: "true" },
+      { label: "False", value: "false" },
+    ],
+  },
+  {
+    value: "review_rating",
+    label: "Review rating",
+    description: "Star rating given by contact (1-5)",
+    operators: ["greater_than", "less_than", "equals"],
+    valueType: "number",
+    placeholder: "Enter rating (1-5)",
+  },
+  {
+    value: "review_sentiment",
+    label: "Review sentiment",
+    description: "Sentiment analysis of the review",
+    operators: ["equals", "not_equals"],
+    valueType: "select",
+    valueOptions: [
+      { label: "Positive", value: "positive" },
+      { label: "Neutral", value: "neutral" },
+      { label: "Negative", value: "negative" },
+    ],
+  },
+  {
+    value: "nps_score",
+    label: "NPS score",
+    description: "Net Promoter Score (0-10)",
+    operators: ["greater_than", "less_than", "equals", "between"],
+    valueType: "number",
+    placeholder: "Enter NPS score (0-10)",
+  },
+  // Appointment Conditions
+  {
+    value: "appointment_status",
+    label: "Appointment status",
+    description: "Current appointment status",
+    operators: ["equals", "not_equals"],
+    valueType: "select",
+    valueOptions: [
+      { label: "Scheduled", value: "scheduled" },
+      { label: "Confirmed", value: "confirmed" },
+      { label: "Completed", value: "completed" },
+      { label: "No Show", value: "no_show" },
+      { label: "Cancelled", value: "cancelled" },
+      { label: "Rescheduled", value: "rescheduled" },
+    ],
+  },
+  {
+    value: "has_upcoming_appointment",
+    label: "Has upcoming appointment",
+    description: "Whether contact has a future appointment booked",
+    operators: ["equals"],
+    valueType: "boolean",
+    valueOptions: [
+      { label: "True", value: "true" },
+      { label: "False", value: "false" },
+    ],
+  },
+  // Payment & Purchase Conditions
+  {
+    value: "payment_status",
+    label: "Payment status",
+    description: "Status of payment",
+    operators: ["equals", "not_equals"],
+    valueType: "select",
+    valueOptions: [
+      { label: "Paid", value: "paid" },
+      { label: "Pending", value: "pending" },
+      { label: "Overdue", value: "overdue" },
+      { label: "Failed", value: "failed" },
+      { label: "Refunded", value: "refunded" },
+    ],
+  },
+  {
+    value: "total_purchases",
+    label: "Total purchases",
+    description: "Total number of purchases made",
+    operators: ["greater_than", "less_than", "equals"],
+    valueType: "number",
+    placeholder: "Enter number of purchases",
+  },
+  {
+    value: "lifetime_value",
+    label: "Lifetime value",
+    description: "Total lifetime value of the contact",
+    operators: ["greater_than", "less_than", "equals"],
+    valueType: "number",
+    placeholder: "Enter amount",
+  },
+  // Communication Preferences
+  {
+    value: "email_opted_in",
+    label: "Email opted in",
+    description: "Whether contact opted in for email communications",
+    operators: ["equals"],
+    valueType: "boolean",
+    valueOptions: [
+      { label: "True", value: "true" },
+      { label: "False", value: "false" },
+    ],
+  },
+  {
+    value: "sms_opted_in",
+    label: "SMS opted in",
+    description: "Whether contact opted in for SMS communications",
+    operators: ["equals"],
+    valueType: "boolean",
+    valueOptions: [
+      { label: "True", value: "true" },
+      { label: "False", value: "false" },
+    ],
+  },
+  {
+    value: "call_answered",
+    label: "Call answered",
+    description: "Whether the last call was answered",
+    operators: ["equals"],
+    valueType: "boolean",
+    valueOptions: [
+      { label: "True", value: "true" },
+      { label: "False", value: "false" },
+    ],
   },
 ];
 
@@ -697,6 +840,191 @@ export const EMAIL_TEMPLATES: EmailTemplate[] = [
 <p>Thank you for being a loyal customer!</p>
 <p>Best,<br/>{{user.name}}</p>`,
     description: "VIP exclusive promotional email",
+  },
+  // Additional Review & Thank You Emails
+  {
+    id: "review_request_post_service",
+    name: "Review - Post Service Request",
+    category: "Reviews",
+    subject: "How was your experience, {{contact.first_name}}?",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>We hope you're enjoying your recent experience with {{company.name}}!</p>
+<p>Your feedback means the world to us. Would you take just 30 seconds to share your thoughts?</p>
+<p style="text-align: center;"><a href="{{review.link}}" style="background-color: #4CAF50; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Leave a Review ⭐</a></p>
+<p>Your review helps other customers find us and helps us improve our service.</p>
+<p>Thank you so much!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Request review after service completion",
+  },
+  {
+    id: "review_thank_you_positive",
+    name: "Review - Thank You (Positive)",
+    category: "Reviews",
+    subject: "Thank you for the amazing review, {{contact.first_name}}! 🌟",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>WOW! Thank you so much for the wonderful review you left us!</p>
+<p>Reviews like yours make our entire team smile. We're so grateful to have you as a customer.</p>
+<p>As a thank you, here's a special discount for your next visit:</p>
+<p style="text-align: center;"><strong style="font-size: 18px;">{{promo.code}} - {{promo.discount}}% OFF</strong></p>
+<p>We can't wait to see you again!</p>
+<p>With gratitude,<br/>{{user.name}}</p>`,
+    description: "Thank customers for positive reviews",
+  },
+  {
+    id: "review_follow_up_negative",
+    name: "Review - Follow Up (Negative)",
+    category: "Reviews",
+    subject: "We'd love to make this right, {{contact.first_name}}",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>I personally read your recent feedback, and I'm truly sorry we didn't meet your expectations.</p>
+<p>Your experience matters to us, and I'd love the opportunity to make this right.</p>
+<p>Would you be open to a quick call so I can understand what happened and how we can improve?</p>
+<p><a href="{{booking.link}}">Schedule a Call With Me →</a></p>
+<p>I'm committed to turning this around for you.</p>
+<p>Sincerely,<br/>{{user.name}}</p>`,
+    description: "Personal follow-up after negative review",
+  },
+  // Lead Nurturing Emails
+  {
+    id: "nurture_educational_1",
+    name: "Nurture - Educational Tip #1",
+    category: "Nurturing",
+    subject: "{{contact.first_name}}, here's a quick tip for you",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>I wanted to share a quick tip that's helped many of our clients:</p>
+<p><strong>{{tip.title}}</strong></p>
+<p>{{tip.content}}</p>
+<p>Want to learn more? Check out our full guide:</p>
+<p><a href="{{guide.link}}">Read the Full Guide →</a></p>
+<p>Stay tuned for more tips!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Educational content for nurturing leads",
+  },
+  {
+    id: "nurture_case_study",
+    name: "Nurture - Case Study",
+    category: "Nurturing",
+    subject: "How {{case_study.company}} achieved {{case_study.result}}",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>I thought you'd find this interesting...</p>
+<p>{{case_study.company}} was facing the same challenges you mentioned, and here's what happened:</p>
+<ul>
+<li>Challenge: {{case_study.challenge}}</li>
+<li>Solution: {{case_study.solution}}</li>
+<li>Result: {{case_study.result}}</li>
+</ul>
+<p><a href="{{case_study.link}}">Read the Full Case Study →</a></p>
+<p>Would you like to discuss how we could achieve similar results for you?</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Share relevant case study with leads",
+  },
+  // Re-engagement & Win-back Emails
+  {
+    id: "reengagement_60_days",
+    name: "Re-engagement - 60 Days Inactive",
+    category: "Re-engagement",
+    subject: "{{contact.first_name}}, are you still interested?",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>It's been a while since we connected, and I wanted to check in.</p>
+<p>I understand priorities change, and I want to respect your time. If now isn't the right moment, no worries at all.</p>
+<p>But if you're still interested in {{topic}}, I'd love to pick up where we left off.</p>
+<p>Just reply "YES" if you'd like to continue the conversation.</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Re-engage after 60 days of inactivity",
+  },
+  {
+    id: "reengagement_break_up",
+    name: "Re-engagement - Break-up Email",
+    category: "Re-engagement",
+    subject: "Should I close your file, {{contact.first_name}}?",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>I've reached out a few times but haven't heard back. I want to be respectful of your inbox.</p>
+<p>Should I close your file and stop reaching out?</p>
+<p>If things have changed and you'd like to continue our conversation, just hit reply and let me know.</p>
+<p>Either way, I wish you all the best!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Final re-engagement attempt before closing",
+  },
+  // Appointment Emails
+  {
+    id: "appointment_no_show",
+    name: "Appointment - No Show Follow-up",
+    category: "Appointments",
+    subject: "We missed you today, {{contact.first_name}}",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>We noticed you couldn't make it to your appointment today. No worries – things happen!</p>
+<p>Would you like to reschedule? We have availability this week:</p>
+<p><a href="{{booking.link}}">Reschedule Your Appointment →</a></p>
+<p>If something came up, just let us know. We're here to help!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Follow-up after a missed appointment",
+  },
+  {
+    id: "appointment_post_visit",
+    name: "Appointment - Post Visit Thank You",
+    category: "Appointments",
+    subject: "Thanks for visiting us, {{contact.first_name}}!",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Thank you for your visit today! It was great seeing you.</p>
+<p>If you have any questions about what we discussed, don't hesitate to reach out.</p>
+<p>Ready to book your next appointment?</p>
+<p><a href="{{booking.link}}">Book Your Next Visit →</a></p>
+<p>See you soon!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Thank you email after appointment completion",
+  },
+  // Transactional Emails
+  {
+    id: "order_confirmation",
+    name: "Order - Confirmation",
+    category: "Transactions",
+    subject: "Order confirmed! Thanks, {{contact.first_name}} 🎉",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Great news – your order has been confirmed!</p>
+<p><strong>Order Details:</strong></p>
+<ul>
+<li>Order #: {{order.number}}</li>
+<li>Items: {{order.items}}</li>
+<li>Total: {{order.total}}</li>
+</ul>
+<p>You'll receive a shipping confirmation once your order is on its way.</p>
+<p><a href="{{order.tracking_link}}">Track Your Order →</a></p>
+<p>Thanks for shopping with us!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Order confirmation email",
+  },
+  {
+    id: "subscription_welcome",
+    name: "Subscription - Welcome",
+    category: "Subscriptions",
+    subject: "Your subscription is active, {{contact.first_name}}! 🚀",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Your subscription to {{subscription.plan}} is now active!</p>
+<p><strong>Here's what you get:</strong></p>
+<ul>
+<li>{{subscription.benefit_1}}</li>
+<li>{{subscription.benefit_2}}</li>
+<li>{{subscription.benefit_3}}</li>
+</ul>
+<p>Your next billing date is {{subscription.next_billing_date}}.</p>
+<p><a href="{{subscription.portal_link}}">Manage Your Subscription →</a></p>
+<p>Welcome aboard!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Welcome email for new subscribers",
+  },
+  {
+    id: "subscription_renewal_reminder",
+    name: "Subscription - Renewal Reminder",
+    category: "Subscriptions",
+    subject: "Your subscription renews soon, {{contact.first_name}}",
+    body: `<p>Hi {{contact.first_name}},</p>
+<p>Just a heads up – your {{subscription.plan}} subscription will renew on {{subscription.renewal_date}}.</p>
+<p><strong>Amount:</strong> {{subscription.amount}}</p>
+<p>No action needed if you want to continue enjoying your subscription.</p>
+<p>Need to make changes? <a href="{{subscription.portal_link}}">Manage Subscription →</a></p>
+<p>Thanks for being a valued subscriber!</p>
+<p>Best,<br/>{{user.name}}</p>`,
+    description: "Reminder before subscription renewal",
   },
 ];
 
@@ -1208,6 +1536,265 @@ export const CONDITION_TEMPLATES: ConditionTemplate[] = [
         id: "no",
         name: "no",
         segments: [{ field: "has_tag", operator: "not_equals", value: "vip" }],
+      },
+    ],
+  },
+  // Review Conditions
+  {
+    id: "condition_review_submitted",
+    name: "Review Submitted",
+    category: "Reviews",
+    description: "Check if contact has submitted a review",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "review_submitted", operator: "equals", value: "true" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "review_submitted", operator: "equals", value: "false" }],
+      },
+    ],
+  },
+  {
+    id: "condition_review_rating",
+    name: "Review Rating",
+    category: "Reviews",
+    description: "Route based on review star rating",
+    branches: [
+      {
+        id: "positive",
+        name: "Positive (4-5 stars)",
+        segments: [{ field: "review_rating", operator: "greater_than", value: "3" }],
+      },
+      {
+        id: "neutral",
+        name: "Neutral (3 stars)",
+        segments: [{ field: "review_rating", operator: "equals", value: "3" }],
+      },
+      {
+        id: "negative",
+        name: "Negative (1-2 stars)",
+        segments: [{ field: "review_rating", operator: "less_than", value: "3" }],
+      },
+    ],
+  },
+  {
+    id: "condition_nps_category",
+    name: "NPS Category",
+    category: "Reviews",
+    description: "Route based on NPS score category",
+    branches: [
+      {
+        id: "promoter",
+        name: "Promoter (9-10)",
+        segments: [{ field: "nps_score", operator: "greater_than", value: "8" }],
+      },
+      {
+        id: "passive",
+        name: "Passive (7-8)",
+        segments: [{ field: "nps_score", operator: "greater_than", value: "6" }],
+      },
+      {
+        id: "detractor",
+        name: "Detractor (0-6)",
+        segments: [{ field: "nps_score", operator: "less_than", value: "7" }],
+      },
+    ],
+  },
+  // Appointment Conditions
+  {
+    id: "condition_appointment_status",
+    name: "Appointment Status",
+    category: "Appointments",
+    description: "Route based on appointment status",
+    branches: [
+      {
+        id: "confirmed",
+        name: "Confirmed",
+        segments: [{ field: "appointment_status", operator: "equals", value: "confirmed" }],
+      },
+      {
+        id: "completed",
+        name: "Completed",
+        segments: [{ field: "appointment_status", operator: "equals", value: "completed" }],
+      },
+      {
+        id: "no_show",
+        name: "No Show",
+        segments: [{ field: "appointment_status", operator: "equals", value: "no_show" }],
+      },
+    ],
+  },
+  {
+    id: "condition_has_upcoming_appointment",
+    name: "Has Upcoming Appointment",
+    category: "Appointments",
+    description: "Check if contact has a future appointment scheduled",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "has_upcoming_appointment", operator: "equals", value: "true" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "has_upcoming_appointment", operator: "equals", value: "false" }],
+      },
+    ],
+  },
+  // Payment Conditions
+  {
+    id: "condition_payment_status",
+    name: "Payment Status",
+    category: "Payments",
+    description: "Route based on payment status",
+    branches: [
+      {
+        id: "paid",
+        name: "Paid",
+        segments: [{ field: "payment_status", operator: "equals", value: "paid" }],
+      },
+      {
+        id: "pending",
+        name: "Pending",
+        segments: [{ field: "payment_status", operator: "equals", value: "pending" }],
+      },
+      {
+        id: "overdue",
+        name: "Overdue",
+        segments: [{ field: "payment_status", operator: "equals", value: "overdue" }],
+      },
+    ],
+  },
+  {
+    id: "condition_high_value_customer",
+    name: "High Value Customer",
+    category: "Payments",
+    description: "Check if customer lifetime value exceeds threshold",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "lifetime_value", operator: "greater_than", value: "1000" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "lifetime_value", operator: "less_than", value: "1001" }],
+      },
+    ],
+  },
+  // Communication Preference Conditions
+  {
+    id: "condition_email_opted_in",
+    name: "Email Opted In",
+    category: "Communication",
+    description: "Check if contact opted in for email",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "email_opted_in", operator: "equals", value: "true" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "email_opted_in", operator: "equals", value: "false" }],
+      },
+    ],
+  },
+  {
+    id: "condition_sms_opted_in",
+    name: "SMS Opted In",
+    category: "Communication",
+    description: "Check if contact opted in for SMS",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "sms_opted_in", operator: "equals", value: "true" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "sms_opted_in", operator: "equals", value: "false" }],
+      },
+    ],
+  },
+  {
+    id: "condition_call_answered",
+    name: "Call Answered",
+    category: "Communication",
+    description: "Check if the last call was answered",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "call_answered", operator: "equals", value: "true" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "call_answered", operator: "equals", value: "false" }],
+      },
+    ],
+  },
+  // Tag Conditions
+  {
+    id: "condition_has_reviewer_tag",
+    name: "Has Reviewer Tag",
+    category: "Contact",
+    description: "Check if contact is tagged as a reviewer",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "has_tag", operator: "equals", value: "reviewer" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "has_tag", operator: "not_equals", value: "reviewer" }],
+      },
+    ],
+  },
+  {
+    id: "condition_has_booked_tag",
+    name: "Has Booked Tag",
+    category: "Contact",
+    description: "Check if contact is tagged as booked",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "has_tag", operator: "equals", value: "booked" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "has_tag", operator: "not_equals", value: "booked" }],
+      },
+    ],
+  },
+  {
+    id: "condition_at_risk",
+    name: "Is At Risk",
+    category: "Contact",
+    description: "Check if contact is at risk of churning",
+    branches: [
+      {
+        id: "yes",
+        name: "yes",
+        segments: [{ field: "has_tag", operator: "equals", value: "at_risk" }],
+      },
+      {
+        id: "no",
+        name: "no",
+        segments: [{ field: "has_tag", operator: "not_equals", value: "at_risk" }],
       },
     ],
   },
