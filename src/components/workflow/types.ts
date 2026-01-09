@@ -54,6 +54,12 @@ export type NodeConfigSchemaField =
       label: string;
       type: "switch";
       helperText?: string;
+    }
+  | {
+      name: string;
+      label: string;
+      type: "attachments";
+      helperText?: string;
     };
 
 export type NodeConfigSchema = {

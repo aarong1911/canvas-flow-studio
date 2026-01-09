@@ -28,6 +28,7 @@ import { CustomFieldInput } from "./CustomFieldInput";
 import { CustomFieldTextarea } from "./CustomFieldTextarea";
 import { RichTextEditor } from "./RichTextEditor";
 import { ConditionSettings, ConditionConfig, ConditionBranch } from "./ConditionSettings";
+import { AttachmentPicker, AttachmentFile } from "./AttachmentPicker";
 
 interface WorkflowSidebarProps {
   tab: SidebarTab;
@@ -620,6 +621,13 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                                     onCheckedChange={(checked) => setLocalConfig((s) => ({ ...s, [field.name]: checked }))}
                                   />
                                 </div>
+                              )}
+
+                              {field.type === "attachments" && (
+                                <AttachmentPicker
+                                  attachments={(val as AttachmentFile[]) || []}
+                                  onChange={(files) => setLocalConfig((s) => ({ ...s, [field.name]: files }))}
+                                />
                               )}
                             </div>
                           );
