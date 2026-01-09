@@ -40,6 +40,70 @@ export interface WorkflowTemplate {
   expectedResults?: string;
 }
 
+// Helper function to create standard yes/no branches
+function createYesNoBranches(field: string, yesLabel = "yes", noLabel = "no") {
+  return [
+    {
+      id: "yes",
+      name: yesLabel,
+      segments: [{ field, operator: "equals", value: "true" }],
+    },
+    {
+      id: "no",
+      name: noLabel,
+      segments: [{ field, operator: "equals", value: "false" }],
+    },
+  ];
+}
+
+// Helper for lead score tier branches
+function createLeadScoreTierBranches() {
+  return [
+    {
+      id: "hot",
+      name: "Hot (80+)",
+      segments: [{ field: "lead_score_tier", operator: "equals", value: "hot" }],
+    },
+    {
+      id: "warm",
+      name: "Warm/Cold",
+      segments: [{ field: "lead_score_tier", operator: "not_equals", value: "hot" }],
+    },
+  ];
+}
+
+// Helper for A/B split branches
+function createABSplitBranches(pathALabel: string, pathBLabel: string) {
+  return [
+    {
+      id: "path_a",
+      name: pathALabel,
+      segments: [{ field: "split_path", operator: "equals", value: "a" }],
+    },
+    {
+      id: "path_b",
+      name: pathBLabel,
+      segments: [{ field: "split_path", operator: "equals", value: "b" }],
+    },
+  ];
+}
+
+// Helper for business hours branches
+function createBusinessHoursBranches() {
+  return [
+    {
+      id: "in_hours",
+      name: "In Hours",
+      segments: [{ field: "is_business_hours", operator: "equals", value: "true" }],
+    },
+    {
+      id: "out_hours",
+      name: "Out of Hours",
+      segments: [{ field: "is_business_hours", operator: "equals", value: "false" }],
+    },
+  ];
+}
+
 // =============================================================================
 // TEMPLATE 01: New Lead Nurture Sequence
 // =============================================================================
@@ -83,7 +147,7 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
       id: "node_2",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Lead Score Routing",
         icon: "GitBranch",
@@ -94,6 +158,7 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
           field: "lead_score_tier",
           value: "hot",
           question: "Is lead score tier hot (80+)?",
+          branches: createLeadScoreTierBranches(),
         },
       },
     },
@@ -134,7 +199,7 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
       id: "node_5",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "business_hours_gate",
         label: "Business Hours Gate",
         icon: "BriefcaseBusiness",
@@ -145,6 +210,7 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
           start_time: "09:00",
           end_time: "17:00",
           days: "Mon,Tue,Wed,Thu,Fri",
+          branches: createBusinessHoursBranches(),
         },
       },
     },
@@ -153,7 +219,7 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
       id: "node_6",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "split",
         label: "A/B Subject Test",
         icon: "Split",
@@ -164,6 +230,7 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
           path_a_ratio: 50,
           path_b_label: "Personal Touch",
           path_b_ratio: 50,
+          branches: createABSplitBranches("Direct Approach", "Personal Touch"),
         },
       },
     },
@@ -228,17 +295,29 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
       id: "node_10",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Check Email Opened",
         icon: "GitBranch",
-        color: "purple",
+        color: "amber",
         config: {
           action_name: "Check Email Engagement",
           condition_type: "field_equals",
           field: "email_opened",
           value: "true",
           question: "Did the contact open the email?",
+          branches: [
+            {
+              id: "yes",
+              name: "Opened",
+              segments: [{ field: "email_opened", operator: "equals", value: "true" }],
+            },
+            {
+              id: "no",
+              name: "Not Opened",
+              segments: [{ field: "email_opened", operator: "equals", value: "false" }],
+            },
+          ],
         },
       },
     },
@@ -261,17 +340,29 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
       id: "node_12",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Check Link Clicked",
         icon: "GitBranch",
-        color: "purple",
+        color: "amber",
         config: {
           action_name: "Check Link Clicked",
           condition_type: "field_equals",
           field: "email_clicked",
           value: "true",
           question: "Did the contact click a link?",
+          branches: [
+            {
+              id: "yes",
+              name: "Clicked",
+              segments: [{ field: "email_clicked", operator: "equals", value: "true" }],
+            },
+            {
+              id: "no",
+              name: "Not Clicked",
+              segments: [{ field: "email_clicked", operator: "equals", value: "false" }],
+            },
+          ],
         },
       },
     },
@@ -313,23 +404,6 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
       type: "workflowNode",
       data: {
         builderType: "action",
-        actionType: "wait",
-        label: "Wait 2 Days",
-        icon: "Clock",
-        color: "gray",
-        config: {
-          action_name: "Wait 2 Days",
-          duration: "2",
-          unit: "days",
-        },
-      },
-    },
-    // Email for warm/cold leads
-    {
-      id: "node_16",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
         actionType: "send_email",
         label: "Nurture Email",
         icon: "Mail",
@@ -345,10 +419,10 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
     },
     // Contact Reply Check after nurture email
     {
-      id: "node_17",
+      id: "node_16",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Contact Replied?",
         icon: "GitBranch",
@@ -359,12 +433,13 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
           field: "contact_replied",
           value: "true",
           question: "Did the contact reply?",
+          branches: createYesNoBranches("contact_replied"),
         },
       },
     },
     // Move to hot lead path if replied
     {
-      id: "node_18",
+      id: "node_17",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -380,7 +455,7 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
     },
     // Wait and retry for non-responders
     {
-      id: "node_19",
+      id: "node_18",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -397,7 +472,7 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
     },
     // Second nurture attempt
     {
-      id: "node_20",
+      id: "node_19",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -414,10 +489,10 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
     },
     // Final contact reply check
     {
-      id: "node_21",
+      id: "node_20",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Contact Replied?",
         icon: "GitBranch",
@@ -428,12 +503,13 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
           field: "contact_replied",
           value: "true",
           question: "Did the contact reply?",
+          branches: createYesNoBranches("contact_replied"),
         },
       },
     },
     // Add to long-term nurture if no reply
     {
-      id: "node_22",
+      id: "node_21",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -449,10 +525,10 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
     },
     // Contact Reply Check after high-intent follow-up (node_13)
     {
-      id: "node_23",
+      id: "node_22",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Contact Replied?",
         icon: "GitBranch",
@@ -463,15 +539,16 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
           field: "contact_replied",
           value: "true",
           question: "Did the contact reply?",
+          branches: createYesNoBranches("contact_replied"),
         },
       },
     },
     // SMS Reply Check (after node_11)
     {
-      id: "node_24",
+      id: "node_23",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "SMS Reply?",
         icon: "GitBranch",
@@ -482,41 +559,41 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
           field: "sms_replied",
           value: "true",
           question: "Did the contact reply to SMS?",
+          branches: createYesNoBranches("sms_replied"),
         },
       },
     },
   ],
   edges: [
     { id: "edge_1", source: "node_1", target: "node_2" },
-    { id: "edge_2", source: "node_2", target: "node_3", sourceHandle: "branch_0" }, // Hot
-    { id: "edge_3", source: "node_2", target: "node_15", sourceHandle: "branch_1" }, // Warm/Cold
+    { id: "edge_2", source: "node_2", target: "node_3", sourceHandle: "yes" }, // Hot
+    { id: "edge_3", source: "node_2", target: "node_15", sourceHandle: "no" }, // Warm/Cold
     { id: "edge_4", source: "node_3", target: "node_4" },
     { id: "edge_5", source: "node_4", target: "node_5" },
-    { id: "edge_6", source: "node_5", target: "node_6", sourceHandle: "branch_0" }, // In hours
-    { id: "edge_7", source: "node_6", target: "node_7", sourceHandle: "branch_0" }, // Path A
-    { id: "edge_8", source: "node_6", target: "node_8", sourceHandle: "branch_1" }, // Path B
+    { id: "edge_6", source: "node_5", target: "node_6", sourceHandle: "yes" }, // In hours
+    { id: "edge_7", source: "node_6", target: "node_7", sourceHandle: "yes" }, // Path A
+    { id: "edge_8", source: "node_6", target: "node_8", sourceHandle: "no" }, // Path B
     { id: "edge_9", source: "node_7", target: "node_9" },
     { id: "edge_10", source: "node_8", target: "node_9" },
-    { id: "edge_11", source: "node_9", target: "node_14", sourceHandle: "branch_0" }, // Goal achieved (replied)
-    { id: "edge_12", source: "node_9", target: "node_10", sourceHandle: "branch_1" }, // Timeout
-    { id: "edge_13", source: "node_10", target: "node_12", sourceHandle: "branch_0" }, // Opened
-    { id: "edge_14", source: "node_10", target: "node_11", sourceHandle: "branch_1" }, // Not opened
-    { id: "edge_15", source: "node_12", target: "node_13", sourceHandle: "branch_0" }, // Clicked
-    { id: "edge_16", source: "node_13", target: "node_23" }, // High-intent follow-up -> check reply
-    { id: "edge_17", source: "node_23", target: "node_14", sourceHandle: "branch_0" }, // Replied -> track conversion
-    { id: "edge_18", source: "node_23", target: "node_22", sourceHandle: "branch_1" }, // No reply -> long-term nurture
-    { id: "edge_19", source: "node_11", target: "node_24" }, // SMS -> check reply
-    { id: "edge_20", source: "node_24", target: "node_14", sourceHandle: "branch_0" }, // SMS replied -> track conversion
-    { id: "edge_21", source: "node_24", target: "node_22", sourceHandle: "branch_1" }, // No SMS reply -> long-term nurture
-    { id: "edge_22", source: "node_15", target: "node_16" }, // Wait -> nurture email
-    { id: "edge_23", source: "node_16", target: "node_17" }, // Email -> check reply
-    { id: "edge_24", source: "node_17", target: "node_18", sourceHandle: "branch_0" }, // Replied -> go to hot path
-    { id: "edge_25", source: "node_17", target: "node_19", sourceHandle: "branch_1" }, // No reply -> wait
-    { id: "edge_26", source: "node_19", target: "node_20" }, // Wait -> follow-up email
-    { id: "edge_27", source: "node_20", target: "node_21" }, // Email -> check reply
-    { id: "edge_28", source: "node_21", target: "node_18", sourceHandle: "branch_0" }, // Replied -> go to hot path
-    { id: "edge_29", source: "node_21", target: "node_22", sourceHandle: "branch_1" }, // No reply -> long-term nurture
-    { id: "edge_30", source: "node_12", target: "node_22", sourceHandle: "branch_1" }, // Not clicked -> long-term nurture
+    { id: "edge_11", source: "node_9", target: "node_14", sourceHandle: "yes" }, // Goal achieved (replied)
+    { id: "edge_12", source: "node_9", target: "node_10", sourceHandle: "no" }, // Timeout
+    { id: "edge_13", source: "node_10", target: "node_12", sourceHandle: "yes" }, // Opened
+    { id: "edge_14", source: "node_10", target: "node_11", sourceHandle: "no" }, // Not opened
+    { id: "edge_15", source: "node_12", target: "node_13", sourceHandle: "yes" }, // Clicked
+    { id: "edge_16", source: "node_13", target: "node_22" }, // High-intent follow-up -> check reply
+    { id: "edge_17", source: "node_22", target: "node_14", sourceHandle: "yes" }, // Replied -> track conversion
+    { id: "edge_18", source: "node_22", target: "node_21", sourceHandle: "no" }, // No reply -> long-term nurture
+    { id: "edge_19", source: "node_11", target: "node_23" }, // SMS -> check reply
+    { id: "edge_20", source: "node_23", target: "node_14", sourceHandle: "yes" }, // SMS replied -> track conversion
+    { id: "edge_21", source: "node_23", target: "node_21", sourceHandle: "no" }, // No SMS reply -> long-term nurture
+    { id: "edge_22", source: "node_15", target: "node_16" }, // Nurture email -> check reply
+    { id: "edge_23", source: "node_16", target: "node_17", sourceHandle: "yes" }, // Replied -> go to hot path
+    { id: "edge_24", source: "node_16", target: "node_18", sourceHandle: "no" }, // No reply -> wait
+    { id: "edge_25", source: "node_18", target: "node_19" }, // Wait -> follow-up email
+    { id: "edge_26", source: "node_19", target: "node_20" }, // Email -> check reply
+    { id: "edge_27", source: "node_20", target: "node_17", sourceHandle: "yes" }, // Replied -> go to hot path
+    { id: "edge_28", source: "node_20", target: "node_21", sourceHandle: "no" }, // No reply -> long-term nurture
+    { id: "edge_29", source: "node_12", target: "node_21", sourceHandle: "no" }, // Not clicked -> long-term nurture
   ],
   settings: {
     allowReEntry: false,
@@ -553,7 +630,7 @@ const template_02_email_engagement: WorkflowTemplate = {
       id: "node_1",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Check Day of Week",
         icon: "GitBranch",
@@ -564,6 +641,18 @@ const template_02_email_engagement: WorkflowTemplate = {
           field: "day_of_week",
           value: "monday",
           question: "Is it Monday (best re-engagement day)?",
+          branches: [
+            {
+              id: "yes",
+              name: "Is Monday",
+              segments: [{ field: "day_of_week", operator: "equals", value: "monday" }],
+            },
+            {
+              id: "no",
+              name: "Not Monday",
+              segments: [{ field: "day_of_week", operator: "not_equals", value: "monday" }],
+            },
+          ],
         },
       },
     },
@@ -589,7 +678,7 @@ const template_02_email_engagement: WorkflowTemplate = {
       id: "node_3",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "split",
         label: "A/B Send Time Test",
         icon: "Split",
@@ -600,6 +689,7 @@ const template_02_email_engagement: WorkflowTemplate = {
           path_a_ratio: 50,
           path_b_label: "Afternoon (2pm)",
           path_b_ratio: 50,
+          branches: createABSplitBranches("Morning (10am)", "Afternoon (2pm)"),
         },
       },
     },
@@ -680,17 +770,29 @@ const template_02_email_engagement: WorkflowTemplate = {
       id: "node_8",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Check Email Opened",
         icon: "GitBranch",
-        color: "purple",
+        color: "amber",
         config: {
           action_name: "Check If Opened",
           condition_type: "field_equals",
           field: "email_opened",
           value: "true",
           question: "Did the contact open the email?",
+          branches: [
+            {
+              id: "yes",
+              name: "Opened",
+              segments: [{ field: "email_opened", operator: "equals", value: "true" }],
+            },
+            {
+              id: "no",
+              name: "Not Opened",
+              segments: [{ field: "email_opened", operator: "equals", value: "false" }],
+            },
+          ],
         },
       },
     },
@@ -756,12 +858,12 @@ const template_02_email_engagement: WorkflowTemplate = {
         },
       },
     },
-    // Contact Reply Check after follow-up email (node_9)
+    // Contact Reply Check after follow-up email
     {
       id: "node_13",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Contact Replied?",
         icon: "GitBranch",
@@ -772,15 +874,16 @@ const template_02_email_engagement: WorkflowTemplate = {
           field: "contact_replied",
           value: "true",
           question: "Did the contact reply?",
+          branches: createYesNoBranches("contact_replied"),
         },
       },
     },
-    // SMS Reply Check (after node_10)
+    // SMS Reply Check
     {
       id: "node_14",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "SMS Reply?",
         icon: "GitBranch",
@@ -791,6 +894,7 @@ const template_02_email_engagement: WorkflowTemplate = {
           field: "sms_replied",
           value: "true",
           question: "Did the contact reply to SMS?",
+          branches: createYesNoBranches("sms_replied"),
         },
       },
     },
@@ -812,25 +916,25 @@ const template_02_email_engagement: WorkflowTemplate = {
     },
   ],
   edges: [
-    { id: "edge_1", source: "node_1", target: "node_3", sourceHandle: "branch_0" }, // Is Monday
-    { id: "edge_2", source: "node_1", target: "node_2", sourceHandle: "branch_1" }, // Not Monday
+    { id: "edge_1", source: "node_1", target: "node_3", sourceHandle: "yes" }, // Is Monday
+    { id: "edge_2", source: "node_1", target: "node_2", sourceHandle: "no" }, // Not Monday
     { id: "edge_3", source: "node_2", target: "node_3" },
-    { id: "edge_4", source: "node_3", target: "node_4", sourceHandle: "branch_0" }, // Morning
-    { id: "edge_5", source: "node_3", target: "node_5", sourceHandle: "branch_1" }, // Afternoon
+    { id: "edge_4", source: "node_3", target: "node_4", sourceHandle: "yes" }, // Morning
+    { id: "edge_5", source: "node_3", target: "node_5", sourceHandle: "no" }, // Afternoon
     { id: "edge_6", source: "node_4", target: "node_6" },
     { id: "edge_7", source: "node_5", target: "node_6" },
     { id: "edge_8", source: "node_6", target: "node_7" },
-    { id: "edge_9", source: "node_7", target: "node_11", sourceHandle: "branch_0" }, // Goal achieved (clicked)
-    { id: "edge_10", source: "node_7", target: "node_8", sourceHandle: "branch_1" }, // Timeout
-    { id: "edge_11", source: "node_8", target: "node_9", sourceHandle: "branch_0" }, // Opened
-    { id: "edge_12", source: "node_8", target: "node_10", sourceHandle: "branch_1" }, // Not opened
+    { id: "edge_9", source: "node_7", target: "node_11", sourceHandle: "yes" }, // Goal achieved (clicked)
+    { id: "edge_10", source: "node_7", target: "node_8", sourceHandle: "no" }, // Timeout
+    { id: "edge_11", source: "node_8", target: "node_9", sourceHandle: "yes" }, // Opened
+    { id: "edge_12", source: "node_8", target: "node_10", sourceHandle: "no" }, // Not opened
     { id: "edge_13", source: "node_11", target: "node_12" },
     { id: "edge_14", source: "node_9", target: "node_13" }, // Follow-up -> check reply
-    { id: "edge_15", source: "node_13", target: "node_11", sourceHandle: "branch_0" }, // Replied -> track re-engagement
-    { id: "edge_16", source: "node_13", target: "node_15", sourceHandle: "branch_1" }, // No reply -> unresponsive
+    { id: "edge_15", source: "node_13", target: "node_11", sourceHandle: "yes" }, // Replied -> track re-engagement
+    { id: "edge_16", source: "node_13", target: "node_15", sourceHandle: "no" }, // No reply -> unresponsive
     { id: "edge_17", source: "node_10", target: "node_14" }, // SMS -> check reply
-    { id: "edge_18", source: "node_14", target: "node_11", sourceHandle: "branch_0" }, // SMS replied -> track re-engagement
-    { id: "edge_19", source: "node_14", target: "node_15", sourceHandle: "branch_1" }, // No SMS reply -> unresponsive
+    { id: "edge_18", source: "node_14", target: "node_11", sourceHandle: "yes" }, // SMS replied -> track re-engagement
+    { id: "edge_19", source: "node_14", target: "node_15", sourceHandle: "no" }, // No SMS reply -> unresponsive
   ],
   settings: {
     allowReEntry: true,
@@ -868,7 +972,7 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
       id: "node_1",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Lead Score Tier",
         icon: "GitBranch",
@@ -879,25 +983,38 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
           field: "lead_score_tier",
           value: "hot",
           question: "Is this a hot lead (score 80+)?",
+          branches: createLeadScoreTierBranches(),
         },
       },
     },
-    // Hot Leads - VIP Treatment
+    // Hot Leads - Check Client Type
     {
       id: "node_2",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Check Client Type",
         icon: "GitBranch",
-        color: "purple",
+        color: "amber",
         config: {
           action_name: "Check Client Type",
           condition_type: "field_equals",
           field: "contact_type",
           value: "customer",
           question: "Is this an existing customer?",
+          branches: [
+            {
+              id: "yes",
+              name: "Customer",
+              segments: [{ field: "contact_type", operator: "equals", value: "customer" }],
+            },
+            {
+              id: "no",
+              name: "Lead",
+              segments: [{ field: "contact_type", operator: "equals", value: "lead" }],
+            },
+          ],
         },
       },
     },
@@ -906,7 +1023,7 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
       id: "node_3",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "business_hours_gate",
         label: "Business Hours Gate",
         icon: "BriefcaseBusiness",
@@ -917,6 +1034,7 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
           start_time: "09:00",
           end_time: "18:00",
           days: "Mon,Tue,Wed,Thu,Fri",
+          branches: createBusinessHoursBranches(),
         },
       },
     },
@@ -925,7 +1043,7 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
       id: "node_4",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "split",
         label: "A/B Subject Test",
         icon: "Split",
@@ -936,6 +1054,7 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
           path_a_ratio: 50,
           path_b_label: "Exclusivity Focus",
           path_b_ratio: 50,
+          branches: createABSplitBranches("Urgency Focus", "Exclusivity Focus"),
         },
       },
     },
@@ -975,9 +1094,29 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
         },
       },
     },
-    // Conversion Goal with Timeout
+    // Contact Reply Check after VIP emails
     {
       id: "node_7",
+      type: "workflowNode",
+      data: {
+        builderType: "condition",
+        actionType: "if_else",
+        label: "VIP Email Reply?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check VIP Reply",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the VIP contact reply?",
+          branches: createYesNoBranches("contact_replied"),
+        },
+      },
+    },
+    // Conversion Goal with Timeout
+    {
+      id: "node_8",
       type: "workflowNode",
       data: {
         builderType: "delay",
@@ -996,7 +1135,7 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
       },
     },
     {
-      id: "node_8",
+      id: "node_9",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1013,25 +1152,37 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
     },
     // Email Engagement Check for Non-converters
     {
-      id: "node_9",
+      id: "node_10",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Check Email Clicked",
         icon: "GitBranch",
-        color: "purple",
+        color: "amber",
         config: {
           action_name: "Check Link Clicked",
           condition_type: "field_equals",
           field: "email_clicked",
           value: "true",
           question: "Did the contact click a link?",
+          branches: [
+            {
+              id: "yes",
+              name: "Clicked",
+              segments: [{ field: "email_clicked", operator: "equals", value: "true" }],
+            },
+            {
+              id: "no",
+              name: "Not Clicked",
+              segments: [{ field: "email_clicked", operator: "equals", value: "false" }],
+            },
+          ],
         },
       },
     },
     {
-      id: "node_10",
+      id: "node_11",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1046,8 +1197,28 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
         },
       },
     },
+    // Last Chance Reply Check
     {
-      id: "node_11",
+      id: "node_12",
+      type: "workflowNode",
+      data: {
+        builderType: "condition",
+        actionType: "if_else",
+        label: "Last Chance Reply?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Last Chance Reply",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply to last chance?",
+          branches: createYesNoBranches("contact_replied"),
+        },
+      },
+    },
+    {
+      id: "node_13",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1061,9 +1232,29 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
         },
       },
     },
+    // SMS Reply Check
+    {
+      id: "node_14",
+      type: "workflowNode",
+      data: {
+        builderType: "condition",
+        actionType: "if_else",
+        label: "SMS Reply?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check SMS Reply",
+          condition_type: "field_equals",
+          field: "sms_replied",
+          value: "true",
+          question: "Did the contact reply to SMS?",
+          branches: createYesNoBranches("sms_replied"),
+        },
+      },
+    },
     // General Promotion Path (non-hot leads)
     {
-      id: "node_12",
+      id: "node_15",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1081,10 +1272,10 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
     },
     // Contact Reply Check after general promotion
     {
-      id: "node_13",
+      id: "node_16",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Contact Replied?",
         icon: "GitBranch",
@@ -1095,17 +1286,18 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
           field: "contact_replied",
           value: "true",
           question: "Did the contact reply?",
+          branches: createYesNoBranches("contact_replied"),
         },
       },
     },
     // Go to VIP path if replied
     {
-      id: "node_14",
+      id: "node_17",
       type: "workflowNode",
       data: {
         builderType: "action",
         actionType: "go_to",
-        label: "Go To VIP Path",
+        label: "Route to VIP Path",
         icon: "ExternalLink",
         color: "amber",
         config: {
@@ -1116,7 +1308,7 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
     },
     // Wait for non-responders
     {
-      id: "node_15",
+      id: "node_18",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1131,9 +1323,9 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
         },
       },
     },
-    // Last chance email
+    // Last chance email for general path
     {
-      id: "node_16",
+      id: "node_19",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1150,12 +1342,12 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
     },
     // Final reply check
     {
-      id: "node_17",
+      id: "node_20",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
-        label: "Contact Replied?",
+        label: "Check Final Reply",
         icon: "GitBranch",
         color: "amber",
         config: {
@@ -1164,12 +1356,13 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
           field: "contact_replied",
           value: "true",
           question: "Did the contact reply?",
+          branches: createYesNoBranches("contact_replied"),
         },
       },
     },
     // Mark as not interested
     {
-      id: "node_18",
+      id: "node_21",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1183,92 +1376,35 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
         },
       },
     },
-    // Contact Reply Check after VIP emails (node_5 and node_6)
-    {
-      id: "node_19",
-      type: "workflowNode",
-      data: {
-        builderType: "branch",
-        actionType: "if_else",
-        label: "VIP Email Reply?",
-        icon: "GitBranch",
-        color: "amber",
-        config: {
-          action_name: "Check VIP Email Reply",
-          condition_type: "field_equals",
-          field: "contact_replied",
-          value: "true",
-          question: "Did the VIP contact reply?",
-        },
-      },
-    },
-    // Last chance reply check
-    {
-      id: "node_20",
-      type: "workflowNode",
-      data: {
-        builderType: "branch",
-        actionType: "if_else",
-        label: "Last Chance Reply?",
-        icon: "GitBranch",
-        color: "amber",
-        config: {
-          action_name: "Check Last Chance Reply",
-          condition_type: "field_equals",
-          field: "contact_replied",
-          value: "true",
-          question: "Did the contact reply to last chance?",
-        },
-      },
-    },
-    // SMS Last Chance reply check
-    {
-      id: "node_21",
-      type: "workflowNode",
-      data: {
-        builderType: "branch",
-        actionType: "if_else",
-        label: "SMS Reply?",
-        icon: "GitBranch",
-        color: "amber",
-        config: {
-          action_name: "Check SMS Reply",
-          condition_type: "field_equals",
-          field: "sms_replied",
-          value: "true",
-          question: "Did the contact reply to SMS?",
-        },
-      },
-    },
   ],
   edges: [
-    { id: "edge_1", source: "node_1", target: "node_2", sourceHandle: "branch_0" }, // Hot leads
-    { id: "edge_2", source: "node_1", target: "node_12", sourceHandle: "branch_1" }, // Warm/Cold
-    { id: "edge_3", source: "node_2", target: "node_3", sourceHandle: "branch_0" }, // VIP customer
-    { id: "edge_4", source: "node_3", target: "node_4", sourceHandle: "branch_0" }, // In business hours
-    { id: "edge_5", source: "node_4", target: "node_5", sourceHandle: "branch_0" }, // Path A
-    { id: "edge_6", source: "node_4", target: "node_6", sourceHandle: "branch_1" }, // Path B
-    { id: "edge_7", source: "node_5", target: "node_19" }, // VIP Email A -> check reply
-    { id: "edge_8", source: "node_6", target: "node_19" }, // VIP Email B -> check reply
-    { id: "edge_9", source: "node_19", target: "node_8", sourceHandle: "branch_0" }, // Replied -> track conversion
-    { id: "edge_10", source: "node_19", target: "node_7", sourceHandle: "branch_1" }, // No reply -> wait for purchase
-    { id: "edge_11", source: "node_7", target: "node_8", sourceHandle: "branch_0" }, // Converted
-    { id: "edge_12", source: "node_7", target: "node_9", sourceHandle: "branch_1" }, // Timeout
-    { id: "edge_13", source: "node_9", target: "node_10", sourceHandle: "branch_0" }, // Clicked -> last chance email
-    { id: "edge_14", source: "node_9", target: "node_11", sourceHandle: "branch_1" }, // Not clicked -> SMS last chance
-    { id: "edge_15", source: "node_10", target: "node_20" }, // Last chance email -> check reply
-    { id: "edge_16", source: "node_20", target: "node_8", sourceHandle: "branch_0" }, // Replied -> track conversion
-    { id: "edge_17", source: "node_20", target: "node_18", sourceHandle: "branch_1" }, // No reply -> unresponsive
-    { id: "edge_18", source: "node_11", target: "node_21" }, // SMS -> check reply
-    { id: "edge_19", source: "node_21", target: "node_8", sourceHandle: "branch_0" }, // SMS replied -> track conversion
-    { id: "edge_20", source: "node_21", target: "node_18", sourceHandle: "branch_1" }, // No SMS reply -> unresponsive
-    { id: "edge_21", source: "node_12", target: "node_13" }, // General promotion -> check reply
-    { id: "edge_22", source: "node_13", target: "node_14", sourceHandle: "branch_0" }, // Replied -> go to VIP path
-    { id: "edge_23", source: "node_13", target: "node_15", sourceHandle: "branch_1" }, // No reply -> wait
-    { id: "edge_24", source: "node_15", target: "node_16" }, // Wait -> last chance email
-    { id: "edge_25", source: "node_16", target: "node_17" }, // Last chance -> check reply
-    { id: "edge_26", source: "node_17", target: "node_14", sourceHandle: "branch_0" }, // Replied -> go to VIP path
-    { id: "edge_27", source: "node_17", target: "node_18", sourceHandle: "branch_1" }, // No reply -> unresponsive
+    { id: "edge_1", source: "node_1", target: "node_2", sourceHandle: "yes" }, // Hot leads
+    { id: "edge_2", source: "node_1", target: "node_15", sourceHandle: "no" }, // Warm/Cold
+    { id: "edge_3", source: "node_2", target: "node_3", sourceHandle: "yes" }, // VIP customer
+    { id: "edge_4", source: "node_3", target: "node_4", sourceHandle: "yes" }, // In business hours
+    { id: "edge_5", source: "node_4", target: "node_5", sourceHandle: "yes" }, // Path A
+    { id: "edge_6", source: "node_4", target: "node_6", sourceHandle: "no" }, // Path B
+    { id: "edge_7", source: "node_5", target: "node_7" }, // VIP Email A -> check reply
+    { id: "edge_8", source: "node_6", target: "node_7" }, // VIP Email B -> check reply
+    { id: "edge_9", source: "node_7", target: "node_9", sourceHandle: "yes" }, // Replied -> track conversion
+    { id: "edge_10", source: "node_7", target: "node_8", sourceHandle: "no" }, // No reply -> wait for purchase
+    { id: "edge_11", source: "node_8", target: "node_9", sourceHandle: "yes" }, // Converted
+    { id: "edge_12", source: "node_8", target: "node_10", sourceHandle: "no" }, // Timeout
+    { id: "edge_13", source: "node_10", target: "node_11", sourceHandle: "yes" }, // Clicked -> last chance email
+    { id: "edge_14", source: "node_10", target: "node_13", sourceHandle: "no" }, // Not clicked -> SMS last chance
+    { id: "edge_15", source: "node_11", target: "node_12" }, // Last chance email -> check reply
+    { id: "edge_16", source: "node_12", target: "node_9", sourceHandle: "yes" }, // Replied -> track conversion
+    { id: "edge_17", source: "node_12", target: "node_21", sourceHandle: "no" }, // No reply -> unresponsive
+    { id: "edge_18", source: "node_13", target: "node_14" }, // SMS -> check reply
+    { id: "edge_19", source: "node_14", target: "node_9", sourceHandle: "yes" }, // SMS replied -> track conversion
+    { id: "edge_20", source: "node_14", target: "node_21", sourceHandle: "no" }, // No SMS reply -> unresponsive
+    { id: "edge_21", source: "node_15", target: "node_16" }, // General promotion -> check reply
+    { id: "edge_22", source: "node_16", target: "node_17", sourceHandle: "yes" }, // Replied -> go to VIP path
+    { id: "edge_23", source: "node_16", target: "node_18", sourceHandle: "no" }, // No reply -> wait
+    { id: "edge_24", source: "node_18", target: "node_19" }, // Wait -> last chance email
+    { id: "edge_25", source: "node_19", target: "node_20" }, // Last chance -> check reply
+    { id: "edge_26", source: "node_20", target: "node_17", sourceHandle: "yes" }, // Replied -> go to VIP path
+    { id: "edge_27", source: "node_20", target: "node_21", sourceHandle: "no" }, // No reply -> unresponsive
   ],
   settings: {
     allowReEntry: false,
@@ -1303,16 +1439,28 @@ const template_04_referral_automation: WorkflowTemplate = {
       id: "node_1",
       type: "workflowNode",
       data: {
-        builderType: "branch",
-        actionType: "branch_condition",
+        builderType: "condition",
+        actionType: "if_else",
         label: "Check Rating",
         icon: "GitBranch",
-        color: "purple",
+        color: "amber",
         config: {
           action_name: "Check Rating",
-          conditions: [
-            { field: "rating", operator: "greater_than_or_equal", value: "4" },
-            { field: "rating", operator: "less_than", value: "4" },
+          condition_type: "field_equals",
+          field: "rating",
+          value: "4",
+          question: "Is the rating 4 or higher?",
+          branches: [
+            {
+              id: "yes",
+              name: "4+ Stars",
+              segments: [{ field: "rating", operator: "greater_than_or_equal", value: "4" }],
+            },
+            {
+              id: "no",
+              name: "< 4 Stars",
+              segments: [{ field: "rating", operator: "less_than", value: "4" }],
+            },
           ],
         },
       },
@@ -1349,28 +1497,12 @@ const template_04_referral_automation: WorkflowTemplate = {
         },
       },
     },
+    // Contact Reply Check after referral request
     {
       id: "node_4",
       type: "workflowNode",
       data: {
-        builderType: "action",
-        actionType: "notify_team",
-        label: "Alert Manager",
-        icon: "AlertCircle",
-        color: "red",
-        config: {
-          action_name: "Alert Manager",
-          notification_type: "low_rating_alert",
-          recipient_role: "manager",
-        },
-      },
-    },
-    // Contact Reply Check after referral request
-    {
-      id: "node_5",
-      type: "workflowNode",
-      data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Contact Replied?",
         icon: "GitBranch",
@@ -1381,12 +1513,13 @@ const template_04_referral_automation: WorkflowTemplate = {
           field: "contact_replied",
           value: "true",
           question: "Did the contact reply with referral?",
+          branches: createYesNoBranches("contact_replied"),
         },
       },
     },
     // Track referral success
     {
-      id: "node_6",
+      id: "node_5",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1402,7 +1535,7 @@ const template_04_referral_automation: WorkflowTemplate = {
     },
     // Wait and send reminder for non-responders
     {
-      id: "node_7",
+      id: "node_6",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1419,7 +1552,7 @@ const template_04_referral_automation: WorkflowTemplate = {
     },
     // Reminder email
     {
-      id: "node_8",
+      id: "node_7",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1436,10 +1569,10 @@ const template_04_referral_automation: WorkflowTemplate = {
     },
     // Final reply check
     {
-      id: "node_9",
+      id: "node_8",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Contact Replied?",
         icon: "GitBranch",
@@ -1450,12 +1583,13 @@ const template_04_referral_automation: WorkflowTemplate = {
           field: "contact_replied",
           value: "true",
           question: "Did the contact reply?",
+          branches: createYesNoBranches("contact_replied"),
         },
       },
     },
     // Mark as no referral
     {
-      id: "node_10",
+      id: "node_9",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1469,7 +1603,24 @@ const template_04_referral_automation: WorkflowTemplate = {
         },
       },
     },
-    // Manager follow-up check after low rating alert
+    // Alert Manager for low rating
+    {
+      id: "node_10",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "internal_notification",
+        label: "Alert Manager",
+        icon: "Bell",
+        color: "red",
+        config: {
+          action_name: "Alert Manager",
+          notification_type: "low_rating_alert",
+          channel: "email",
+        },
+      },
+    },
+    // Wait for Manager Action
     {
       id: "node_11",
       type: "workflowNode",
@@ -1491,7 +1642,7 @@ const template_04_referral_automation: WorkflowTemplate = {
       id: "node_12",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Issue Resolved?",
         icon: "GitBranch",
@@ -1502,6 +1653,18 @@ const template_04_referral_automation: WorkflowTemplate = {
           field: "issue_resolved",
           value: "true",
           question: "Was the issue resolved?",
+          branches: [
+            {
+              id: "yes",
+              name: "Resolved",
+              segments: [{ field: "issue_resolved", operator: "equals", value: "true" }],
+            },
+            {
+              id: "no",
+              name: "Unresolved",
+              segments: [{ field: "issue_resolved", operator: "equals", value: "false" }],
+            },
+          ],
         },
       },
     },
@@ -1511,32 +1674,32 @@ const template_04_referral_automation: WorkflowTemplate = {
       type: "workflowNode",
       data: {
         builderType: "action",
-        actionType: "notify_team",
+        actionType: "internal_notification",
         label: "Escalate to Senior Manager",
-        icon: "AlertCircle",
+        icon: "Bell",
         color: "red",
         config: {
           action_name: "Escalate to Senior Manager",
           notification_type: "escalation",
-          recipient_role: "senior_manager",
+          channel: "email",
         },
       },
     },
   ],
   edges: [
-    { id: "edge_1", source: "node_1", target: "node_2", sourceHandle: "branch_0" },
+    { id: "edge_1", source: "node_1", target: "node_2", sourceHandle: "yes" }, // High rating
     { id: "edge_2", source: "node_2", target: "node_3" },
-    { id: "edge_3", source: "node_1", target: "node_4", sourceHandle: "branch_1" },
-    { id: "edge_4", source: "node_3", target: "node_5" }, // Referral request -> check reply
-    { id: "edge_5", source: "node_5", target: "node_6", sourceHandle: "branch_0" }, // Replied -> tag as referrer
-    { id: "edge_6", source: "node_5", target: "node_7", sourceHandle: "branch_1" }, // No reply -> wait
-    { id: "edge_7", source: "node_7", target: "node_8" }, // Wait -> reminder
-    { id: "edge_8", source: "node_8", target: "node_9" }, // Reminder -> check reply
-    { id: "edge_9", source: "node_9", target: "node_6", sourceHandle: "branch_0" }, // Replied -> tag as referrer
-    { id: "edge_10", source: "node_9", target: "node_10", sourceHandle: "branch_1" }, // No reply -> no referral tag
-    { id: "edge_11", source: "node_4", target: "node_11" }, // Alert manager -> wait
+    { id: "edge_3", source: "node_1", target: "node_10", sourceHandle: "no" }, // Low rating
+    { id: "edge_4", source: "node_3", target: "node_4" }, // Referral request -> check reply
+    { id: "edge_5", source: "node_4", target: "node_5", sourceHandle: "yes" }, // Replied -> tag as referrer
+    { id: "edge_6", source: "node_4", target: "node_6", sourceHandle: "no" }, // No reply -> wait
+    { id: "edge_7", source: "node_6", target: "node_7" }, // Wait -> reminder
+    { id: "edge_8", source: "node_7", target: "node_8" }, // Reminder -> check reply
+    { id: "edge_9", source: "node_8", target: "node_5", sourceHandle: "yes" }, // Replied -> tag as referrer
+    { id: "edge_10", source: "node_8", target: "node_9", sourceHandle: "no" }, // No reply -> no referral tag
+    { id: "edge_11", source: "node_10", target: "node_11" }, // Alert manager -> wait
     { id: "edge_12", source: "node_11", target: "node_12" }, // Wait -> check resolution
-    { id: "edge_13", source: "node_12", target: "node_13", sourceHandle: "branch_1" }, // Not resolved -> escalate
+    { id: "edge_13", source: "node_12", target: "node_13", sourceHandle: "no" }, // Not resolved -> escalate
   ],
   settings: {
     allowReEntry: false,
@@ -1546,245 +1709,19 @@ const template_04_referral_automation: WorkflowTemplate = {
 };
 
 // =============================================================================
-// TEMPLATE 05: AI Lead Scoring & Routing
+// TEMPLATE 05: Payment Collection Sequence
 // =============================================================================
-const template_05_ai_lead_scoring: WorkflowTemplate = {
-  id: "template_05_ai_lead_scoring",
-  name: "AI Lead Scoring & Routing",
-  description: "19-node instant lead qualification using budget, urgency, and location factors. Routes hot/warm/cold leads to appropriate reps",
-  category: "sales",
-  triggers: [
-    {
-      id: "trigger_1",
-      actionType: "lead_created",
-      label: "New Lead Created",
-      icon: "Target",
-      color: "blue",
-      config: {
-        trigger_event: "lead_created",
-      },
-      isConfigured: true,
-    },
-  ],
-  nodes: [
-    {
-      id: "node_1",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "calculate_score",
-        label: "Calculate Lead Score",
-        icon: "TrendingUp",
-        color: "purple",
-        config: {
-          action_name: "Calculate Lead Score",
-          scoring_factors: ["budget", "urgency", "location", "project_size"],
-        },
-      },
-    },
-    {
-      id: "node_2",
-      type: "workflowNode",
-      data: {
-        builderType: "branch",
-        actionType: "branch_condition",
-        label: "Score Routing",
-        icon: "GitBranch",
-        color: "blue",
-        config: {
-          action_name: "Score Routing",
-          conditions: [
-            { field: "lead_score", operator: "greater_than_or_equal", value: "80" },
-            { field: "lead_score", operator: "between", value: "50-79" },
-            { field: "lead_score", operator: "less_than", value: "50" },
-          ],
-        },
-      },
-    },
-    {
-      id: "node_3",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "assign_to_rep",
-        label: "Assign to Senior Rep",
-        icon: "UserCheck",
-        color: "green",
-        config: {
-          action_name: "Assign to Senior Rep",
-          rep_tier: "senior",
-        },
-      },
-    },
-    {
-      id: "node_4",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "assign_to_rep",
-        label: "Assign to Standard Rep",
-        icon: "UserCheck",
-        color: "blue",
-        config: {
-          action_name: "Assign to Standard Rep",
-          rep_tier: "standard",
-        },
-      },
-    },
-    {
-      id: "node_5",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "add_to_nurture",
-        label: "Add to Nurture Campaign",
-        icon: "Mail",
-        color: "gray",
-        config: {
-          action_name: "Add to Nurture Campaign",
-          campaign_id: "cold_lead_nurture",
-        },
-      },
-    },
-  ],
-  edges: [
-    { id: "edge_1", source: "node_1", target: "node_2" },
-    { id: "edge_2", source: "node_2", target: "node_3", sourceHandle: "branch_0" },
-    { id: "edge_3", source: "node_2", target: "node_4", sourceHandle: "branch_1" },
-    { id: "edge_4", source: "node_2", target: "node_5", sourceHandle: "branch_2" },
-  ],
-  settings: {
-    allowReEntry: false,
-    timezone: "America/New_York",
-  },
-  expectedResults: "90%+ routing accuracy, 50% faster qualification",
-};
-
-// =============================================================================
-// TEMPLATE 06: Estimate to Project Conversion
-// =============================================================================
-const template_06_estimate_to_project: WorkflowTemplate = {
-  id: "template_06_estimate_to_project",
-  name: "Estimate to Project Conversion",
-  description: "Automate project setup from estimate approval: contract generation, e-signature, permit processing, PM & crew assignment, kickoff scheduling",
-  category: "projects",
-  triggers: [
-    {
-      id: "trigger_1",
-      actionType: "estimate_approved",
-      label: "Estimate Approved",
-      icon: "CheckCircle",
-      color: "green",
-      config: {
-        trigger_event: "estimate_approved",
-      },
-      isConfigured: true,
-    },
-  ],
-  nodes: [
-    {
-      id: "node_1",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "create_project",
-        label: "Create Project",
-        icon: "Plus",
-        color: "blue",
-        config: {
-          action_name: "Create Project",
-          project_template: "standard",
-        },
-      },
-    },
-    {
-      id: "node_2",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "generate_contract",
-        label: "Generate Contract",
-        icon: "FileText",
-        color: "purple",
-        config: {
-          action_name: "Generate Contract",
-          template: "standard_contract",
-        },
-      },
-    },
-    {
-      id: "node_3",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "send_for_signature",
-        label: "Send for E-Signature",
-        icon: "Edit",
-        color: "blue",
-        config: {
-          action_name: "Send for E-Signature",
-          provider: "docusign",
-        },
-      },
-    },
-    {
-      id: "node_4",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "assign_pm",
-        label: "Assign Project Manager",
-        icon: "UserCheck",
-        color: "green",
-        config: {
-          action_name: "Assign Project Manager",
-          assignment_rule: "round_robin",
-        },
-      },
-    },
-    {
-      id: "node_5",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "schedule_kickoff",
-        label: "Schedule Kickoff Meeting",
-        icon: "Calendar",
-        color: "amber",
-        config: {
-          action_name: "Schedule Kickoff Meeting",
-          meeting_duration: 60,
-        },
-      },
-    },
-  ],
-  edges: [
-    { id: "edge_1", source: "node_1", target: "node_2" },
-    { id: "edge_2", source: "node_2", target: "node_3" },
-    { id: "edge_3", source: "node_3", target: "node_4" },
-    { id: "edge_4", source: "node_4", target: "node_5" },
-  ],
-  settings: {
-    allowReEntry: false,
-    timezone: "America/New_York",
-  },
-  expectedResults: "2x faster kickoff, 98% setup accuracy",
-};
-
-// =============================================================================
-// TEMPLATE 07: Payment Collection Automation
-// =============================================================================
-const template_07_payment_collection: WorkflowTemplate = {
-  id: "template_07_payment_collection",
-  name: "Payment Collection Automation",
-  description: "18-node escalating reminder sequence: gentle 3-day reminder → SMS 7-day → firm 10-day → collections alert at 20 days",
+const template_05_payment_collection: WorkflowTemplate = {
+  id: "template_05_payment_collection",
+  name: "Payment Collection Sequence",
+  description: "Automated payment reminder sequence with escalating urgency and collections alerts",
   category: "finance",
   triggers: [
     {
       id: "trigger_1",
       actionType: "invoice_overdue",
       label: "Invoice Overdue",
-      icon: "AlertCircle",
+      icon: "Receipt",
       color: "red",
       config: {
         trigger_event: "invoice_overdue",
@@ -1825,8 +1762,44 @@ const template_07_payment_collection: WorkflowTemplate = {
         },
       },
     },
+    // Check reply after gentle reminder
     {
       id: "node_3",
+      type: "workflowNode",
+      data: {
+        builderType: "condition",
+        actionType: "if_else",
+        label: "Contact Replied?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Reply After Gentle",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply?",
+          branches: createYesNoBranches("contact_replied"),
+        },
+      },
+    },
+    // Assign account manager for responses
+    {
+      id: "node_4",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "assign_user",
+        label: "Assign Account Manager",
+        icon: "UserCheck",
+        color: "blue",
+        config: {
+          action_name: "Assign Account Manager",
+          user_id: "round_robin",
+        },
+      },
+    },
+    {
+      id: "node_5",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1842,7 +1815,7 @@ const template_07_payment_collection: WorkflowTemplate = {
       },
     },
     {
-      id: "node_4",
+      id: "node_6",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1856,8 +1829,28 @@ const template_07_payment_collection: WorkflowTemplate = {
         },
       },
     },
+    // Check SMS reply
     {
-      id: "node_5",
+      id: "node_7",
+      type: "workflowNode",
+      data: {
+        builderType: "condition",
+        actionType: "if_else",
+        label: "SMS Reply?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check SMS Reply",
+          condition_type: "field_equals",
+          field: "sms_replied",
+          value: "true",
+          question: "Did the contact reply to SMS?",
+          branches: createYesNoBranches("sms_replied"),
+        },
+      },
+    },
+    {
+      id: "node_8",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1873,7 +1866,7 @@ const template_07_payment_collection: WorkflowTemplate = {
       },
     },
     {
-      id: "node_6",
+      id: "node_9",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1888,8 +1881,28 @@ const template_07_payment_collection: WorkflowTemplate = {
         },
       },
     },
+    // Check reply after firm notice
     {
-      id: "node_7",
+      id: "node_10",
+      type: "workflowNode",
+      data: {
+        builderType: "condition",
+        actionType: "if_else",
+        label: "Contact Replied?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Reply After Firm",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply to firm notice?",
+          branches: createYesNoBranches("contact_replied"),
+        },
+      },
+    },
+    {
+      id: "node_11",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1906,10 +1919,10 @@ const template_07_payment_collection: WorkflowTemplate = {
     },
     // Check if payment received before collections
     {
-      id: "node_8",
+      id: "node_12",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Payment Received?",
         icon: "GitBranch",
@@ -1920,48 +1933,24 @@ const template_07_payment_collection: WorkflowTemplate = {
           field: "payment_received",
           value: "true",
           question: "Has payment been received?",
+          branches: [
+            {
+              id: "yes",
+              name: "Paid",
+              segments: [{ field: "payment_received", operator: "equals", value: "true" }],
+            },
+            {
+              id: "no",
+              name: "Unpaid",
+              segments: [{ field: "payment_received", operator: "equals", value: "false" }],
+            },
+          ],
         },
       },
     },
-    // Alert collections only if still unpaid
+    // Payment confirmation
     {
-      id: "node_9",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "notify_team",
-        label: "Alert Collections Team",
-        icon: "AlertCircle",
-        color: "red",
-        config: {
-          action_name: "Alert Collections Team",
-          notification_type: "collections_required",
-          recipient_role: "finance",
-        },
-      },
-    },
-    // Check reply after gentle reminder
-    {
-      id: "node_10",
-      type: "workflowNode",
-      data: {
-        builderType: "branch",
-        actionType: "if_else",
-        label: "Contact Replied?",
-        icon: "GitBranch",
-        color: "amber",
-        config: {
-          action_name: "Check Reply After Gentle",
-          condition_type: "field_equals",
-          field: "contact_replied",
-          value: "true",
-          question: "Did the contact reply?",
-        },
-      },
-    },
-    // Payment received path
-    {
-      id: "node_11",
+      id: "node_13",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1976,78 +1965,40 @@ const template_07_payment_collection: WorkflowTemplate = {
         },
       },
     },
-    // Check SMS reply
-    {
-      id: "node_12",
-      type: "workflowNode",
-      data: {
-        builderType: "branch",
-        actionType: "if_else",
-        label: "SMS Reply?",
-        icon: "GitBranch",
-        color: "amber",
-        config: {
-          action_name: "Check SMS Reply",
-          condition_type: "field_equals",
-          field: "sms_replied",
-          value: "true",
-          question: "Did the contact reply to SMS?",
-        },
-      },
-    },
-    // Check reply after firm notice
-    {
-      id: "node_13",
-      type: "workflowNode",
-      data: {
-        builderType: "branch",
-        actionType: "if_else",
-        label: "Contact Replied?",
-        icon: "GitBranch",
-        color: "amber",
-        config: {
-          action_name: "Check Reply After Firm",
-          condition_type: "field_equals",
-          field: "contact_replied",
-          value: "true",
-          question: "Did the contact reply to firm notice?",
-        },
-      },
-    },
-    // Assign account manager for contact responses
+    // Alert collections
     {
       id: "node_14",
       type: "workflowNode",
       data: {
         builderType: "action",
-        actionType: "assign_user",
-        label: "Assign Account Manager",
-        icon: "UserCheck",
-        color: "blue",
+        actionType: "internal_notification",
+        label: "Alert Collections Team",
+        icon: "Bell",
+        color: "red",
         config: {
-          action_name: "Assign Account Manager",
-          assignment_rule: "round_robin",
-          role: "account_manager",
+          action_name: "Alert Collections Team",
+          notification_type: "collections_required",
+          channel: "email",
         },
       },
     },
   ],
   edges: [
     { id: "edge_1", source: "node_1", target: "node_2" },
-    { id: "edge_2", source: "node_2", target: "node_10" }, // Gentle reminder -> check reply
-    { id: "edge_3", source: "node_10", target: "node_14", sourceHandle: "branch_0" }, // Replied -> assign manager
-    { id: "edge_4", source: "node_10", target: "node_3", sourceHandle: "branch_1" }, // No reply -> wait 4 days
-    { id: "edge_5", source: "node_3", target: "node_4" },
-    { id: "edge_6", source: "node_4", target: "node_12" }, // SMS -> check reply
-    { id: "edge_7", source: "node_12", target: "node_14", sourceHandle: "branch_0" }, // SMS replied -> assign manager
-    { id: "edge_8", source: "node_12", target: "node_5", sourceHandle: "branch_1" }, // No SMS reply -> wait 3 days
-    { id: "edge_9", source: "node_5", target: "node_6" },
-    { id: "edge_10", source: "node_6", target: "node_13" }, // Firm notice -> check reply
-    { id: "edge_11", source: "node_13", target: "node_14", sourceHandle: "branch_0" }, // Replied -> assign manager
-    { id: "edge_12", source: "node_13", target: "node_7", sourceHandle: "branch_1" }, // No reply -> wait 10 days
-    { id: "edge_13", source: "node_7", target: "node_8" }, // Wait -> check payment
-    { id: "edge_14", source: "node_8", target: "node_11", sourceHandle: "branch_0" }, // Payment received -> confirmation
-    { id: "edge_15", source: "node_8", target: "node_9", sourceHandle: "branch_1" }, // No payment -> collections
+    { id: "edge_2", source: "node_2", target: "node_3" }, // Gentle reminder -> check reply
+    { id: "edge_3", source: "node_3", target: "node_4", sourceHandle: "yes" }, // Replied -> assign manager
+    { id: "edge_4", source: "node_3", target: "node_5", sourceHandle: "no" }, // No reply -> wait
+    { id: "edge_5", source: "node_5", target: "node_6" },
+    { id: "edge_6", source: "node_6", target: "node_7" }, // SMS -> check reply
+    { id: "edge_7", source: "node_7", target: "node_4", sourceHandle: "yes" }, // SMS replied -> assign manager
+    { id: "edge_8", source: "node_7", target: "node_8", sourceHandle: "no" }, // No SMS reply -> wait
+    { id: "edge_9", source: "node_8", target: "node_9" },
+    { id: "edge_10", source: "node_9", target: "node_10" }, // Firm notice -> check reply
+    { id: "edge_11", source: "node_10", target: "node_4", sourceHandle: "yes" }, // Replied -> assign manager
+    { id: "edge_12", source: "node_10", target: "node_11", sourceHandle: "no" }, // No reply -> wait
+    { id: "edge_13", source: "node_11", target: "node_12" }, // Wait -> check payment
+    { id: "edge_14", source: "node_12", target: "node_13", sourceHandle: "yes" }, // Payment received -> confirmation
+    { id: "edge_15", source: "node_12", target: "node_14", sourceHandle: "no" }, // No payment -> collections
   ],
   settings: {
     allowReEntry: false,
@@ -2057,12 +2008,12 @@ const template_07_payment_collection: WorkflowTemplate = {
 };
 
 // =============================================================================
-// TEMPLATE 08: Site Visit Coordination
+// TEMPLATE 06: Site Visit Coordination
 // =============================================================================
-const template_08_site_visit: WorkflowTemplate = {
-  id: "template_08_site_visit",
+const template_06_site_visit: WorkflowTemplate = {
+  id: "template_06_site_visit",
   name: "Site Visit Coordination",
-  description: "16-node time-based reminder system: confirmation → 2-day → day-before → day-of reminders, team alerts, post-visit follow-up",
+  description: "Time-based reminder system with confirmation checks, call fallbacks, and team alerts",
   category: "communication",
   triggers: [
     {
@@ -2127,8 +2078,55 @@ const template_08_site_visit: WorkflowTemplate = {
         },
       },
     },
+    // Check for confirmation reply
     {
       id: "node_4",
+      type: "workflowNode",
+      data: {
+        builderType: "condition",
+        actionType: "if_else",
+        label: "Confirmation Received?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Confirmation",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact confirm attendance?",
+          branches: [
+            {
+              id: "yes",
+              name: "Confirmed",
+              segments: [{ field: "contact_replied", operator: "equals", value: "true" }],
+            },
+            {
+              id: "no",
+              name: "No Response",
+              segments: [{ field: "contact_replied", operator: "equals", value: "false" }],
+            },
+          ],
+        },
+      },
+    },
+    // Tag as confirmed
+    {
+      id: "node_5",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "add_tag",
+        label: "Tag as Confirmed",
+        icon: "Tag",
+        color: "green",
+        config: {
+          action_name: "Tag as Confirmed",
+          tag: "visit_confirmed",
+        },
+      },
+    },
+    {
+      id: "node_6",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -2144,7 +2142,7 @@ const template_08_site_visit: WorkflowTemplate = {
       },
     },
     {
-      id: "node_5",
+      id: "node_7",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -2158,47 +2156,12 @@ const template_08_site_visit: WorkflowTemplate = {
         },
       },
     },
-    {
-      id: "node_6",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "notify_team",
-        label: "Alert Team",
-        icon: "UserCheck",
-        color: "purple",
-        config: {
-          action_name: "Alert Team",
-          notification_type: "upcoming_site_visit",
-          recipient_role: "field_worker",
-        },
-      },
-    },
-    // Check for confirmation reply after 2-day reminder
-    {
-      id: "node_7",
-      type: "workflowNode",
-      data: {
-        builderType: "branch",
-        actionType: "if_else",
-        label: "Confirmation Received?",
-        icon: "GitBranch",
-        color: "amber",
-        config: {
-          action_name: "Check Confirmation",
-          condition_type: "field_equals",
-          field: "contact_replied",
-          value: "true",
-          question: "Did the contact confirm attendance?",
-        },
-      },
-    },
     // SMS reply check
     {
       id: "node_8",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "SMS Reply?",
         icon: "GitBranch",
@@ -2209,47 +2172,33 @@ const template_08_site_visit: WorkflowTemplate = {
           field: "sms_replied",
           value: "true",
           question: "Did the contact reply to SMS?",
-        },
-      },
-    },
-    // Tag as confirmed
-    {
-      id: "node_9",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "add_tag",
-        label: "Tag as Confirmed",
-        icon: "Tag",
-        color: "green",
-        config: {
-          action_name: "Tag as Confirmed",
-          tag: "visit_confirmed",
+          branches: createYesNoBranches("sms_replied"),
         },
       },
     },
     // Call for unconfirmed
     {
-      id: "node_10",
+      id: "node_9",
       type: "workflowNode",
       data: {
         builderType: "action",
-        actionType: "call",
+        actionType: "add_task",
         label: "Call to Confirm",
         icon: "Phone",
         color: "amber",
         config: {
           action_name: "Call to Confirm Visit",
-          reason: "site_visit_confirmation",
+          title: "Call to confirm site visit for {{contact.first_name}}",
+          priority: "high",
         },
       },
     },
     // Check call outcome
     {
-      id: "node_11",
+      id: "node_10",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "Call Answered?",
         icon: "GitBranch",
@@ -2260,12 +2209,24 @@ const template_08_site_visit: WorkflowTemplate = {
           field: "call_answered",
           value: "true",
           question: "Was the call answered?",
+          branches: [
+            {
+              id: "yes",
+              name: "Answered",
+              segments: [{ field: "call_answered", operator: "equals", value: "true" }],
+            },
+            {
+              id: "no",
+              name: "No Answer",
+              segments: [{ field: "call_answered", operator: "equals", value: "false" }],
+            },
+          ],
         },
       },
     },
     // Mark as at risk
     {
-      id: "node_12",
+      id: "node_11",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -2279,22 +2240,39 @@ const template_08_site_visit: WorkflowTemplate = {
         },
       },
     },
+    // Alert team
+    {
+      id: "node_12",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "internal_notification",
+        label: "Alert Team",
+        icon: "Bell",
+        color: "purple",
+        config: {
+          action_name: "Alert Team",
+          notification_type: "upcoming_site_visit",
+          channel: "in_app",
+        },
+      },
+    },
   ],
   edges: [
     { id: "edge_1", source: "node_1", target: "node_2" },
     { id: "edge_2", source: "node_2", target: "node_3" },
-    { id: "edge_3", source: "node_3", target: "node_7" }, // 2-day reminder -> check confirmation
-    { id: "edge_4", source: "node_7", target: "node_9", sourceHandle: "branch_0" }, // Confirmed -> tag
-    { id: "edge_5", source: "node_7", target: "node_4", sourceHandle: "branch_1" }, // Not confirmed -> wait for day before
-    { id: "edge_6", source: "node_4", target: "node_5" },
-    { id: "edge_7", source: "node_5", target: "node_8" }, // SMS -> check reply
-    { id: "edge_8", source: "node_8", target: "node_9", sourceHandle: "branch_0" }, // SMS reply -> tag confirmed
-    { id: "edge_9", source: "node_8", target: "node_10", sourceHandle: "branch_1" }, // No SMS reply -> call
-    { id: "edge_10", source: "node_10", target: "node_11" }, // Call -> check outcome
-    { id: "edge_11", source: "node_11", target: "node_9", sourceHandle: "branch_0" }, // Answered -> confirmed
-    { id: "edge_12", source: "node_11", target: "node_12", sourceHandle: "branch_1" }, // Not answered -> at risk
-    { id: "edge_13", source: "node_9", target: "node_6" }, // Confirmed -> alert team
-    { id: "edge_14", source: "node_12", target: "node_6" }, // At risk -> still alert team
+    { id: "edge_3", source: "node_3", target: "node_4" }, // 2-day reminder -> check confirmation
+    { id: "edge_4", source: "node_4", target: "node_5", sourceHandle: "yes" }, // Confirmed -> tag
+    { id: "edge_5", source: "node_4", target: "node_6", sourceHandle: "no" }, // Not confirmed -> wait for day before
+    { id: "edge_6", source: "node_6", target: "node_7" },
+    { id: "edge_7", source: "node_7", target: "node_8" }, // SMS -> check reply
+    { id: "edge_8", source: "node_8", target: "node_5", sourceHandle: "yes" }, // SMS reply -> tag confirmed
+    { id: "edge_9", source: "node_8", target: "node_9", sourceHandle: "no" }, // No SMS reply -> call
+    { id: "edge_10", source: "node_9", target: "node_10" }, // Call -> check outcome
+    { id: "edge_11", source: "node_10", target: "node_5", sourceHandle: "yes" }, // Answered -> confirmed
+    { id: "edge_12", source: "node_10", target: "node_11", sourceHandle: "no" }, // Not answered -> at risk
+    { id: "edge_13", source: "node_5", target: "node_12" }, // Confirmed -> alert team
+    { id: "edge_14", source: "node_11", target: "node_12" }, // At risk -> still alert team
   ],
   settings: {
     allowReEntry: false,
@@ -2304,166 +2282,12 @@ const template_08_site_visit: WorkflowTemplate = {
 };
 
 // =============================================================================
-// TEMPLATE 09: Materials & Permit Tracking
+// TEMPLATE 07: Post-Project Review Request
 // =============================================================================
-const template_09_materials_permit_tracking: WorkflowTemplate = {
-  id: "template_09_materials_permit_tracking",
-  name: "Materials & Permit Tracking",
-  description: "20-node parallel processing workflow tracking materials ordering and permit submission with status checks, completion alerts, and delay escalation",
-  category: "projects",
-  triggers: [
-    {
-      id: "trigger_1",
-      actionType: "project_started",
-      label: "Project Started",
-      icon: "Play",
-      color: "green",
-      config: {
-        trigger_event: "project_started",
-      },
-      isConfigured: true,
-    },
-  ],
-  nodes: [
-    {
-      id: "node_1",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "create_task",
-        label: "Create Materials Order Task",
-        icon: "Plus",
-        color: "blue",
-        config: {
-          action_name: "Create Materials Order Task",
-          task_type: "materials_order",
-          assigned_to: "project_manager",
-        },
-      },
-    },
-    {
-      id: "node_2",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "create_task",
-        label: "Create Permit Task",
-        icon: "Plus",
-        color: "purple",
-        config: {
-          action_name: "Create Permit Task",
-          task_type: "permit_submission",
-          assigned_to: "project_manager",
-        },
-      },
-    },
-    {
-      id: "node_3",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "wait",
-        label: "Wait 3 Days",
-        icon: "Clock",
-        color: "gray",
-        config: {
-          action_name: "Wait 3 Days",
-          duration: "3",
-          unit: "days",
-        },
-      },
-    },
-    {
-      id: "node_4",
-      type: "workflowNode",
-      data: {
-        builderType: "branch",
-        actionType: "branch_condition",
-        label: "Check Materials Status",
-        icon: "GitBranch",
-        color: "blue",
-        config: {
-          action_name: "Check Materials Status",
-          conditions: [
-            { field: "materials_ordered", operator: "equals", value: "true" },
-            { field: "materials_ordered", operator: "equals", value: "false" },
-          ],
-        },
-      },
-    },
-    {
-      id: "node_5",
-      type: "workflowNode",
-      data: {
-        builderType: "branch",
-        actionType: "branch_condition",
-        label: "Check Permit Status",
-        icon: "GitBranch",
-        color: "purple",
-        config: {
-          action_name: "Check Permit Status",
-          conditions: [
-            { field: "permit_submitted", operator: "equals", value: "true" },
-            { field: "permit_submitted", operator: "equals", value: "false" },
-          ],
-        },
-      },
-    },
-    {
-      id: "node_6",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "notify_team",
-        label: "Alert: Materials Delayed",
-        icon: "AlertCircle",
-        color: "red",
-        config: {
-          action_name: "Alert: Materials Delayed",
-          notification_type: "materials_delay",
-          recipient_role: "project_manager",
-        },
-      },
-    },
-    {
-      id: "node_7",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "notify_team",
-        label: "Alert: Permit Delayed",
-        icon: "AlertCircle",
-        color: "red",
-        config: {
-          action_name: "Alert: Permit Delayed",
-          notification_type: "permit_delay",
-          recipient_role: "project_manager",
-        },
-      },
-    },
-  ],
-  edges: [
-    { id: "edge_1", source: "node_1", target: "node_3" },
-    { id: "edge_2", source: "node_2", target: "node_3" },
-    { id: "edge_3", source: "node_3", target: "node_4" },
-    { id: "edge_4", source: "node_3", target: "node_5" },
-    { id: "edge_5", source: "node_4", target: "node_6", sourceHandle: "branch_1" },
-    { id: "edge_6", source: "node_5", target: "node_7", sourceHandle: "branch_1" },
-  ],
-  settings: {
-    allowReEntry: false,
-    timezone: "America/New_York",
-  },
-  expectedResults: "30% delay reduction, 85%+ on-time starts",
-};
-
-// =============================================================================
-// TEMPLATE 10: Post-Project Review Request
-// =============================================================================
-const template_10_post_project_review: WorkflowTemplate = {
-  id: "template_10_post_project_review",
+const template_07_post_project_review: WorkflowTemplate = {
+  id: "template_07_post_project_review",
   name: "Post-Project Review Request",
-  description: "17-node multi-touch review collection with rating checks, thank you messages, referral requests for 4+ stars, and manager alerts for low ratings",
+  description: "Multi-touch review collection with rating checks, thank you messages, referral requests, and manager alerts",
   category: "general",
   triggers: [
     {
@@ -2527,38 +2351,64 @@ const template_10_post_project_review: WorkflowTemplate = {
         },
       },
     },
+    // Check if reviewed
     {
       id: "node_4",
       type: "workflowNode",
       data: {
-        builderType: "branch",
-        actionType: "branch_condition",
+        builderType: "condition",
+        actionType: "if_else",
         label: "Check If Reviewed",
         icon: "GitBranch",
-        color: "purple",
+        color: "amber",
         config: {
           action_name: "Check If Reviewed",
-          conditions: [
-            { field: "review_submitted", operator: "equals", value: "true" },
-            { field: "review_submitted", operator: "equals", value: "false" },
+          condition_type: "field_equals",
+          field: "review_submitted",
+          value: "true",
+          question: "Has the contact submitted a review?",
+          branches: [
+            {
+              id: "yes",
+              name: "Reviewed",
+              segments: [{ field: "review_submitted", operator: "equals", value: "true" }],
+            },
+            {
+              id: "no",
+              name: "Not Reviewed",
+              segments: [{ field: "review_submitted", operator: "equals", value: "false" }],
+            },
           ],
         },
       },
     },
+    // Check rating
     {
       id: "node_5",
       type: "workflowNode",
       data: {
-        builderType: "branch",
-        actionType: "branch_condition",
+        builderType: "condition",
+        actionType: "if_else",
         label: "Check Rating",
         icon: "GitBranch",
         color: "amber",
         config: {
           action_name: "Check Rating",
-          conditions: [
-            { field: "rating", operator: "greater_than_or_equal", value: "4" },
-            { field: "rating", operator: "less_than", value: "4" },
+          condition_type: "field_equals",
+          field: "rating",
+          value: "4",
+          question: "Is the rating 4 or higher?",
+          branches: [
+            {
+              id: "yes",
+              name: "4+ Stars",
+              segments: [{ field: "rating", operator: "greater_than_or_equal", value: "4" }],
+            },
+            {
+              id: "no",
+              name: "< 4 Stars",
+              segments: [{ field: "rating", operator: "less_than", value: "4" }],
+            },
           ],
         },
       },
@@ -2579,24 +2429,78 @@ const template_10_post_project_review: WorkflowTemplate = {
         },
       },
     },
+    // Check reply after thank you + referral
     {
       id: "node_7",
       type: "workflowNode",
       data: {
+        builderType: "condition",
+        actionType: "if_else",
+        label: "Referral Reply?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Referral Reply",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply with referral?",
+          branches: createYesNoBranches("contact_replied"),
+        },
+      },
+    },
+    // Tag as referrer
+    {
+      id: "node_8",
+      type: "workflowNode",
+      data: {
         builderType: "action",
-        actionType: "notify_team",
+        actionType: "add_tag",
+        label: "Tag as Referrer",
+        icon: "Tag",
+        color: "green",
+        config: {
+          action_name: "Tag as Referrer",
+          tag: "active_referrer",
+        },
+      },
+    },
+    // Tag as reviewer
+    {
+      id: "node_9",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "add_tag",
+        label: "Tag as Reviewer",
+        icon: "Tag",
+        color: "blue",
+        config: {
+          action_name: "Tag as Reviewer",
+          tag: "left_review",
+        },
+      },
+    },
+    // Alert Manager for low rating
+    {
+      id: "node_10",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "internal_notification",
         label: "Alert Manager",
-        icon: "AlertCircle",
+        icon: "Bell",
         color: "red",
         config: {
           action_name: "Alert Manager",
           notification_type: "low_rating_alert",
-          recipient_role: "manager",
+          channel: "email",
         },
       },
     },
+    // SMS Follow-up for non-reviewers
     {
-      id: "node_8",
+      id: "node_11",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -2612,10 +2516,10 @@ const template_10_post_project_review: WorkflowTemplate = {
     },
     // Check SMS reply
     {
-      id: "node_9",
+      id: "node_12",
       type: "workflowNode",
       data: {
-        builderType: "branch",
+        builderType: "condition",
         actionType: "if_else",
         label: "SMS Reply?",
         icon: "GitBranch",
@@ -2626,12 +2530,13 @@ const template_10_post_project_review: WorkflowTemplate = {
           field: "sms_replied",
           value: "true",
           question: "Did the contact reply to SMS?",
+          branches: createYesNoBranches("sms_replied"),
         },
       },
     },
     // Go to review check if SMS replied
     {
-      id: "node_10",
+      id: "node_13",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -2647,7 +2552,7 @@ const template_10_post_project_review: WorkflowTemplate = {
     },
     // Tag as no response
     {
-      id: "node_11",
+      id: "node_14",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -2661,72 +2566,21 @@ const template_10_post_project_review: WorkflowTemplate = {
         },
       },
     },
-    // Check reply after thank you + referral
-    {
-      id: "node_12",
-      type: "workflowNode",
-      data: {
-        builderType: "branch",
-        actionType: "if_else",
-        label: "Referral Reply?",
-        icon: "GitBranch",
-        color: "amber",
-        config: {
-          action_name: "Check Referral Reply",
-          condition_type: "field_equals",
-          field: "contact_replied",
-          value: "true",
-          question: "Did the contact reply with referral?",
-        },
-      },
-    },
-    // Tag as referrer
-    {
-      id: "node_13",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "add_tag",
-        label: "Tag as Referrer",
-        icon: "Tag",
-        color: "green",
-        config: {
-          action_name: "Tag as Referrer",
-          tag: "active_referrer",
-        },
-      },
-    },
-    // Thank you for review
-    {
-      id: "node_14",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "add_tag",
-        label: "Tag as Reviewer",
-        icon: "Tag",
-        color: "blue",
-        config: {
-          action_name: "Tag as Reviewer",
-          tag: "left_review",
-        },
-      },
-    },
   ],
   edges: [
     { id: "edge_1", source: "node_1", target: "node_2" },
     { id: "edge_2", source: "node_2", target: "node_3" },
     { id: "edge_3", source: "node_3", target: "node_4" },
-    { id: "edge_4", source: "node_4", target: "node_5", sourceHandle: "branch_0" },
-    { id: "edge_5", source: "node_5", target: "node_6", sourceHandle: "branch_0" }, // High rating -> thank you
-    { id: "edge_6", source: "node_5", target: "node_7", sourceHandle: "branch_1" }, // Low rating -> alert
-    { id: "edge_7", source: "node_4", target: "node_8", sourceHandle: "branch_1" }, // No review -> SMS
-    { id: "edge_8", source: "node_8", target: "node_9" }, // SMS -> check reply
-    { id: "edge_9", source: "node_9", target: "node_10", sourceHandle: "branch_0" }, // SMS replied -> go to review check
-    { id: "edge_10", source: "node_9", target: "node_11", sourceHandle: "branch_1" }, // No SMS reply -> no review tag
-    { id: "edge_11", source: "node_6", target: "node_12" }, // Thank you + referral -> check reply
-    { id: "edge_12", source: "node_12", target: "node_13", sourceHandle: "branch_0" }, // Replied -> tag as referrer
-    { id: "edge_13", source: "node_12", target: "node_14", sourceHandle: "branch_1" }, // No reply -> tag as reviewer only
+    { id: "edge_4", source: "node_4", target: "node_5", sourceHandle: "yes" }, // Reviewed
+    { id: "edge_5", source: "node_5", target: "node_6", sourceHandle: "yes" }, // High rating -> thank you
+    { id: "edge_6", source: "node_5", target: "node_10", sourceHandle: "no" }, // Low rating -> alert
+    { id: "edge_7", source: "node_4", target: "node_11", sourceHandle: "no" }, // No review -> SMS
+    { id: "edge_8", source: "node_11", target: "node_12" }, // SMS -> check reply
+    { id: "edge_9", source: "node_12", target: "node_13", sourceHandle: "yes" }, // SMS replied -> go to review check
+    { id: "edge_10", source: "node_12", target: "node_14", sourceHandle: "no" }, // No SMS reply -> no review tag
+    { id: "edge_11", source: "node_6", target: "node_7" }, // Thank you + referral -> check reply
+    { id: "edge_12", source: "node_7", target: "node_8", sourceHandle: "yes" }, // Replied -> tag as referrer
+    { id: "edge_13", source: "node_7", target: "node_9", sourceHandle: "no" }, // No reply -> tag as reviewer only
   ],
   settings: {
     allowReEntry: false,
@@ -2743,12 +2597,9 @@ const ALL_TEMPLATES: WorkflowTemplate[] = [
   template_02_email_engagement,
   template_03_seasonal_promotion,
   template_04_referral_automation,
-  template_05_ai_lead_scoring,
-  template_06_estimate_to_project,
-  template_07_payment_collection,
-  template_08_site_visit,
-  template_09_materials_permit_tracking,
-  template_10_post_project_review,
+  template_05_payment_collection,
+  template_06_site_visit,
+  template_07_post_project_review,
 ];
 
 // =============================================================================
@@ -2783,4 +2634,11 @@ export function getTemplatesByCategory(
  */
 export function templateExists(templateId: string): boolean {
   return ALL_TEMPLATES.some((t) => t.id === templateId);
+}
+
+/**
+ * Get all templates
+ */
+export function getAllTemplates(): WorkflowTemplate[] {
+  return ALL_TEMPLATES;
 }
