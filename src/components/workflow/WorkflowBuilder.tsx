@@ -586,7 +586,16 @@ export const WorkflowBuilder: React.FC = () => {
           };
         }
 
-        setNodes((nds) => [...nds, newNode]);
+        // IMPORTANT: WorkflowCanvas renders the main column in array order,
+        // so when inserting on an edge we must also insert in the nodes array
+        // before the target node; otherwise it appears at the bottom.
+        setNodes((nds) => {
+          const targetIndex = nds.findIndex((n) => n.id === edge.target);
+          if (targetIndex === -1) return [...nds, newNode];
+          const next = [...nds];
+          next.splice(targetIndex, 0, newNode);
+          return next;
+        });
 
         setEdges((eds) => {
           const filtered = eds.filter((e) => e.id !== activeSelectedEdgeId);
