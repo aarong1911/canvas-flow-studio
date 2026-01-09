@@ -609,6 +609,9 @@ export const WorkflowBuilder: React.FC = () => {
 
         setSelectedEdgeId(null);
         setConnectFrom(null);
+        // keep refs in sync immediately
+        selectedEdgeIdRef.current = null;
+        connectFromRef.current = null;
         setSelectedNodeId(nodeId);
         setSidebarTab("settings");
         toast.success(`Inserted: ${item.label}`);
@@ -630,6 +633,9 @@ export const WorkflowBuilder: React.FC = () => {
         setNodes((nds) => [newNode, ...nds]);
 
         setConnectFrom(null);
+        // keep refs in sync immediately
+        connectFromRef.current = null;
+        selectedEdgeIdRef.current = null;
         setSelectedNodeId(nodeId);
         setSidebarTab("settings");
         toast.success(`Inserted: ${item.label}`);
@@ -694,6 +700,9 @@ export const WorkflowBuilder: React.FC = () => {
       }
 
       setConnectFrom(null);
+      // keep refs in sync immediately
+      connectFromRef.current = null;
+      selectedEdgeIdRef.current = null;
       setSelectedNodeId(nodeId);
       setSidebarTab("settings");
       toast.success(`Inserted: ${item.label}`);
@@ -731,6 +740,9 @@ export const WorkflowBuilder: React.FC = () => {
     }
 
     setConnectFrom(null);
+    // keep refs in sync immediately
+    connectFromRef.current = null;
+    selectedEdgeIdRef.current = null;
     setSelectedNodeId(nodeId);
     setSidebarTab("settings");
     toast.success(`Added: ${item.label}`);
@@ -747,43 +759,61 @@ export const WorkflowBuilder: React.FC = () => {
     toast.success("Disconnected");
   }, [setEdges]);
 
-  const handleInsertOnEdge = useCallback((edgeId: string, sourceId: string, targetId: string) => {
-    setConnectFrom({ sourceNodeId: sourceId, sourceHandle: "default" });
+  const handleInsertOnEdge = useCallback((edgeId: string, sourceId: string, _targetId: string) => {
+    // Update refs immediately to avoid first-click stale state
+    const nextConnectFrom = { sourceNodeId: sourceId, sourceHandle: "default" } as any;
+    connectFromRef.current = nextConnectFrom;
+    selectedEdgeIdRef.current = edgeId;
+
+    setConnectFrom(nextConnectFrom);
     setSidebarTab("actions");
     setSelectedNodeId(null);
     setSelectedEdgeId(edgeId);
     setSelectedTriggerId(null);
   }, []);
 
-  const handleInsertBetween = useCallback((parentNodeId: string, childNodeId: string, sourceHandle: string) => {
-    if (parentNodeId === "__trigger__") {
-      setConnectFrom({ 
-        sourceNodeId: "__trigger__", 
-        sourceHandle: "default" as any,
-        insertBeforeNodeId: childNodeId
-      } as any);
-      setSidebarTab("actions");
-      setSelectedNodeId(null);
-      setSelectedEdgeId(null);
-      setSelectedTriggerId(null);
-      return;
-    }
-    
-    const edge = edges.find(e => e.source === parentNodeId && e.target === childNodeId);
-    if (edge) {
-      handleInsertOnEdge(edge.id, parentNodeId, childNodeId);
-    } else {
-      setConnectFrom({ 
-        sourceNodeId: parentNodeId, 
-        sourceHandle: sourceHandle as any,
-        insertBeforeNodeId: childNodeId
-      } as any);
-      setSidebarTab("actions");
-      setSelectedNodeId(null);
-      setSelectedEdgeId(null);
-      setSelectedTriggerId(null);
-    }
-  }, [edges, handleInsertOnEdge]);
+  const handleInsertBetween = useCallback(
+    (parentNodeId: string, childNodeId: string, sourceHandle: string) => {
+      if (parentNodeId === "__trigger__") {
+        const nextConnectFrom = {
+          sourceNodeId: "__trigger__",
+          sourceHandle: "default" as any,
+          insertBeforeNodeId: childNodeId,
+        } as any;
+
+        connectFromRef.current = nextConnectFrom;
+        selectedEdgeIdRef.current = null;
+
+        setConnectFrom(nextConnectFrom);
+        setSidebarTab("actions");
+        setSelectedNodeId(null);
+        setSelectedEdgeId(null);
+        setSelectedTriggerId(null);
+        return;
+      }
+
+      const edge = edges.find((e) => e.source === parentNodeId && e.target === childNodeId);
+      if (edge) {
+        handleInsertOnEdge(edge.id, parentNodeId, childNodeId);
+      } else {
+        const nextConnectFrom = {
+          sourceNodeId: parentNodeId,
+          sourceHandle: sourceHandle as any,
+          insertBeforeNodeId: childNodeId,
+        } as any;
+
+        connectFromRef.current = nextConnectFrom;
+        selectedEdgeIdRef.current = null;
+
+        setConnectFrom(nextConnectFrom);
+        setSidebarTab("actions");
+        setSelectedNodeId(null);
+        setSelectedEdgeId(null);
+        setSelectedTriggerId(null);
+      }
+    },
+    [edges, handleInsertOnEdge]
+  );
 
   // ✅ Save with icon conversion
   const handleSave = async () => {
