@@ -542,12 +542,19 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                           const val = localConfig[field.name];
                           const showVars = !!nodeSchema.variables?.length && (field.type === "text" || field.type === "textarea");
 
+                          // Skip rendering attachments field for send_email - it's handled by RichTextEditor
+                          if (field.type === "attachments" && selectedNode?.data.actionType === "send_email") {
+                            return null;
+                          }
+
                           return (
                             <div key={field.name} className="space-y-2">
-                              <Label className="text-sm font-medium uppercase">
-                                {field.label}
-                                {"required" in field && field.required && <span className="text-destructive ml-1">*</span>}
-                              </Label>
+                              {field.type !== "attachments" && (
+                                <Label className="text-sm font-medium uppercase">
+                                  {field.label}
+                                  {"required" in field && field.required && <span className="text-destructive ml-1">*</span>}
+                                </Label>
+                              )}
 
                               {"helperText" in field && field.helperText && (
                                 <div className="text-xs text-muted-foreground">{field.helperText}</div>
