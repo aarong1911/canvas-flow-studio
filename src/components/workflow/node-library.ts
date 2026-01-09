@@ -199,6 +199,7 @@ export interface SegmentFieldOption {
 }
 
 export const SEGMENT_FIELD_OPTIONS: SegmentFieldOption[] = [
+  // Email Engagement Conditions
   {
     value: "contact_replied",
     label: "Contact replied",
@@ -233,6 +234,28 @@ export const SEGMENT_FIELD_OPTIONS: SegmentFieldOption[] = [
     ],
   },
   {
+    value: "email_bounced",
+    label: "Email bounced",
+    description: "Whether the email bounced",
+    operators: ["equals"],
+    valueType: "boolean",
+    valueOptions: [
+      { label: "True", value: "true" },
+      { label: "False", value: "false" },
+    ],
+  },
+  {
+    value: "email_unsubscribed",
+    label: "Email unsubscribed",
+    description: "Whether the contact unsubscribed from emails",
+    operators: ["equals"],
+    valueType: "boolean",
+    valueOptions: [
+      { label: "True", value: "true" },
+      { label: "False", value: "false" },
+    ],
+  },
+  {
     value: "sms_replied",
     label: "SMS replied",
     description: "Whether the contact replied to an SMS",
@@ -243,6 +266,94 @@ export const SEGMENT_FIELD_OPTIONS: SegmentFieldOption[] = [
       { label: "False", value: "false" },
     ],
   },
+  // Lead Score Thresholds
+  {
+    value: "lead_score",
+    label: "Lead score",
+    description: "Contact's lead score (hot >80, warm 50-79, cold <50)",
+    operators: ["greater_than", "less_than", "equals", "between"],
+    valueType: "number",
+    placeholder: "Enter score (e.g., 70)",
+  },
+  {
+    value: "lead_score_tier",
+    label: "Lead score tier",
+    description: "Lead score tier category",
+    operators: ["equals", "not_equals"],
+    valueType: "select",
+    valueOptions: [
+      { label: "Hot (80+)", value: "hot" },
+      { label: "Warm (50-79)", value: "warm" },
+      { label: "Cold (<50)", value: "cold" },
+    ],
+  },
+  // Time-Based Conditions
+  {
+    value: "day_of_week",
+    label: "Day of week",
+    description: "Current day of the week",
+    operators: ["equals", "not_equals", "in"],
+    valueType: "select",
+    valueOptions: [
+      { label: "Monday", value: "monday" },
+      { label: "Tuesday", value: "tuesday" },
+      { label: "Wednesday", value: "wednesday" },
+      { label: "Thursday", value: "thursday" },
+      { label: "Friday", value: "friday" },
+      { label: "Saturday", value: "saturday" },
+      { label: "Sunday", value: "sunday" },
+    ],
+  },
+  {
+    value: "is_business_hours",
+    label: "Is business hours",
+    description: "Whether it's currently within business hours",
+    operators: ["equals"],
+    valueType: "boolean",
+    valueOptions: [
+      { label: "True", value: "true" },
+      { label: "False", value: "false" },
+    ],
+  },
+  {
+    value: "time_of_day",
+    label: "Time of day",
+    description: "Current time category",
+    operators: ["equals"],
+    valueType: "select",
+    valueOptions: [
+      { label: "Morning (6am-12pm)", value: "morning" },
+      { label: "Afternoon (12pm-5pm)", value: "afternoon" },
+      { label: "Evening (5pm-9pm)", value: "evening" },
+      { label: "Night (9pm-6am)", value: "night" },
+    ],
+  },
+  // Goal/Conversion Tracking
+  {
+    value: "goal_achieved",
+    label: "Goal achieved",
+    description: "Whether a specific goal was achieved",
+    operators: ["equals"],
+    valueType: "boolean",
+    valueOptions: [
+      { label: "True", value: "true" },
+      { label: "False", value: "false" },
+    ],
+  },
+  {
+    value: "conversion_status",
+    label: "Conversion status",
+    description: "Current conversion status",
+    operators: ["equals", "not_equals"],
+    valueType: "select",
+    valueOptions: [
+      { label: "Converted", value: "converted" },
+      { label: "Pending", value: "pending" },
+      { label: "Failed", value: "failed" },
+      { label: "Timeout", value: "timeout" },
+    ],
+  },
+  // Other conditions
   {
     value: "lead_source",
     label: "Lead source",
@@ -257,14 +368,6 @@ export const SEGMENT_FIELD_OPTIONS: SegmentFieldOption[] = [
       { label: "Walk-in", value: "walkin" },
       { label: "Other", value: "other" },
     ],
-  },
-  {
-    value: "lead_score",
-    label: "Lead score",
-    description: "Contact's lead score",
-    operators: ["greater_than", "less_than", "equals"],
-    valueType: "number",
-    placeholder: "Enter score (e.g., 70)",
   },
   {
     value: "has_tag",
@@ -293,6 +396,22 @@ export const SEGMENT_FIELD_OPTIONS: SegmentFieldOption[] = [
     operators: ["greater_than", "less_than", "equals"],
     valueType: "number",
     placeholder: "Enter number of days",
+  },
+  {
+    value: "days_since_last_activity",
+    label: "Days since last activity",
+    description: "Days since last engagement activity",
+    operators: ["greater_than", "less_than", "equals"],
+    valueType: "number",
+    placeholder: "Enter number of days",
+  },
+  {
+    value: "email_engagement_score",
+    label: "Email engagement score",
+    description: "Calculated email engagement score (opens + clicks)",
+    operators: ["greater_than", "less_than", "equals"],
+    valueType: "number",
+    placeholder: "Enter score (0-100)",
   },
 ];
 
@@ -429,7 +548,18 @@ export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
     title: "Configure",
     fields: [
       { name: "action_name", label: "Goal Name", type: "text", placeholder: "Wait For Event" },
-      { name: "event_key", label: "Event Key", type: "text", required: true, placeholder: "e.g. email_replied OR deal_won" },
+      { name: "event_key", label: "Event Key", type: "select", required: true, options: [
+        { value: "email_replied", label: "Email Replied" },
+        { value: "email_opened", label: "Email Opened" },
+        { value: "email_clicked", label: "Email Link Clicked" },
+        { value: "sms_replied", label: "SMS Replied" },
+        { value: "form_submitted", label: "Form Submitted" },
+        { value: "deal_won", label: "Deal Won" },
+        { value: "appointment_booked", label: "Appointment Booked" },
+        { value: "payment_received", label: "Payment Received" },
+        { value: "custom", label: "Custom Event" },
+      ]},
+      { name: "custom_event_key", label: "Custom Event Key", type: "text", placeholder: "e.g. webinar_attended" },
       { name: "timeout_enabled", label: "Timeout Enabled", type: "switch", helperText: "If enabled, workflow continues after timeout even if event didn't occur." },
       { name: "timeout_value", label: "Timeout", type: "number", placeholder: "7" },
       {
@@ -442,6 +572,28 @@ export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
           { value: "weeks", label: "Weeks" },
         ],
       },
+      { name: "timeout_action", label: "On Timeout", type: "select", options: [
+        { value: "continue", label: "Continue to Next Step" },
+        { value: "branch_timeout", label: "Branch to Timeout Path" },
+        { value: "remove", label: "Remove from Workflow" },
+      ], helperText: "What happens when the goal times out" },
+    ],
+  },
+  // Goal Event (for conversion tracking)
+  goal_event: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Goal Name", type: "text", placeholder: "Conversion Goal" },
+      { name: "goal_type", label: "Goal Type", type: "select", required: true, options: [
+        { value: "purchase", label: "Purchase/Payment" },
+        { value: "signup", label: "Sign Up" },
+        { value: "booking", label: "Booking/Appointment" },
+        { value: "form_submit", label: "Form Submission" },
+        { value: "reply", label: "Reply/Response" },
+        { value: "custom", label: "Custom Goal" },
+      ]},
+      { name: "goal_value", label: "Goal Value ($)", type: "number", placeholder: "Optional monetary value" },
+      { name: "track_attribution", label: "Track Attribution", type: "switch", helperText: "Track which workflow step led to conversion" },
     ],
   },
   add_tag: {

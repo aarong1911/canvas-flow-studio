@@ -46,7 +46,7 @@ export interface WorkflowTemplate {
 const template_01_new_lead_nurture: WorkflowTemplate = {
   id: "template_01_new_lead_nurture",
   name: "New Lead Nurture Sequence",
-  description: "15-node automated follow-up sequence with personalized emails based on lead source (website/referral), engagement tracking, and smart routing",
+  description: "Advanced follow-up sequence with A/B subject testing, lead scoring, engagement tracking, business hours gate, and conversion goals",
   category: "sales",
   triggers: [
     {
@@ -74,42 +74,42 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
         color: "blue",
         config: {
           action_name: "Tag as New Lead",
-          tag_name: "new_lead",
+          tag: "new_lead",
         },
       },
     },
+    // Lead Score Threshold Branching
     {
       id: "node_2",
       type: "workflowNode",
       data: {
         builderType: "branch",
-        actionType: "branch_condition",
-        label: "Check Lead Source",
+        actionType: "if_else",
+        label: "Lead Score Routing",
         icon: "GitBranch",
-        color: "purple",
+        color: "amber",
         config: {
-          action_name: "Check Lead Source",
-          conditions: [
-            { field: "lead_source", operator: "equals", value: "website" },
-            { field: "lead_source", operator: "equals", value: "referral" },
-          ],
+          action_name: "Lead Score Routing",
+          condition_type: "field_equals",
+          field: "lead_score_tier",
+          value: "hot",
+          question: "Is lead score tier hot (80+)?",
         },
       },
     },
+    // Hot Lead Path - Immediate high-touch
     {
       id: "node_3",
       type: "workflowNode",
       data: {
         builderType: "action",
-        actionType: "send_email",
-        label: "Website Welcome Email",
-        icon: "Mail",
-        color: "blue",
+        actionType: "add_tag",
+        label: "Tag as Hot Lead",
+        icon: "Tag",
+        color: "red",
         config: {
-          action_name: "Website Welcome Email",
-          template: "website_welcome",
-          subject: "Welcome! Let's discuss your project",
-          delay_minutes: 0,
+          action_name: "Tag as Hot Lead",
+          tag: "hot_lead",
         },
       },
     },
@@ -118,20 +118,198 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
       type: "workflowNode",
       data: {
         builderType: "action",
-        actionType: "send_email",
-        label: "Referral Welcome Email",
-        icon: "Mail",
-        color: "green",
+        actionType: "internal_notification",
+        label: "Alert Sales Team",
+        icon: "Bell",
+        color: "red",
         config: {
-          action_name: "Referral Welcome Email",
-          template: "referral_welcome",
-          subject: "Thanks for the referral introduction",
-          delay_minutes: 0,
+          action_name: "Alert Sales Team - Hot Lead",
+          channel: "in_app",
+          message: "🔥 Hot lead detected! {{contact.first_name}} {{contact.last_name}} scored 80+. Immediate outreach recommended.",
+        },
+      },
+    },
+    // Business Hours Gate
+    {
+      id: "node_5",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "business_hours_gate",
+        label: "Business Hours Gate",
+        icon: "BriefcaseBusiness",
+        color: "amber",
+        config: {
+          action_name: "Business Hours Check",
+          timezone_mode: "account",
+          start_time: "09:00",
+          end_time: "17:00",
+          days: "Mon,Tue,Wed,Thu,Fri",
+        },
+      },
+    },
+    // A/B Split for Subject Lines
+    {
+      id: "node_6",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "split",
+        label: "A/B Subject Test",
+        icon: "Split",
+        color: "purple",
+        config: {
+          action_name: "Welcome Email A/B Test",
+          path_a_label: "Direct Approach",
+          path_a_ratio: 50,
+          path_b_label: "Personal Touch",
+          path_b_ratio: 50,
         },
       },
     },
     {
-      id: "node_5",
+      id: "node_7",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "send_email",
+        label: "Welcome Email A",
+        icon: "Mail",
+        color: "blue",
+        config: {
+          action_name: "Welcome Email - Direct",
+          template: "welcome_direct",
+          subject: "Let's discuss your project requirements",
+          track_opens: true,
+          track_clicks: true,
+        },
+      },
+    },
+    {
+      id: "node_8",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "send_email",
+        label: "Welcome Email B",
+        icon: "Mail",
+        color: "green",
+        config: {
+          action_name: "Welcome Email - Personal",
+          template: "welcome_personal",
+          subject: "Hi {{contact.first_name}}, I'd love to help!",
+          track_opens: true,
+          track_clicks: true,
+        },
+      },
+    },
+    // Goal/Conversion Tracking with Timeout
+    {
+      id: "node_9",
+      type: "workflowNode",
+      data: {
+        builderType: "delay",
+        actionType: "wait_for_event",
+        label: "Wait for Reply",
+        icon: "Target",
+        color: "orange",
+        config: {
+          action_name: "Wait for Email Reply",
+          event_key: "email_replied",
+          timeout_enabled: true,
+          timeout_value: 3,
+          timeout_unit: "days",
+          timeout_action: "branch_timeout",
+        },
+      },
+    },
+    // Email Engagement Check
+    {
+      id: "node_10",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Check Email Opened",
+        icon: "GitBranch",
+        color: "purple",
+        config: {
+          action_name: "Check Email Engagement",
+          condition_type: "field_equals",
+          field: "email_opened",
+          value: "true",
+          question: "Did the contact open the email?",
+        },
+      },
+    },
+    {
+      id: "node_11",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "send_sms",
+        label: "SMS Follow-up (Non-openers)",
+        icon: "MessageSquare",
+        color: "green",
+        config: {
+          action_name: "SMS Outreach",
+          message: "Hi {{contact.first_name}}! I sent you an email about your project. Mind taking a look? Happy to answer any questions!",
+        },
+      },
+    },
+    {
+      id: "node_12",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Check Link Clicked",
+        icon: "GitBranch",
+        color: "purple",
+        config: {
+          action_name: "Check Link Clicked",
+          condition_type: "field_equals",
+          field: "email_clicked",
+          value: "true",
+          question: "Did the contact click a link?",
+        },
+      },
+    },
+    {
+      id: "node_13",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "send_email",
+        label: "High-Intent Follow-up",
+        icon: "Mail",
+        color: "blue",
+        config: {
+          action_name: "High-Intent Follow-up",
+          template: "high_intent_followup",
+          subject: "I noticed you were interested in {{clicked_link_topic}}",
+        },
+      },
+    },
+    {
+      id: "node_14",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "goal_event",
+        label: "Track Conversion",
+        icon: "Target",
+        color: "green",
+        config: {
+          action_name: "Track Lead Conversion",
+          goal_type: "reply",
+          track_attribution: true,
+        },
+      },
+    },
+    // Cold/Warm Lead Nurture Path
+    {
+      id: "node_15",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -146,105 +324,29 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
         },
       },
     },
-    {
-      id: "node_6",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "send_email",
-        label: "Follow-up Email",
-        icon: "Mail",
-        color: "blue",
-        config: {
-          action_name: "Follow-up Email",
-          template: "followup_2day",
-          subject: "Quick follow-up on your project",
-        },
-      },
-    },
-    {
-      id: "node_7",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "wait",
-        label: "Wait 3 Days",
-        icon: "Clock",
-        color: "gray",
-        config: {
-          action_name: "Wait 3 Days",
-          duration: "3",
-          unit: "days",
-        },
-      },
-    },
-    {
-      id: "node_8",
-      type: "workflowNode",
-      data: {
-        builderType: "branch",
-        actionType: "branch_condition",
-        label: "Check Engagement",
-        icon: "GitBranch",
-        color: "purple",
-        config: {
-          action_name: "Check Engagement",
-          conditions: [
-            { field: "email_opened", operator: "equals", value: "true" },
-            { field: "email_opened", operator: "equals", value: "false" },
-          ],
-        },
-      },
-    },
-    {
-      id: "node_9",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "send_sms",
-        label: "SMS Outreach",
-        icon: "MessageSquare",
-        color: "green",
-        config: {
-          action_name: "SMS Outreach",
-          message: "Hi! Just checking if you got my email about your project. Happy to answer any questions!",
-        },
-      },
-    },
-    {
-      id: "node_10",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "send_email",
-        label: "Case Study Email",
-        icon: "Mail",
-        color: "blue",
-        config: {
-          action_name: "Case Study Email",
-          template: "case_study",
-          subject: "See how we helped clients like you",
-        },
-      },
-    },
   ],
   edges: [
     { id: "edge_1", source: "node_1", target: "node_2" },
-    { id: "edge_2", source: "node_2", target: "node_3", sourceHandle: "branch_0" },
-    { id: "edge_3", source: "node_2", target: "node_4", sourceHandle: "branch_1" },
-    { id: "edge_4", source: "node_3", target: "node_5" },
+    { id: "edge_2", source: "node_2", target: "node_3", sourceHandle: "branch_0" }, // Hot
+    { id: "edge_3", source: "node_2", target: "node_15", sourceHandle: "branch_1" }, // Warm/Cold
+    { id: "edge_4", source: "node_3", target: "node_4" },
     { id: "edge_5", source: "node_4", target: "node_5" },
-    { id: "edge_6", source: "node_5", target: "node_6" },
-    { id: "edge_7", source: "node_6", target: "node_7" },
-    { id: "edge_8", source: "node_7", target: "node_8" },
-    { id: "edge_9", source: "node_8", target: "node_9", sourceHandle: "branch_1" },
-    { id: "edge_10", source: "node_8", target: "node_10", sourceHandle: "branch_0" },
+    { id: "edge_6", source: "node_5", target: "node_6", sourceHandle: "branch_0" }, // In hours
+    { id: "edge_7", source: "node_6", target: "node_7", sourceHandle: "branch_0" }, // Path A
+    { id: "edge_8", source: "node_6", target: "node_8", sourceHandle: "branch_1" }, // Path B
+    { id: "edge_9", source: "node_7", target: "node_9" },
+    { id: "edge_10", source: "node_8", target: "node_9" },
+    { id: "edge_11", source: "node_9", target: "node_14", sourceHandle: "branch_0" }, // Goal achieved
+    { id: "edge_12", source: "node_9", target: "node_10", sourceHandle: "branch_1" }, // Timeout
+    { id: "edge_13", source: "node_10", target: "node_12", sourceHandle: "branch_0" }, // Opened
+    { id: "edge_14", source: "node_10", target: "node_11", sourceHandle: "branch_1" }, // Not opened
+    { id: "edge_15", source: "node_12", target: "node_13", sourceHandle: "branch_0" }, // Clicked
   ],
   settings: {
     allowReEntry: false,
     timezone: "America/New_York",
   },
-  expectedResults: "40-60% conversion, 7-day timeline",
+  expectedResults: "50-70% conversion, lead score routing, A/B tested subject lines",
 };
 
 // =============================================================================
@@ -253,7 +355,7 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
 const template_02_email_engagement: WorkflowTemplate = {
   id: "template_02_email_engagement",
   name: "Email Engagement Re-activation",
-  description: "Re-engage cold leads with targeted email campaigns, behavioral scoring, and SMS follow-up. Converts inactive leads into opportunities",
+  description: "Advanced re-engagement with day-of-week optimization, A/B send times, engagement scoring, and conversion tracking with timeout fallbacks",
   category: "sales",
   triggers: [
     {
@@ -270,8 +372,97 @@ const template_02_email_engagement: WorkflowTemplate = {
     },
   ],
   nodes: [
+    // Day of Week Routing
     {
       id: "node_1",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Check Day of Week",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Day of Week Check",
+          condition_type: "field_equals",
+          field: "day_of_week",
+          value: "monday",
+          question: "Is it Monday (best re-engagement day)?",
+        },
+      },
+    },
+    {
+      id: "node_2",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "wait_until",
+        label: "Wait Until Monday",
+        icon: "Clock",
+        color: "gray",
+        config: {
+          action_name: "Wait Until Next Monday",
+          mode: "time_of_day",
+          time_of_day: "10:00",
+          timezone_mode: "contact",
+        },
+      },
+    },
+    // A/B Split for Send Time
+    {
+      id: "node_3",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "split",
+        label: "A/B Send Time Test",
+        icon: "Split",
+        color: "purple",
+        config: {
+          action_name: "Send Time A/B Test",
+          path_a_label: "Morning (10am)",
+          path_a_ratio: 50,
+          path_b_label: "Afternoon (2pm)",
+          path_b_ratio: 50,
+        },
+      },
+    },
+    {
+      id: "node_4",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "wait_until",
+        label: "Wait Until 10am",
+        icon: "Clock",
+        color: "gray",
+        config: {
+          action_name: "Wait Until Morning",
+          mode: "time_of_day",
+          time_of_day: "10:00",
+          timezone_mode: "contact",
+        },
+      },
+    },
+    {
+      id: "node_5",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "wait_until",
+        label: "Wait Until 2pm",
+        icon: "Clock",
+        color: "gray",
+        config: {
+          action_name: "Wait Until Afternoon",
+          mode: "time_of_day",
+          time_of_day: "14:00",
+          timezone_mode: "contact",
+        },
+      },
+    },
+    {
+      id: "node_6",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -283,27 +474,68 @@ const template_02_email_engagement: WorkflowTemplate = {
           action_name: "Re-engagement Email",
           template: "reengagement",
           subject: "We miss you! Special offer inside",
+          track_opens: true,
+          track_clicks: true,
+        },
+      },
+    },
+    // Goal with Timeout Fallback
+    {
+      id: "node_7",
+      type: "workflowNode",
+      data: {
+        builderType: "delay",
+        actionType: "wait_for_event",
+        label: "Wait for Engagement",
+        icon: "Target",
+        color: "orange",
+        config: {
+          action_name: "Wait for Email Engagement",
+          event_key: "email_clicked",
+          timeout_enabled: true,
+          timeout_value: 5,
+          timeout_unit: "days",
+          timeout_action: "branch_timeout",
+        },
+      },
+    },
+    // Engagement Check for Openers
+    {
+      id: "node_8",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Check Email Opened",
+        icon: "GitBranch",
+        color: "purple",
+        config: {
+          action_name: "Check If Opened",
+          condition_type: "field_equals",
+          field: "email_opened",
+          value: "true",
+          question: "Did the contact open the email?",
         },
       },
     },
     {
-      id: "node_2",
+      id: "node_9",
       type: "workflowNode",
       data: {
         builderType: "action",
-        actionType: "wait",
-        label: "Wait 5 Days",
-        icon: "Clock",
-        color: "gray",
+        actionType: "send_email",
+        label: "Follow-up Email",
+        icon: "Mail",
+        color: "blue",
         config: {
-          action_name: "Wait 5 Days",
-          duration: "5",
-          unit: "days",
+          action_name: "Follow-up to Openers",
+          template: "reengagement_followup",
+          subject: "{{contact.first_name}}, here's that info you were looking for",
         },
       },
     },
     {
-      id: "node_3",
+      id: "node_10",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -313,20 +545,62 @@ const template_02_email_engagement: WorkflowTemplate = {
         color: "green",
         config: {
           action_name: "SMS Check-in",
-          message: "Haven't heard from you in a while. Still interested in your project? Let's chat!",
+          message: "Hi {{contact.first_name}}! Haven't heard from you in a while. Still interested in your project? Let's chat!",
+        },
+      },
+    },
+    {
+      id: "node_11",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "goal_event",
+        label: "Track Re-engagement",
+        icon: "Target",
+        color: "green",
+        config: {
+          action_name: "Track Re-engagement",
+          goal_type: "reply",
+          track_attribution: true,
+        },
+      },
+    },
+    {
+      id: "node_12",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "remove_tag",
+        label: "Remove Cold Tag",
+        icon: "Tag",
+        color: "green",
+        config: {
+          action_name: "Remove Cold Lead Tag",
+          tag: "cold_lead",
         },
       },
     },
   ],
   edges: [
-    { id: "edge_1", source: "node_1", target: "node_2" },
-    { id: "edge_2", source: "node_2", target: "node_3" },
+    { id: "edge_1", source: "node_1", target: "node_3", sourceHandle: "branch_0" }, // Is Monday
+    { id: "edge_2", source: "node_1", target: "node_2", sourceHandle: "branch_1" }, // Not Monday
+    { id: "edge_3", source: "node_2", target: "node_3" },
+    { id: "edge_4", source: "node_3", target: "node_4", sourceHandle: "branch_0" }, // Morning
+    { id: "edge_5", source: "node_3", target: "node_5", sourceHandle: "branch_1" }, // Afternoon
+    { id: "edge_6", source: "node_4", target: "node_6" },
+    { id: "edge_7", source: "node_5", target: "node_6" },
+    { id: "edge_8", source: "node_6", target: "node_7" },
+    { id: "edge_9", source: "node_7", target: "node_11", sourceHandle: "branch_0" }, // Goal achieved
+    { id: "edge_10", source: "node_7", target: "node_8", sourceHandle: "branch_1" }, // Timeout
+    { id: "edge_11", source: "node_8", target: "node_9", sourceHandle: "branch_0" }, // Opened
+    { id: "edge_12", source: "node_8", target: "node_10", sourceHandle: "branch_1" }, // Not opened
+    { id: "edge_13", source: "node_11", target: "node_12" },
   ],
   settings: {
     allowReEntry: true,
     timezone: "America/New_York",
   },
-  expectedResults: "25-35% re-engagement rate",
+  expectedResults: "35-50% re-engagement rate, optimized send times",
 };
 
 // =============================================================================
@@ -335,7 +609,7 @@ const template_02_email_engagement: WorkflowTemplate = {
 const template_03_seasonal_promotion: WorkflowTemplate = {
   id: "template_03_seasonal_promotion",
   name: "Seasonal Promotion Campaign",
-  description: "Recurring yearly campaign (March 1) with VIP vs general client segmentation, multi-touch email sequence, and last-chance offers",
+  description: "Advanced campaign with A/B subject testing, lead score targeting, business hours delivery, engagement tracking, and conversion goals",
   category: "sales",
   triggers: [
     {
@@ -353,74 +627,175 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
     },
   ],
   nodes: [
+    // Lead Score Threshold Check
     {
       id: "node_1",
       type: "workflowNode",
       data: {
         builderType: "branch",
-        actionType: "branch_condition",
+        actionType: "if_else",
+        label: "Lead Score Tier",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Lead Score Tier Check",
+          condition_type: "field_equals",
+          field: "lead_score_tier",
+          value: "hot",
+          question: "Is this a hot lead (score 80+)?",
+        },
+      },
+    },
+    // Hot Leads - VIP Treatment
+    {
+      id: "node_2",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
         label: "Check Client Type",
         icon: "GitBranch",
         color: "purple",
         config: {
           action_name: "Check Client Type",
-          conditions: [
-            { field: "client_tier", operator: "equals", value: "vip" },
-            { field: "client_tier", operator: "not_equals", value: "vip" },
-          ],
+          condition_type: "field_equals",
+          field: "contact_type",
+          value: "customer",
+          question: "Is this an existing customer?",
         },
       },
     },
-    {
-      id: "node_2",
-      type: "workflowNode",
-      data: {
-        builderType: "action",
-        actionType: "send_email",
-        label: "VIP Early Access",
-        icon: "Mail",
-        color: "purple",
-        config: {
-          action_name: "VIP Early Access",
-          template: "vip_early_access",
-          subject: "🌟 VIP Early Access: Spring Renovation Special",
-        },
-      },
-    },
+    // Business Hours Gate for Hot Leads
     {
       id: "node_3",
       type: "workflowNode",
       data: {
-        builderType: "action",
-        actionType: "send_email",
-        label: "General Promotion",
-        icon: "Mail",
+        builderType: "branch",
+        actionType: "business_hours_gate",
+        label: "Business Hours Gate",
+        icon: "BriefcaseBusiness",
         color: "amber",
         config: {
-          action_name: "General Promotion",
-          template: "general_promotion",
-          subject: "Spring Sale: Save on Your Next Project",
+          action_name: "Business Hours Check",
+          timezone_mode: "contact",
+          start_time: "09:00",
+          end_time: "18:00",
+          days: "Mon,Tue,Wed,Thu,Fri",
         },
       },
     },
+    // A/B Test Subject Lines
     {
       id: "node_4",
       type: "workflowNode",
       data: {
-        builderType: "action",
-        actionType: "wait",
-        label: "Wait 7 Days",
-        icon: "Clock",
-        color: "gray",
+        builderType: "branch",
+        actionType: "split",
+        label: "A/B Subject Test",
+        icon: "Split",
+        color: "purple",
         config: {
-          action_name: "Wait 7 Days",
-          duration: "7",
-          unit: "days",
+          action_name: "VIP Subject A/B Test",
+          path_a_label: "Urgency Focus",
+          path_a_ratio: 50,
+          path_b_label: "Exclusivity Focus",
+          path_b_ratio: 50,
         },
       },
     },
     {
       id: "node_5",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "send_email",
+        label: "VIP Email A (Urgency)",
+        icon: "Mail",
+        color: "purple",
+        config: {
+          action_name: "VIP Email - Urgency",
+          template: "vip_early_access",
+          subject: "⏰ {{contact.first_name}}, 24 hours left for VIP Early Access!",
+          track_opens: true,
+          track_clicks: true,
+        },
+      },
+    },
+    {
+      id: "node_6",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "send_email",
+        label: "VIP Email B (Exclusivity)",
+        icon: "Mail",
+        color: "purple",
+        config: {
+          action_name: "VIP Email - Exclusivity",
+          template: "vip_early_access",
+          subject: "🌟 {{contact.first_name}}, your exclusive VIP invitation",
+          track_opens: true,
+          track_clicks: true,
+        },
+      },
+    },
+    // Conversion Goal with Timeout
+    {
+      id: "node_7",
+      type: "workflowNode",
+      data: {
+        builderType: "delay",
+        actionType: "wait_for_event",
+        label: "Wait for Purchase",
+        icon: "Target",
+        color: "orange",
+        config: {
+          action_name: "Wait for Purchase",
+          event_key: "payment_received",
+          timeout_enabled: true,
+          timeout_value: 7,
+          timeout_unit: "days",
+          timeout_action: "branch_timeout",
+        },
+      },
+    },
+    {
+      id: "node_8",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "goal_event",
+        label: "Track Conversion",
+        icon: "Target",
+        color: "green",
+        config: {
+          action_name: "Track Seasonal Conversion",
+          goal_type: "purchase",
+          track_attribution: true,
+        },
+      },
+    },
+    // Email Engagement Check for Non-converters
+    {
+      id: "node_9",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Check Email Clicked",
+        icon: "GitBranch",
+        color: "purple",
+        config: {
+          action_name: "Check Link Clicked",
+          condition_type: "field_equals",
+          field: "email_clicked",
+          value: "true",
+          question: "Did the contact click a link?",
+        },
+      },
+    },
+    {
+      id: "node_10",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -435,19 +810,77 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
         },
       },
     },
+    {
+      id: "node_11",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "send_sms",
+        label: "SMS Last Chance",
+        icon: "MessageSquare",
+        color: "amber",
+        config: {
+          action_name: "SMS Last Chance",
+          message: "{{contact.first_name}}, spring sale ends tonight! Don't miss your 20% discount. Reply STOP to opt out.",
+        },
+      },
+    },
+    // General Promotion Path (non-hot leads)
+    {
+      id: "node_12",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "send_email",
+        label: "General Promotion",
+        icon: "Mail",
+        color: "amber",
+        config: {
+          action_name: "General Promotion",
+          template: "general_promotion",
+          subject: "Spring Sale: Save on Your Next Project",
+          track_opens: true,
+        },
+      },
+    },
+    {
+      id: "node_13",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "wait",
+        label: "Wait 5 Days",
+        icon: "Clock",
+        color: "gray",
+        config: {
+          action_name: "Wait 5 Days",
+          duration: "5",
+          unit: "days",
+        },
+      },
+    },
   ],
   edges: [
-    { id: "edge_1", source: "node_1", target: "node_2", sourceHandle: "branch_0" },
-    { id: "edge_2", source: "node_1", target: "node_3", sourceHandle: "branch_1" },
-    { id: "edge_3", source: "node_2", target: "node_4" },
-    { id: "edge_4", source: "node_3", target: "node_4" },
-    { id: "edge_5", source: "node_4", target: "node_5" },
+    { id: "edge_1", source: "node_1", target: "node_2", sourceHandle: "branch_0" }, // Hot leads
+    { id: "edge_2", source: "node_1", target: "node_12", sourceHandle: "branch_1" }, // Warm/Cold
+    { id: "edge_3", source: "node_2", target: "node_3", sourceHandle: "branch_0" }, // VIP customer
+    { id: "edge_4", source: "node_3", target: "node_4", sourceHandle: "branch_0" }, // In business hours
+    { id: "edge_5", source: "node_4", target: "node_5", sourceHandle: "branch_0" }, // Path A
+    { id: "edge_6", source: "node_4", target: "node_6", sourceHandle: "branch_1" }, // Path B
+    { id: "edge_7", source: "node_5", target: "node_7" },
+    { id: "edge_8", source: "node_6", target: "node_7" },
+    { id: "edge_9", source: "node_7", target: "node_8", sourceHandle: "branch_0" }, // Converted
+    { id: "edge_10", source: "node_7", target: "node_9", sourceHandle: "branch_1" }, // Timeout
+    { id: "edge_11", source: "node_9", target: "node_10", sourceHandle: "branch_0" }, // Clicked
+    { id: "edge_12", source: "node_9", target: "node_11", sourceHandle: "branch_1" }, // Not clicked
+    { id: "edge_13", source: "node_12", target: "node_13" },
+    { id: "edge_14", source: "node_13", target: "node_10" },
   ],
   settings: {
     allowReEntry: false,
     timezone: "America/New_York",
   },
-  expectedResults: "15-25% conversion, 20-30% revenue increase",
+  expectedResults: "25-40% conversion, lead score targeting, A/B optimized",
 };
 
 // =============================================================================
