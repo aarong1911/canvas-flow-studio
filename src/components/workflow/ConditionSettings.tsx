@@ -48,17 +48,44 @@ const SCENARIO_RECIPES = [
 ];
 
 const FIELD_OPTIONS = [
-  { value: "contact.email", label: "Contact Email" },
-  { value: "contact.phone", label: "Contact Phone" },
-  { value: "contact.first_name", label: "First Name" },
-  { value: "contact.last_name", label: "Last Name" },
-  { value: "contact.tag", label: "Contact Tag" },
-  { value: "contact.source", label: "Contact Source" },
-  { value: "contact.last_appointment_days", label: "Days Since Last Appointment" },
-  { value: "deal.value", label: "Deal Value" },
-  { value: "deal.stage", label: "Deal Stage" },
-  { value: "system.current_hour", label: "Current Hour (0-23)" },
-  { value: "system.day_of_week", label: "Day of Week" },
+  { value: "contact_replied", label: "Contact Replied", valueType: "boolean" },
+  { value: "email_opened", label: "Email Opened", valueType: "boolean" },
+  { value: "email_clicked", label: "Email Link Clicked", valueType: "boolean" },
+  { value: "sms_replied", label: "SMS Replied", valueType: "boolean" },
+  { value: "contact.email", label: "Contact Email", valueType: "text" },
+  { value: "contact.phone", label: "Contact Phone", valueType: "text" },
+  { value: "contact.first_name", label: "First Name", valueType: "text" },
+  { value: "contact.last_name", label: "Last Name", valueType: "text" },
+  { value: "contact.tag", label: "Contact Tag", valueType: "text" },
+  { value: "contact.source", label: "Contact Source", valueType: "text" },
+  { value: "contact.last_appointment_days", label: "Days Since Last Appointment", valueType: "number" },
+  { value: "deal.value", label: "Deal Value", valueType: "number" },
+  { value: "deal.stage", label: "Deal Stage", valueType: "text" },
+  { value: "lead_source", label: "Lead Source", valueType: "select" },
+  { value: "lead_score", label: "Lead Score", valueType: "number" },
+  { value: "contact_type", label: "Contact Type", valueType: "select" },
+  { value: "system.current_hour", label: "Current Hour (0-23)", valueType: "number" },
+  { value: "system.day_of_week", label: "Day of Week", valueType: "text" },
+];
+
+const BOOLEAN_VALUE_OPTIONS = [
+  { value: "true", label: "True" },
+  { value: "false", label: "False" },
+];
+
+const LEAD_SOURCE_OPTIONS = [
+  { value: "website", label: "Website" },
+  { value: "referral", label: "Referral" },
+  { value: "social", label: "Social Media" },
+  { value: "phone", label: "Phone Call" },
+  { value: "walkin", label: "Walk-in" },
+  { value: "other", label: "Other" },
+];
+
+const CONTACT_TYPE_OPTIONS = [
+  { value: "lead", label: "Lead" },
+  { value: "customer", label: "Customer" },
+  { value: "past_customer", label: "Past Customer" },
 ];
 
 const OPERATOR_OPTIONS = [
@@ -431,11 +458,66 @@ export const ConditionSettings: React.FC<ConditionSettingsProps> = ({
                             </Select>
                           </div>
                           {segment.operator && !["is_empty", "is_not_empty"].includes(segment.operator) && (
-                            <Input
-                              value={segment.value}
-                              onChange={(e) => updateSegment(branch.id, segment.id, { value: e.target.value })}
-                              placeholder="Value"
-                            />
+                            (() => {
+                              const fieldDef = FIELD_OPTIONS.find(f => f.value === segment.field);
+                              if (fieldDef?.valueType === "boolean") {
+                                return (
+                                  <Select
+                                    value={segment.value}
+                                    onValueChange={(v) => updateSegment(branch.id, segment.id, { value: v })}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select value" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {BOOLEAN_VALUE_OPTIONS.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                );
+                              } else if (fieldDef?.valueType === "select" && segment.field === "lead_source") {
+                                return (
+                                  <Select
+                                    value={segment.value}
+                                    onValueChange={(v) => updateSegment(branch.id, segment.id, { value: v })}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select value" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {LEAD_SOURCE_OPTIONS.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                );
+                              } else if (fieldDef?.valueType === "select" && segment.field === "contact_type") {
+                                return (
+                                  <Select
+                                    value={segment.value}
+                                    onValueChange={(v) => updateSegment(branch.id, segment.id, { value: v })}
+                                  >
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select value" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {CONTACT_TYPE_OPTIONS.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                );
+                              } else {
+                                return (
+                                  <Input
+                                    value={segment.value}
+                                    onChange={(e) => updateSegment(branch.id, segment.id, { value: e.target.value })}
+                                    placeholder="Value"
+                                  />
+                                );
+                              }
+                            })()
                           )}
                           {segIndex < branch.segments.length - 1 && (
                             <div className="flex items-center gap-2">

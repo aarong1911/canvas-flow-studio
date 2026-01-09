@@ -168,6 +168,151 @@ export const DEFAULT_VARIABLES = [
   "{{invoice.number}}",
 ];
 
+// Tag options for tag-related actions
+export const TAG_OPTIONS = [
+  { value: "new_lead", label: "New Lead" },
+  { value: "hot_lead", label: "Hot Lead" },
+  { value: "warm_lead", label: "Warm Lead" },
+  { value: "cold_lead", label: "Cold Lead" },
+  { value: "vip", label: "VIP" },
+  { value: "customer", label: "Customer" },
+  { value: "past_customer", label: "Past Customer" },
+  { value: "referral", label: "Referral" },
+  { value: "do_not_contact", label: "Do Not Contact" },
+  { value: "follow_up", label: "Follow Up" },
+  { value: "nurture", label: "Nurture" },
+  { value: "qualified", label: "Qualified" },
+  { value: "unqualified", label: "Unqualified" },
+  { value: "website_lead", label: "Website Lead" },
+  { value: "social_lead", label: "Social Media Lead" },
+];
+
+// Segment field options for If/Else conditions
+export interface SegmentFieldOption {
+  value: string;
+  label: string;
+  description?: string;
+  operators: string[];
+  valueType: "boolean" | "select" | "number" | "text";
+  valueOptions?: Array<{ label: string; value: string }>;
+  placeholder?: string;
+}
+
+export const SEGMENT_FIELD_OPTIONS: SegmentFieldOption[] = [
+  {
+    value: "contact_replied",
+    label: "Contact replied",
+    description: "Whether the contact has replied to messages",
+    operators: ["equals"],
+    valueType: "boolean",
+    valueOptions: [
+      { label: "True", value: "true" },
+      { label: "False", value: "false" },
+    ],
+  },
+  {
+    value: "email_opened",
+    label: "Email opened",
+    description: "Whether the contact opened an email",
+    operators: ["equals"],
+    valueType: "boolean",
+    valueOptions: [
+      { label: "True", value: "true" },
+      { label: "False", value: "false" },
+    ],
+  },
+  {
+    value: "email_clicked",
+    label: "Email link clicked",
+    description: "Whether the contact clicked a link in an email",
+    operators: ["equals"],
+    valueType: "boolean",
+    valueOptions: [
+      { label: "True", value: "true" },
+      { label: "False", value: "false" },
+    ],
+  },
+  {
+    value: "sms_replied",
+    label: "SMS replied",
+    description: "Whether the contact replied to an SMS",
+    operators: ["equals"],
+    valueType: "boolean",
+    valueOptions: [
+      { label: "True", value: "true" },
+      { label: "False", value: "false" },
+    ],
+  },
+  {
+    value: "lead_source",
+    label: "Lead source",
+    description: "Where the lead came from",
+    operators: ["equals", "not_equals"],
+    valueType: "select",
+    valueOptions: [
+      { label: "Website", value: "website" },
+      { label: "Referral", value: "referral" },
+      { label: "Social Media", value: "social" },
+      { label: "Phone Call", value: "phone" },
+      { label: "Walk-in", value: "walkin" },
+      { label: "Other", value: "other" },
+    ],
+  },
+  {
+    value: "lead_score",
+    label: "Lead score",
+    description: "Contact's lead score",
+    operators: ["greater_than", "less_than", "equals"],
+    valueType: "number",
+    placeholder: "Enter score (e.g., 70)",
+  },
+  {
+    value: "has_tag",
+    label: "Has tag",
+    description: "Check if contact has a specific tag",
+    operators: ["equals", "not_equals", "contains"],
+    valueType: "text",
+    placeholder: "Enter tag name (e.g., VIP)",
+  },
+  {
+    value: "contact_type",
+    label: "Contact type",
+    description: "Type of contact",
+    operators: ["equals", "not_equals"],
+    valueType: "select",
+    valueOptions: [
+      { label: "Lead", value: "lead" },
+      { label: "Customer", value: "customer" },
+      { label: "Past Customer", value: "past_customer" },
+    ],
+  },
+  {
+    value: "days_since_created",
+    label: "Days since created",
+    description: "Days since contact was created",
+    operators: ["greater_than", "less_than", "equals"],
+    valueType: "number",
+    placeholder: "Enter number of days",
+  },
+];
+
+// Helper to get segment field definition
+export function getSegmentFieldDef(fieldValue: string): SegmentFieldOption | undefined {
+  return SEGMENT_FIELD_OPTIONS.find((f) => f.value === fieldValue);
+}
+
+// Helper to format operator labels
+export function formatOperatorLabel(operator: string): string {
+  const labels: Record<string, string> = {
+    equals: "equals",
+    not_equals: "does not equal",
+    greater_than: "is greater than",
+    less_than: "is less than",
+    contains: "contains",
+  };
+  return labels[operator] || operator;
+}
+
 export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
   form_submitted: {
     title: "Configure",
@@ -302,7 +447,14 @@ export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
     title: "Configure",
     fields: [
       { name: "action_name", label: "Action Name", type: "text", placeholder: "Add Tag" },
-      { name: "tag", label: "Tag Name", type: "text", required: true, placeholder: "VIP" },
+      { name: "tag", label: "Tag Name", type: "select", required: true, options: TAG_OPTIONS },
+    ],
+  },
+  remove_tag: {
+    title: "Configure",
+    fields: [
+      { name: "action_name", label: "Action Name", type: "text", placeholder: "Remove Tag" },
+      { name: "tag", label: "Tag Name", type: "select", required: true, options: TAG_OPTIONS },
     ],
   },
   add_task: {
@@ -407,15 +559,7 @@ export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
       ]},
     ],
   },
-  // Remove Tag
-  remove_tag: {
-    title: "Configure",
-    fields: [
-      { name: "action_name", label: "Action Name", type: "text", placeholder: "Remove Tag" },
-      { name: "tag", label: "Tag Name", type: "text", required: true, placeholder: "VIP" },
-    ],
-  },
-  // Remove Assigned User
+  // Remove Assigned User (remove_tag is already defined above)
   remove_assigned: {
     title: "Configure",
     fields: [

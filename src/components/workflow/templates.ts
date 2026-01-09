@@ -141,7 +141,8 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
         color: "gray",
         config: {
           action_name: "Wait 2 Days",
-          wait_duration: 2880,
+          duration: "2",
+          unit: "days",
         },
       },
     },
@@ -172,7 +173,8 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
         color: "gray",
         config: {
           action_name: "Wait 3 Days",
-          wait_duration: 4320,
+          duration: "3",
+          unit: "days",
         },
       },
     },
@@ -295,7 +297,8 @@ const template_02_email_engagement: WorkflowTemplate = {
         color: "gray",
         config: {
           action_name: "Wait 5 Days",
-          wait_duration: 7200,
+          duration: "5",
+          unit: "days",
         },
       },
     },
@@ -411,7 +414,8 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
         color: "gray",
         config: {
           action_name: "Wait 7 Days",
-          wait_duration: 10080,
+          duration: "7",
+          unit: "days",
         },
       },
     },
@@ -806,7 +810,8 @@ const template_07_payment_collection: WorkflowTemplate = {
         color: "gray",
         config: {
           action_name: "Wait 3 Days",
-          wait_duration: 4320,
+          duration: "3",
+          unit: "days",
         },
       },
     },
@@ -837,7 +842,8 @@ const template_07_payment_collection: WorkflowTemplate = {
         color: "gray",
         config: {
           action_name: "Wait 4 Days",
-          wait_duration: 5760,
+          duration: "4",
+          unit: "days",
         },
       },
     },
@@ -867,7 +873,8 @@ const template_07_payment_collection: WorkflowTemplate = {
         color: "gray",
         config: {
           action_name: "Wait 3 Days",
-          wait_duration: 4320,
+          duration: "3",
+          unit: "days",
         },
       },
     },
@@ -898,7 +905,8 @@ const template_07_payment_collection: WorkflowTemplate = {
         color: "gray",
         config: {
           action_name: "Wait 10 Days",
-          wait_duration: 14400,
+          duration: "10",
+          unit: "days",
         },
       },
     },
@@ -1133,7 +1141,8 @@ const template_09_materials_permit_tracking: WorkflowTemplate = {
         color: "gray",
         config: {
           action_name: "Wait 3 Days",
-          wait_duration: 4320,
+          duration: "3",
+          unit: "days",
         },
       },
     },
@@ -1254,7 +1263,8 @@ const template_10_post_project_review: WorkflowTemplate = {
         color: "gray",
         config: {
           action_name: "Wait 1 Day",
-          wait_duration: 1440,
+          duration: "1",
+          unit: "days",
         },
       },
     },
@@ -1285,7 +1295,8 @@ const template_10_post_project_review: WorkflowTemplate = {
         color: "gray",
         config: {
           action_name: "Wait 3 Days",
-          wait_duration: 4320,
+          duration: "3",
+          unit: "days",
         },
       },
     },
