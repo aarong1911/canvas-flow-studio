@@ -113,6 +113,18 @@ export const WorkflowBuilder: React.FC = () => {
   const [connectFrom, setConnectFrom] = useState<ConnectFrom>(null);
   const [wfSettings, setWfSettings] = useState<WorkflowSettings>(DEFAULT_SETTINGS);
 
+  // Refs to avoid stale closures (first insert would use old connectFrom/selectedEdgeId)
+  const connectFromRef = useRef<ConnectFrom>(null);
+  const selectedEdgeIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    connectFromRef.current = connectFrom;
+  }, [connectFrom]);
+
+  useEffect(() => {
+    selectedEdgeIdRef.current = selectedEdgeId;
+  }, [selectedEdgeId]);
+
   const reactFlowRef = useRef<ReactFlowInstance | null>(null);
   const canvasWrapRef = useRef<HTMLDivElement | null>(null);
 
@@ -530,10 +542,13 @@ export const WorkflowBuilder: React.FC = () => {
   }, [nodes]);
 
   const handleAddNode = useCallback((item: NodeLibraryItem) => {
+    const cf = connectFromRef.current;
+    const activeSelectedEdgeId = selectedEdgeIdRef.current;
+
     const nodeId = crypto.randomUUID();
     const builderType = normalizeBuilderType(item.kind, item.id);
-    const insertBeforeNodeId = (connectFrom as any)?.insertBeforeNodeId;
-    const pos = getNewNodePosition(connectFrom?.sourceNodeId, connectFrom?.sourceHandle);
+    const insertBeforeNodeId = (cf as any)?.insertBeforeNodeId;
+    const pos = getNewNodePosition(cf?.sourceNodeId, cf?.sourceHandle);
 
     const newNode: RFNode = {
       id: nodeId,
@@ -550,12 +565,12 @@ export const WorkflowBuilder: React.FC = () => {
       },
     };
 
-    if (selectedEdgeId) {
-      const edge = edges.find(e => e.id === selectedEdgeId);
+    if (activeSelectedEdgeId) {
+      const edge = edges.find((e) => e.id === activeSelectedEdgeId);
       if (edge) {
-        const sourceNode = nodes.find(n => n.id === edge.source);
-        const targetNode = nodes.find(n => n.id === edge.target);
-        
+        const sourceNode = nodes.find((n) => n.id === edge.source);
+        const targetNode = nodes.find((n) => n.id === edge.target);
+
         if (sourceNode && targetNode) {
           newNode.position = {
             x: (sourceNode.position.x + targetNode.position.x) / 2,
@@ -566,7 +581,7 @@ export const WorkflowBuilder: React.FC = () => {
         setNodes((nds) => [...nds, newNode]);
 
         setEdges((eds) => {
-          const filtered = eds.filter(e => e.id !== selectedEdgeId);
+          const filtered = eds.filter((e) => e.id !== activeSelectedEdgeId);
           return [
             ...filtered,
             {
@@ -604,7 +619,7 @@ export const WorkflowBuilder: React.FC = () => {
     if (insertBeforeNodeId) {
       const targetNode = nodes.find((n) => n.id === insertBeforeNodeId);
 
-      if (connectFrom?.sourceNodeId === "__trigger__") {
+      if (cf?.sourceNodeId === "__trigger__") {
         if (targetNode) {
           newNode.position = {
             x: targetNode.position.x,
@@ -621,8 +636,8 @@ export const WorkflowBuilder: React.FC = () => {
         return;
       }
 
-      const sourceId = connectFrom?.sourceNodeId;
-      const sourceHandle = (connectFrom?.sourceHandle as any) || "default";
+      const sourceId = cf?.sourceNodeId;
+      const sourceHandle = (cf?.sourceHandle as any) || "default";
       const sourceNode = nodes.find((n) => n.id === sourceId);
 
       if (sourceNode && targetNode) {
@@ -646,7 +661,7 @@ export const WorkflowBuilder: React.FC = () => {
             (e) =>
               e.source === sourceId &&
               e.target === insertBeforeNodeId &&
-              ((e.sourceHandle as any) || "default") === sourceHandle
+              (((e.sourceHandle as any) || "default") === sourceHandle)
           );
 
           const filtered = existing ? eds.filter((e) => e.id !== existing.id) : eds;
@@ -687,36 +702,39 @@ export const WorkflowBuilder: React.FC = () => {
 
     setNodes((nds) => [...nds, newNode]);
 
-    if (connectFrom) {
+    if (cf) {
       let edgeLabel: string | undefined;
-      if (connectFrom.sourceHandle === "yes") edgeLabel = "Yes";
-      else if (connectFrom.sourceHandle === "no") edgeLabel = "No";
-      else if (connectFrom.sourceHandle === "none") edgeLabel = "None";
-      else if (connectFrom.sourceHandle?.startsWith("branch_")) {
-        const srcNode = nodes.find(n => n.id === connectFrom.sourceNodeId);
-        const branchIdx = parseInt(connectFrom.sourceHandle.replace("branch_", ""), 10);
+      if (cf.sourceHandle === "yes") edgeLabel = "Yes";
+      else if (cf.sourceHandle === "no") edgeLabel = "No";
+      else if (cf.sourceHandle === "none") edgeLabel = "None";
+      else if (cf.sourceHandle?.startsWith("branch_")) {
+        const srcNode = nodes.find((n) => n.id === cf.sourceNodeId);
+        const branchIdx = parseInt(cf.sourceHandle.replace("branch_", ""), 10);
         const branch = srcNode?.data.config?.branches?.[branchIdx];
         edgeLabel = branch?.name || `Branch ${branchIdx + 1}`;
       }
-      
-      setEdges((eds) => [...eds, {
-        id: crypto.randomUUID(),
-        source: connectFrom.sourceNodeId,
-        target: nodeId,
-        sourceHandle: connectFrom.sourceHandle,
-        targetHandle: "in",
-        type: "plusEdge",
-        markerEnd: { type: MarkerType.ArrowClosed },
-        style: { strokeWidth: 2 },
-        label: edgeLabel,
-      }]);
+
+      setEdges((eds) => [
+        ...eds,
+        {
+          id: crypto.randomUUID(),
+          source: cf.sourceNodeId,
+          target: nodeId,
+          sourceHandle: cf.sourceHandle,
+          targetHandle: "in",
+          type: "plusEdge",
+          markerEnd: { type: MarkerType.ArrowClosed },
+          style: { strokeWidth: 2 },
+          label: edgeLabel,
+        },
+      ]);
     }
 
     setConnectFrom(null);
     setSelectedNodeId(nodeId);
     setSidebarTab("settings");
     toast.success(`Added: ${item.label}`);
-  }, [connectFrom, selectedEdgeId, edges, nodes, getNewNodePosition, setEdges, setNodes]);
+  }, [edges, nodes, getNewNodePosition, setEdges, setNodes]);
 
   const handleSaveNodeConfig = useCallback((nodeId: string, config: Record<string, any>) => {
     setNodes((nds) => nds.map((n) => (n.id === nodeId ? { ...n, data: { ...n.data, config, isConfigured: true } } : n)));
