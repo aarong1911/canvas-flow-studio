@@ -324,6 +324,167 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
         },
       },
     },
+    // Email for warm/cold leads
+    {
+      id: "node_16",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "send_email",
+        label: "Nurture Email",
+        icon: "Mail",
+        color: "blue",
+        config: {
+          action_name: "Nurture Email",
+          template: "lead_nurture",
+          subject: "Hi {{contact.first_name}}, let's stay in touch",
+          track_opens: true,
+          track_clicks: true,
+        },
+      },
+    },
+    // Contact Reply Check after nurture email
+    {
+      id: "node_17",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Contact Replied?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Contact Reply",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply?",
+        },
+      },
+    },
+    // Move to hot lead path if replied
+    {
+      id: "node_18",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "go_to",
+        label: "Go To Hot Lead Path",
+        icon: "ExternalLink",
+        color: "amber",
+        config: {
+          action_name: "Route to Hot Lead Path",
+          target_node: "node_3",
+        },
+      },
+    },
+    // Wait and retry for non-responders
+    {
+      id: "node_19",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "wait",
+        label: "Wait 3 Days",
+        icon: "Clock",
+        color: "gray",
+        config: {
+          action_name: "Wait 3 Days",
+          duration: "3",
+          unit: "days",
+        },
+      },
+    },
+    // Second nurture attempt
+    {
+      id: "node_20",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "send_email",
+        label: "Follow-up Email",
+        icon: "Mail",
+        color: "blue",
+        config: {
+          action_name: "Follow-up Email",
+          template: "nurture_followup",
+          subject: "{{contact.first_name}}, one more thing...",
+        },
+      },
+    },
+    // Final contact reply check
+    {
+      id: "node_21",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Contact Replied?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Final Reply",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply?",
+        },
+      },
+    },
+    // Add to long-term nurture if no reply
+    {
+      id: "node_22",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "add_tag",
+        label: "Tag for Long-term Nurture",
+        icon: "Tag",
+        color: "gray",
+        config: {
+          action_name: "Tag for Long-term Nurture",
+          tag: "long_term_nurture",
+        },
+      },
+    },
+    // Contact Reply Check after high-intent follow-up (node_13)
+    {
+      id: "node_23",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Contact Replied?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Reply After High-Intent",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply?",
+        },
+      },
+    },
+    // SMS Reply Check (after node_11)
+    {
+      id: "node_24",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "SMS Reply?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check SMS Reply",
+          condition_type: "field_equals",
+          field: "sms_replied",
+          value: "true",
+          question: "Did the contact reply to SMS?",
+        },
+      },
+    },
   ],
   edges: [
     { id: "edge_1", source: "node_1", target: "node_2" },
@@ -336,11 +497,26 @@ const template_01_new_lead_nurture: WorkflowTemplate = {
     { id: "edge_8", source: "node_6", target: "node_8", sourceHandle: "branch_1" }, // Path B
     { id: "edge_9", source: "node_7", target: "node_9" },
     { id: "edge_10", source: "node_8", target: "node_9" },
-    { id: "edge_11", source: "node_9", target: "node_14", sourceHandle: "branch_0" }, // Goal achieved
+    { id: "edge_11", source: "node_9", target: "node_14", sourceHandle: "branch_0" }, // Goal achieved (replied)
     { id: "edge_12", source: "node_9", target: "node_10", sourceHandle: "branch_1" }, // Timeout
     { id: "edge_13", source: "node_10", target: "node_12", sourceHandle: "branch_0" }, // Opened
     { id: "edge_14", source: "node_10", target: "node_11", sourceHandle: "branch_1" }, // Not opened
     { id: "edge_15", source: "node_12", target: "node_13", sourceHandle: "branch_0" }, // Clicked
+    { id: "edge_16", source: "node_13", target: "node_23" }, // High-intent follow-up -> check reply
+    { id: "edge_17", source: "node_23", target: "node_14", sourceHandle: "branch_0" }, // Replied -> track conversion
+    { id: "edge_18", source: "node_23", target: "node_22", sourceHandle: "branch_1" }, // No reply -> long-term nurture
+    { id: "edge_19", source: "node_11", target: "node_24" }, // SMS -> check reply
+    { id: "edge_20", source: "node_24", target: "node_14", sourceHandle: "branch_0" }, // SMS replied -> track conversion
+    { id: "edge_21", source: "node_24", target: "node_22", sourceHandle: "branch_1" }, // No SMS reply -> long-term nurture
+    { id: "edge_22", source: "node_15", target: "node_16" }, // Wait -> nurture email
+    { id: "edge_23", source: "node_16", target: "node_17" }, // Email -> check reply
+    { id: "edge_24", source: "node_17", target: "node_18", sourceHandle: "branch_0" }, // Replied -> go to hot path
+    { id: "edge_25", source: "node_17", target: "node_19", sourceHandle: "branch_1" }, // No reply -> wait
+    { id: "edge_26", source: "node_19", target: "node_20" }, // Wait -> follow-up email
+    { id: "edge_27", source: "node_20", target: "node_21" }, // Email -> check reply
+    { id: "edge_28", source: "node_21", target: "node_18", sourceHandle: "branch_0" }, // Replied -> go to hot path
+    { id: "edge_29", source: "node_21", target: "node_22", sourceHandle: "branch_1" }, // No reply -> long-term nurture
+    { id: "edge_30", source: "node_12", target: "node_22", sourceHandle: "branch_1" }, // Not clicked -> long-term nurture
   ],
   settings: {
     allowReEntry: false,
@@ -580,6 +756,60 @@ const template_02_email_engagement: WorkflowTemplate = {
         },
       },
     },
+    // Contact Reply Check after follow-up email (node_9)
+    {
+      id: "node_13",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Contact Replied?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Reply After Follow-up",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply?",
+        },
+      },
+    },
+    // SMS Reply Check (after node_10)
+    {
+      id: "node_14",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "SMS Reply?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check SMS Reply",
+          condition_type: "field_equals",
+          field: "sms_replied",
+          value: "true",
+          question: "Did the contact reply to SMS?",
+        },
+      },
+    },
+    // Mark as unresponsive
+    {
+      id: "node_15",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "add_tag",
+        label: "Tag as Unresponsive",
+        icon: "Tag",
+        color: "gray",
+        config: {
+          action_name: "Tag as Unresponsive",
+          tag: "unresponsive",
+        },
+      },
+    },
   ],
   edges: [
     { id: "edge_1", source: "node_1", target: "node_3", sourceHandle: "branch_0" }, // Is Monday
@@ -590,11 +820,17 @@ const template_02_email_engagement: WorkflowTemplate = {
     { id: "edge_6", source: "node_4", target: "node_6" },
     { id: "edge_7", source: "node_5", target: "node_6" },
     { id: "edge_8", source: "node_6", target: "node_7" },
-    { id: "edge_9", source: "node_7", target: "node_11", sourceHandle: "branch_0" }, // Goal achieved
+    { id: "edge_9", source: "node_7", target: "node_11", sourceHandle: "branch_0" }, // Goal achieved (clicked)
     { id: "edge_10", source: "node_7", target: "node_8", sourceHandle: "branch_1" }, // Timeout
     { id: "edge_11", source: "node_8", target: "node_9", sourceHandle: "branch_0" }, // Opened
     { id: "edge_12", source: "node_8", target: "node_10", sourceHandle: "branch_1" }, // Not opened
     { id: "edge_13", source: "node_11", target: "node_12" },
+    { id: "edge_14", source: "node_9", target: "node_13" }, // Follow-up -> check reply
+    { id: "edge_15", source: "node_13", target: "node_11", sourceHandle: "branch_0" }, // Replied -> track re-engagement
+    { id: "edge_16", source: "node_13", target: "node_15", sourceHandle: "branch_1" }, // No reply -> unresponsive
+    { id: "edge_17", source: "node_10", target: "node_14" }, // SMS -> check reply
+    { id: "edge_18", source: "node_14", target: "node_11", sourceHandle: "branch_0" }, // SMS replied -> track re-engagement
+    { id: "edge_19", source: "node_14", target: "node_15", sourceHandle: "branch_1" }, // No SMS reply -> unresponsive
   ],
   settings: {
     allowReEntry: true,
@@ -843,8 +1079,44 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
         },
       },
     },
+    // Contact Reply Check after general promotion
     {
       id: "node_13",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Contact Replied?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Reply After Promotion",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply?",
+        },
+      },
+    },
+    // Go to VIP path if replied
+    {
+      id: "node_14",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "go_to",
+        label: "Go To VIP Path",
+        icon: "ExternalLink",
+        color: "amber",
+        config: {
+          action_name: "Route to VIP Path",
+          target_node: "node_3",
+        },
+      },
+    },
+    // Wait for non-responders
+    {
+      id: "node_15",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -859,6 +1131,115 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
         },
       },
     },
+    // Last chance email
+    {
+      id: "node_16",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "send_email",
+        label: "Last Chance Email",
+        icon: "Mail",
+        color: "red",
+        config: {
+          action_name: "Last Chance Email",
+          template: "last_chance",
+          subject: "⏰ Last Chance: Spring Sale Ends Tomorrow",
+        },
+      },
+    },
+    // Final reply check
+    {
+      id: "node_17",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Contact Replied?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Final Reply",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply?",
+        },
+      },
+    },
+    // Mark as not interested
+    {
+      id: "node_18",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "add_tag",
+        label: "Tag as Promotion Unresponsive",
+        icon: "Tag",
+        color: "gray",
+        config: {
+          action_name: "Tag as Promotion Unresponsive",
+          tag: "promotion_unresponsive",
+        },
+      },
+    },
+    // Contact Reply Check after VIP emails (node_5 and node_6)
+    {
+      id: "node_19",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "VIP Email Reply?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check VIP Email Reply",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the VIP contact reply?",
+        },
+      },
+    },
+    // Last chance reply check
+    {
+      id: "node_20",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Last Chance Reply?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Last Chance Reply",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply to last chance?",
+        },
+      },
+    },
+    // SMS Last Chance reply check
+    {
+      id: "node_21",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "SMS Reply?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check SMS Reply",
+          condition_type: "field_equals",
+          field: "sms_replied",
+          value: "true",
+          question: "Did the contact reply to SMS?",
+        },
+      },
+    },
   ],
   edges: [
     { id: "edge_1", source: "node_1", target: "node_2", sourceHandle: "branch_0" }, // Hot leads
@@ -867,14 +1248,27 @@ const template_03_seasonal_promotion: WorkflowTemplate = {
     { id: "edge_4", source: "node_3", target: "node_4", sourceHandle: "branch_0" }, // In business hours
     { id: "edge_5", source: "node_4", target: "node_5", sourceHandle: "branch_0" }, // Path A
     { id: "edge_6", source: "node_4", target: "node_6", sourceHandle: "branch_1" }, // Path B
-    { id: "edge_7", source: "node_5", target: "node_7" },
-    { id: "edge_8", source: "node_6", target: "node_7" },
-    { id: "edge_9", source: "node_7", target: "node_8", sourceHandle: "branch_0" }, // Converted
-    { id: "edge_10", source: "node_7", target: "node_9", sourceHandle: "branch_1" }, // Timeout
-    { id: "edge_11", source: "node_9", target: "node_10", sourceHandle: "branch_0" }, // Clicked
-    { id: "edge_12", source: "node_9", target: "node_11", sourceHandle: "branch_1" }, // Not clicked
-    { id: "edge_13", source: "node_12", target: "node_13" },
-    { id: "edge_14", source: "node_13", target: "node_10" },
+    { id: "edge_7", source: "node_5", target: "node_19" }, // VIP Email A -> check reply
+    { id: "edge_8", source: "node_6", target: "node_19" }, // VIP Email B -> check reply
+    { id: "edge_9", source: "node_19", target: "node_8", sourceHandle: "branch_0" }, // Replied -> track conversion
+    { id: "edge_10", source: "node_19", target: "node_7", sourceHandle: "branch_1" }, // No reply -> wait for purchase
+    { id: "edge_11", source: "node_7", target: "node_8", sourceHandle: "branch_0" }, // Converted
+    { id: "edge_12", source: "node_7", target: "node_9", sourceHandle: "branch_1" }, // Timeout
+    { id: "edge_13", source: "node_9", target: "node_10", sourceHandle: "branch_0" }, // Clicked -> last chance email
+    { id: "edge_14", source: "node_9", target: "node_11", sourceHandle: "branch_1" }, // Not clicked -> SMS last chance
+    { id: "edge_15", source: "node_10", target: "node_20" }, // Last chance email -> check reply
+    { id: "edge_16", source: "node_20", target: "node_8", sourceHandle: "branch_0" }, // Replied -> track conversion
+    { id: "edge_17", source: "node_20", target: "node_18", sourceHandle: "branch_1" }, // No reply -> unresponsive
+    { id: "edge_18", source: "node_11", target: "node_21" }, // SMS -> check reply
+    { id: "edge_19", source: "node_21", target: "node_8", sourceHandle: "branch_0" }, // SMS replied -> track conversion
+    { id: "edge_20", source: "node_21", target: "node_18", sourceHandle: "branch_1" }, // No SMS reply -> unresponsive
+    { id: "edge_21", source: "node_12", target: "node_13" }, // General promotion -> check reply
+    { id: "edge_22", source: "node_13", target: "node_14", sourceHandle: "branch_0" }, // Replied -> go to VIP path
+    { id: "edge_23", source: "node_13", target: "node_15", sourceHandle: "branch_1" }, // No reply -> wait
+    { id: "edge_24", source: "node_15", target: "node_16" }, // Wait -> last chance email
+    { id: "edge_25", source: "node_16", target: "node_17" }, // Last chance -> check reply
+    { id: "edge_26", source: "node_17", target: "node_14", sourceHandle: "branch_0" }, // Replied -> go to VIP path
+    { id: "edge_27", source: "node_17", target: "node_18", sourceHandle: "branch_1" }, // No reply -> unresponsive
   ],
   settings: {
     allowReEntry: false,
@@ -971,11 +1365,178 @@ const template_04_referral_automation: WorkflowTemplate = {
         },
       },
     },
+    // Contact Reply Check after referral request
+    {
+      id: "node_5",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Contact Replied?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Referral Reply",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply with referral?",
+        },
+      },
+    },
+    // Track referral success
+    {
+      id: "node_6",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "add_tag",
+        label: "Tag as Referrer",
+        icon: "Tag",
+        color: "green",
+        config: {
+          action_name: "Tag as Referrer",
+          tag: "active_referrer",
+        },
+      },
+    },
+    // Wait and send reminder for non-responders
+    {
+      id: "node_7",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "wait",
+        label: "Wait 7 Days",
+        icon: "Clock",
+        color: "gray",
+        config: {
+          action_name: "Wait 7 Days",
+          duration: "7",
+          unit: "days",
+        },
+      },
+    },
+    // Reminder email
+    {
+      id: "node_8",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "send_email",
+        label: "Referral Reminder",
+        icon: "Mail",
+        color: "blue",
+        config: {
+          action_name: "Referral Reminder",
+          template: "referral_reminder",
+          subject: "Still thinking about who to refer?",
+        },
+      },
+    },
+    // Final reply check
+    {
+      id: "node_9",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Contact Replied?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Final Referral Reply",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply?",
+        },
+      },
+    },
+    // Mark as no referral
+    {
+      id: "node_10",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "add_tag",
+        label: "Tag as No Referral",
+        icon: "Tag",
+        color: "gray",
+        config: {
+          action_name: "Tag as No Referral",
+          tag: "no_referral_response",
+        },
+      },
+    },
+    // Manager follow-up check after low rating alert
+    {
+      id: "node_11",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "wait",
+        label: "Wait for Manager Action",
+        icon: "Clock",
+        color: "gray",
+        config: {
+          action_name: "Wait for Manager Action",
+          duration: "2",
+          unit: "days",
+        },
+      },
+    },
+    // Check if issue resolved
+    {
+      id: "node_12",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Issue Resolved?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Issue Resolution",
+          condition_type: "field_equals",
+          field: "issue_resolved",
+          value: "true",
+          question: "Was the issue resolved?",
+        },
+      },
+    },
+    // Escalate unresolved
+    {
+      id: "node_13",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "notify_team",
+        label: "Escalate to Senior Manager",
+        icon: "AlertCircle",
+        color: "red",
+        config: {
+          action_name: "Escalate to Senior Manager",
+          notification_type: "escalation",
+          recipient_role: "senior_manager",
+        },
+      },
+    },
   ],
   edges: [
     { id: "edge_1", source: "node_1", target: "node_2", sourceHandle: "branch_0" },
     { id: "edge_2", source: "node_2", target: "node_3" },
     { id: "edge_3", source: "node_1", target: "node_4", sourceHandle: "branch_1" },
+    { id: "edge_4", source: "node_3", target: "node_5" }, // Referral request -> check reply
+    { id: "edge_5", source: "node_5", target: "node_6", sourceHandle: "branch_0" }, // Replied -> tag as referrer
+    { id: "edge_6", source: "node_5", target: "node_7", sourceHandle: "branch_1" }, // No reply -> wait
+    { id: "edge_7", source: "node_7", target: "node_8" }, // Wait -> reminder
+    { id: "edge_8", source: "node_8", target: "node_9" }, // Reminder -> check reply
+    { id: "edge_9", source: "node_9", target: "node_6", sourceHandle: "branch_0" }, // Replied -> tag as referrer
+    { id: "edge_10", source: "node_9", target: "node_10", sourceHandle: "branch_1" }, // No reply -> no referral tag
+    { id: "edge_11", source: "node_4", target: "node_11" }, // Alert manager -> wait
+    { id: "edge_12", source: "node_11", target: "node_12" }, // Wait -> check resolution
+    { id: "edge_13", source: "node_12", target: "node_13", sourceHandle: "branch_1" }, // Not resolved -> escalate
   ],
   settings: {
     allowReEntry: false,
@@ -1343,8 +1904,28 @@ const template_07_payment_collection: WorkflowTemplate = {
         },
       },
     },
+    // Check if payment received before collections
     {
       id: "node_8",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Payment Received?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Payment Status",
+          condition_type: "field_equals",
+          field: "payment_received",
+          value: "true",
+          question: "Has payment been received?",
+        },
+      },
+    },
+    // Alert collections only if still unpaid
+    {
+      id: "node_9",
       type: "workflowNode",
       data: {
         builderType: "action",
@@ -1359,15 +1940,114 @@ const template_07_payment_collection: WorkflowTemplate = {
         },
       },
     },
+    // Check reply after gentle reminder
+    {
+      id: "node_10",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Contact Replied?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Reply After Gentle",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply?",
+        },
+      },
+    },
+    // Payment received path
+    {
+      id: "node_11",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "send_email",
+        label: "Payment Confirmation",
+        icon: "Mail",
+        color: "green",
+        config: {
+          action_name: "Payment Confirmation",
+          template: "payment_received",
+          subject: "Thank you for your payment!",
+        },
+      },
+    },
+    // Check SMS reply
+    {
+      id: "node_12",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "SMS Reply?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check SMS Reply",
+          condition_type: "field_equals",
+          field: "sms_replied",
+          value: "true",
+          question: "Did the contact reply to SMS?",
+        },
+      },
+    },
+    // Check reply after firm notice
+    {
+      id: "node_13",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Contact Replied?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Reply After Firm",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply to firm notice?",
+        },
+      },
+    },
+    // Assign account manager for contact responses
+    {
+      id: "node_14",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "assign_user",
+        label: "Assign Account Manager",
+        icon: "UserCheck",
+        color: "blue",
+        config: {
+          action_name: "Assign Account Manager",
+          assignment_rule: "round_robin",
+          role: "account_manager",
+        },
+      },
+    },
   ],
   edges: [
     { id: "edge_1", source: "node_1", target: "node_2" },
-    { id: "edge_2", source: "node_2", target: "node_3" },
-    { id: "edge_3", source: "node_3", target: "node_4" },
-    { id: "edge_4", source: "node_4", target: "node_5" },
-    { id: "edge_5", source: "node_5", target: "node_6" },
-    { id: "edge_6", source: "node_6", target: "node_7" },
-    { id: "edge_7", source: "node_7", target: "node_8" },
+    { id: "edge_2", source: "node_2", target: "node_10" }, // Gentle reminder -> check reply
+    { id: "edge_3", source: "node_10", target: "node_14", sourceHandle: "branch_0" }, // Replied -> assign manager
+    { id: "edge_4", source: "node_10", target: "node_3", sourceHandle: "branch_1" }, // No reply -> wait 4 days
+    { id: "edge_5", source: "node_3", target: "node_4" },
+    { id: "edge_6", source: "node_4", target: "node_12" }, // SMS -> check reply
+    { id: "edge_7", source: "node_12", target: "node_14", sourceHandle: "branch_0" }, // SMS replied -> assign manager
+    { id: "edge_8", source: "node_12", target: "node_5", sourceHandle: "branch_1" }, // No SMS reply -> wait 3 days
+    { id: "edge_9", source: "node_5", target: "node_6" },
+    { id: "edge_10", source: "node_6", target: "node_13" }, // Firm notice -> check reply
+    { id: "edge_11", source: "node_13", target: "node_14", sourceHandle: "branch_0" }, // Replied -> assign manager
+    { id: "edge_12", source: "node_13", target: "node_7", sourceHandle: "branch_1" }, // No reply -> wait 10 days
+    { id: "edge_13", source: "node_7", target: "node_8" }, // Wait -> check payment
+    { id: "edge_14", source: "node_8", target: "node_11", sourceHandle: "branch_0" }, // Payment received -> confirmation
+    { id: "edge_15", source: "node_8", target: "node_9", sourceHandle: "branch_1" }, // No payment -> collections
   ],
   settings: {
     allowReEntry: false,
@@ -1494,13 +2174,127 @@ const template_08_site_visit: WorkflowTemplate = {
         },
       },
     },
+    // Check for confirmation reply after 2-day reminder
+    {
+      id: "node_7",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Confirmation Received?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Confirmation",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact confirm attendance?",
+        },
+      },
+    },
+    // SMS reply check
+    {
+      id: "node_8",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "SMS Reply?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check SMS Reply",
+          condition_type: "field_equals",
+          field: "sms_replied",
+          value: "true",
+          question: "Did the contact reply to SMS?",
+        },
+      },
+    },
+    // Tag as confirmed
+    {
+      id: "node_9",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "add_tag",
+        label: "Tag as Confirmed",
+        icon: "Tag",
+        color: "green",
+        config: {
+          action_name: "Tag as Confirmed",
+          tag: "visit_confirmed",
+        },
+      },
+    },
+    // Call for unconfirmed
+    {
+      id: "node_10",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "call",
+        label: "Call to Confirm",
+        icon: "Phone",
+        color: "amber",
+        config: {
+          action_name: "Call to Confirm Visit",
+          reason: "site_visit_confirmation",
+        },
+      },
+    },
+    // Check call outcome
+    {
+      id: "node_11",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Call Answered?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Call Outcome",
+          condition_type: "field_equals",
+          field: "call_answered",
+          value: "true",
+          question: "Was the call answered?",
+        },
+      },
+    },
+    // Mark as at risk
+    {
+      id: "node_12",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "add_tag",
+        label: "Tag as At Risk",
+        icon: "Tag",
+        color: "red",
+        config: {
+          action_name: "Tag as At Risk No-Show",
+          tag: "visit_at_risk",
+        },
+      },
+    },
   ],
   edges: [
     { id: "edge_1", source: "node_1", target: "node_2" },
     { id: "edge_2", source: "node_2", target: "node_3" },
-    { id: "edge_3", source: "node_3", target: "node_4" },
-    { id: "edge_4", source: "node_4", target: "node_5" },
-    { id: "edge_5", source: "node_5", target: "node_6" },
+    { id: "edge_3", source: "node_3", target: "node_7" }, // 2-day reminder -> check confirmation
+    { id: "edge_4", source: "node_7", target: "node_9", sourceHandle: "branch_0" }, // Confirmed -> tag
+    { id: "edge_5", source: "node_7", target: "node_4", sourceHandle: "branch_1" }, // Not confirmed -> wait for day before
+    { id: "edge_6", source: "node_4", target: "node_5" },
+    { id: "edge_7", source: "node_5", target: "node_8" }, // SMS -> check reply
+    { id: "edge_8", source: "node_8", target: "node_9", sourceHandle: "branch_0" }, // SMS reply -> tag confirmed
+    { id: "edge_9", source: "node_8", target: "node_10", sourceHandle: "branch_1" }, // No SMS reply -> call
+    { id: "edge_10", source: "node_10", target: "node_11" }, // Call -> check outcome
+    { id: "edge_11", source: "node_11", target: "node_9", sourceHandle: "branch_0" }, // Answered -> confirmed
+    { id: "edge_12", source: "node_11", target: "node_12", sourceHandle: "branch_1" }, // Not answered -> at risk
+    { id: "edge_13", source: "node_9", target: "node_6" }, // Confirmed -> alert team
+    { id: "edge_14", source: "node_12", target: "node_6" }, // At risk -> still alert team
   ],
   settings: {
     allowReEntry: false,
@@ -1816,15 +2610,123 @@ const template_10_post_project_review: WorkflowTemplate = {
         },
       },
     },
+    // Check SMS reply
+    {
+      id: "node_9",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "SMS Reply?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check SMS Reply",
+          condition_type: "field_equals",
+          field: "sms_replied",
+          value: "true",
+          question: "Did the contact reply to SMS?",
+        },
+      },
+    },
+    // Go to review check if SMS replied
+    {
+      id: "node_10",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "go_to",
+        label: "Go To Review Check",
+        icon: "ExternalLink",
+        color: "amber",
+        config: {
+          action_name: "Route to Review Check",
+          target_node: "node_4",
+        },
+      },
+    },
+    // Tag as no response
+    {
+      id: "node_11",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "add_tag",
+        label: "Tag as No Review",
+        icon: "Tag",
+        color: "gray",
+        config: {
+          action_name: "Tag as No Review",
+          tag: "no_review_response",
+        },
+      },
+    },
+    // Check reply after thank you + referral
+    {
+      id: "node_12",
+      type: "workflowNode",
+      data: {
+        builderType: "branch",
+        actionType: "if_else",
+        label: "Referral Reply?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          action_name: "Check Referral Reply",
+          condition_type: "field_equals",
+          field: "contact_replied",
+          value: "true",
+          question: "Did the contact reply with referral?",
+        },
+      },
+    },
+    // Tag as referrer
+    {
+      id: "node_13",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "add_tag",
+        label: "Tag as Referrer",
+        icon: "Tag",
+        color: "green",
+        config: {
+          action_name: "Tag as Referrer",
+          tag: "active_referrer",
+        },
+      },
+    },
+    // Thank you for review
+    {
+      id: "node_14",
+      type: "workflowNode",
+      data: {
+        builderType: "action",
+        actionType: "add_tag",
+        label: "Tag as Reviewer",
+        icon: "Tag",
+        color: "blue",
+        config: {
+          action_name: "Tag as Reviewer",
+          tag: "left_review",
+        },
+      },
+    },
   ],
   edges: [
     { id: "edge_1", source: "node_1", target: "node_2" },
     { id: "edge_2", source: "node_2", target: "node_3" },
     { id: "edge_3", source: "node_3", target: "node_4" },
     { id: "edge_4", source: "node_4", target: "node_5", sourceHandle: "branch_0" },
-    { id: "edge_5", source: "node_5", target: "node_6", sourceHandle: "branch_0" },
-    { id: "edge_6", source: "node_5", target: "node_7", sourceHandle: "branch_1" },
-    { id: "edge_7", source: "node_4", target: "node_8", sourceHandle: "branch_1" },
+    { id: "edge_5", source: "node_5", target: "node_6", sourceHandle: "branch_0" }, // High rating -> thank you
+    { id: "edge_6", source: "node_5", target: "node_7", sourceHandle: "branch_1" }, // Low rating -> alert
+    { id: "edge_7", source: "node_4", target: "node_8", sourceHandle: "branch_1" }, // No review -> SMS
+    { id: "edge_8", source: "node_8", target: "node_9" }, // SMS -> check reply
+    { id: "edge_9", source: "node_9", target: "node_10", sourceHandle: "branch_0" }, // SMS replied -> go to review check
+    { id: "edge_10", source: "node_9", target: "node_11", sourceHandle: "branch_1" }, // No SMS reply -> no review tag
+    { id: "edge_11", source: "node_6", target: "node_12" }, // Thank you + referral -> check reply
+    { id: "edge_12", source: "node_12", target: "node_13", sourceHandle: "branch_0" }, // Replied -> tag as referrer
+    { id: "edge_13", source: "node_12", target: "node_14", sourceHandle: "branch_1" }, // No reply -> tag as reviewer only
   ],
   settings: {
     allowReEntry: false,
