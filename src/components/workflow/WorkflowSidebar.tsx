@@ -553,12 +553,20 @@ export const WorkflowSidebar: React.FC<WorkflowSidebarProps> = ({
                               )}
 
                               {field.type === "text" && (
-                                <CustomFieldInput
-                                  value={val ?? ""}
-                                  onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
-                                  placeholder={"placeholder" in field ? field.placeholder : ""}
-                                  helperText={"helperText" in field ? field.helperText : undefined}
-                                />
+                                field.name === "action_name" ? (
+                                  <Input
+                                    value={val ?? ""}
+                                    onChange={(e) => setLocalConfig((s) => ({ ...s, [field.name]: e.target.value }))}
+                                    placeholder={"placeholder" in field ? field.placeholder : ""}
+                                  />
+                                ) : (
+                                  <CustomFieldInput
+                                    value={val ?? ""}
+                                    onChange={(v) => setLocalConfig((s) => ({ ...s, [field.name]: v }))}
+                                    placeholder={"placeholder" in field ? field.placeholder : ""}
+                                    helperText={"helperText" in field ? field.helperText : undefined}
+                                  />
+                                )
                               )}
 
                               {field.type === "number" && (
