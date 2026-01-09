@@ -345,6 +345,7 @@ export const NODE_CONFIGS: Record<string, NodeConfigSchema> = {
       { name: "track_opens", label: "Track Opens", type: "switch", helperText: "Enable open tracking for this email." },
       { name: "track_clicks", label: "Track Clicks", type: "switch", helperText: "Enable link tracking for this email." },
       { name: "body", label: "Email Body", type: "richtext", required: true },
+      { name: "attachments", label: "Attachments", type: "attachments" },
     ],
   },
   send_sms: {
