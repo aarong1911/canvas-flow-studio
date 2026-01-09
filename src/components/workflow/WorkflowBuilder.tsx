@@ -1,8 +1,15 @@
+//src/pages/workflows/WorkflowBuilder.tsx
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { addEdge, Connection, MarkerType, useEdgesState, useNodesState, ReactFlowInstance, OnConnectStartParams } from "reactflow";
 import { toast } from "sonner";
-import { Zap } from "lucide-react";
+import { 
+  Zap, Play, UserPlus, Tag, GitBranch, Mail, MessageSquare, Clock, 
+  TrendingUp, UserCheck, Filter, Target, Calendar, CheckCircle, 
+  AlertCircle, Plus, Settings as SettingsIcon 
+} from "lucide-react";
+import { saveDraft } from "./workflowRepository";
+import { fetchWorkflow, fetchLatestWorkflowVersion } from "./workflowRepository";
 
 import { RFNode, RFEdge, RFNodeData, ConnectFrom, WorkflowSettings, SidebarTab, TopTab, NodeLibraryItem, BuilderNodeType, TriggerData } from "./types";
 import { WorkflowHeader } from "./WorkflowHeader";
@@ -11,7 +18,24 @@ import { WorkflowSidebar } from "./WorkflowSidebar";
 import { WorkflowSettingsPage } from "./WorkflowSettingsPage";
 import { TRIGGERS, ALL_LIBRARY_ITEMS } from "./node-library";
 import { getTemplateById } from "./templates";
-import { saveDraft, fetchWorkflow, fetchLatestWorkflowVersion } from "./workflowRepository";
+
+// ✅ Icon serialization system
+const ICON_MAP: Record<string, any> = {
+  Zap, Play, UserPlus, Tag, GitBranch, Mail, MessageSquare, Clock,
+  TrendingUp, UserCheck, Filter, Target, Calendar, CheckCircle,
+  AlertCircle, Plus, SettingsIcon,
+};
+
+const getIconComponent = (iconName: string): any => {
+  return ICON_MAP[iconName] || Zap;
+};
+
+const getIconName = (IconComponent: any): string => {
+  for (const [name, component] of Object.entries(ICON_MAP)) {
+    if (component === IconComponent) return name;
+  }
+  return "Zap";
+};
 
 // Helper functions
 function normalizeBuilderType(maybe: any, actionType: string): BuilderNodeType {
@@ -36,7 +60,6 @@ const DEFAULT_SETTINGS: WorkflowSettings = {
   markConversationsRead: false,
 };
 
-// Get a default unconfigured trigger
 function createEmptyTrigger(): TriggerData {
   return {
     id: crypto.randomUUID(),
@@ -49,7 +72,6 @@ function createEmptyTrigger(): TriggerData {
   };
 }
 
-// Helper: Look up icon from node library by actionType
 function getIconForActionType(actionType: string): any {
   const item = ALL_LIBRARY_ITEMS.find(i => i.id === actionType);
   return item?.icon || Zap;
@@ -60,7 +82,12 @@ export const WorkflowBuilder: React.FC = () => {
   const location = useLocation();
   const { id: workflowIdParam } = useParams<{ id?: string }>();
 
-  // Get template info from navigation state
+  const [workflowId, setWorkflowId] = useState<string | undefined>(workflowIdParam);
+
+  useEffect(() => {
+    setWorkflowId(workflowIdParam);
+  }, [workflowIdParam]);
+
   const templateId = location.state?.templateId;
   const isFromTemplate = location.state?.isFromTemplate;
 
@@ -71,12 +98,10 @@ export const WorkflowBuilder: React.FC = () => {
   const [workflowStatus, setWorkflowStatus] = useState<"draft" | "active">("draft");
   const [search, setSearch] = useState("");
 
-  // Track unsaved changes
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
 
-  // Triggers are separate from the flow nodes
   const [triggers, setTriggers] = useState<TriggerData[]>([createEmptyTrigger()]);
   const [selectedTriggerId, setSelectedTriggerId] = useState<string | null>(null);
 
@@ -95,10 +120,9 @@ export const WorkflowBuilder: React.FC = () => {
   const selectedEdge = useMemo(() => edges.find((e) => e.id === selectedEdgeId) || null, [edges, selectedEdgeId]);
   const selectedTrigger = useMemo(() => triggers.find((t) => t.id === selectedTriggerId) || null, [triggers, selectedTriggerId]);
 
-  // Track if initial load is done to avoid showing unsaved on mount
   const [isInitialized, setIsInitialized] = useState(false);
 
-  // Load template data when navigating from template selection
+  // ✅ Effect 1: Load from template
   useEffect(() => {
     if (!templateId || !isFromTemplate) return;
 
@@ -113,10 +137,9 @@ export const WorkflowBuilder: React.FC = () => {
 
       console.log("📦 [Template] Loading template:", template.name);
 
-      // Load triggers from template
       if (template.triggers && Array.isArray(template.triggers)) {
         const loadedTriggers: TriggerData[] = template.triggers.map((t) => {
-          const icon = getIconForActionType(t.actionType);
+          const icon = getIconComponent(t.icon);
           return {
             id: t.id || crypto.randomUUID(),
             actionType: t.actionType,
@@ -127,19 +150,17 @@ export const WorkflowBuilder: React.FC = () => {
             isConfigured: t.isConfigured ?? true,
           };
         });
-        // Add empty trigger slot
         loadedTriggers.push(createEmptyTrigger());
         setTriggers(loadedTriggers);
       }
 
-      // Load nodes from template
       if (template.nodes && Array.isArray(template.nodes)) {
         const loadedNodes: RFNode[] = template.nodes.map((n, idx) => {
-          const icon = getIconForActionType(n.data.actionType);
+          const icon = getIconComponent(n.data.icon);
           return {
             id: n.id,
             type: n.type || "workflowNode",
-            position: { x: 0, y: idx * 150 }, // Stack vertically
+            position: (n as any).position || { x: 0, y: idx * 150 },
             data: {
               builderType: normalizeBuilderType(n.data.builderType, n.data.actionType),
               actionType: normalizeActionType(n.data.actionType),
@@ -154,7 +175,6 @@ export const WorkflowBuilder: React.FC = () => {
         setNodes(loadedNodes);
       }
 
-      // Load edges from template
       if (template.edges && Array.isArray(template.edges)) {
         const loadedEdges: RFEdge[] = template.edges.map((e) => ({
           id: e.id,
@@ -169,12 +189,10 @@ export const WorkflowBuilder: React.FC = () => {
         setEdges(loadedEdges);
       }
 
-      // Load workflow name from template
       if (template.name) {
         setWorkflowName(template.name);
       }
 
-      // Load settings from template
       if (template.settings) {
         setWfSettings(prev => ({ 
           ...prev, 
@@ -187,7 +205,6 @@ export const WorkflowBuilder: React.FC = () => {
         description: `${template.nodes?.length || 0} nodes ready to customize`,
       });
 
-      // Clear navigation state to prevent reload on refresh
       navigate(location.pathname, { replace: true, state: {} });
 
       console.log("✅ [Template] Load complete");
@@ -200,21 +217,126 @@ export const WorkflowBuilder: React.FC = () => {
     }
   }, [templateId, isFromTemplate, navigate, location.pathname, setNodes, setEdges]);
 
-  // Initialize after first render (only if not loading template)
+  // ✅ Effect 2: Load from database (SEPARATE!)
   useEffect(() => {
-    if (templateId && isFromTemplate) return; // Skip if loading template
+    if (templateId && isFromTemplate) return;
+    
+    if (!workflowIdParam) {
+      setIsInitialized(true);
+      return;
+    }
+
+    (async () => {
+      try {
+        console.log("📥 Loading workflow from database:", workflowIdParam);
+
+        const wf = await fetchWorkflow(workflowIdParam);
+        const latest = await fetchLatestWorkflowVersion(workflowIdParam);
+
+        console.log("📦 Workflow data:", wf);
+        console.log("📦 Latest version:", latest);
+
+        setWorkflowName(wf.name || "Untitled Workflow");
+        setWorkflowStatus((wf.status as any) || "draft");
+        setWfSettings(wf.settings || DEFAULT_SETTINGS);
+
+        // ✅ Load nodes with icon conversion
+        if (latest?.definition?.nodes && Array.isArray(latest.definition.nodes)) {
+          console.log("📦 Loading nodes:", latest.definition.nodes.length);
+          
+          const loadedNodes: RFNode[] = latest.definition.nodes.map((n: any) => ({
+            id: n.id,
+            type: n.type || "workflowNode",
+            position: n.position || { x: 0, y: 0 },
+            data: {
+              builderType: n.data.builderType,
+              actionType: n.data.actionType,
+              label: n.data.label,
+              icon: getIconComponent(n.data.icon), // ✅ Convert
+              color: n.data.color,
+              config: n.data.config || {},
+              isConfigured: n.data.isConfigured !== false,
+            },
+          }));
+          
+          setNodes(loadedNodes);
+          console.log("✅ Nodes loaded:", loadedNodes.length);
+        } else {
+          console.warn("⚠️ No nodes in definition");
+          setNodes([]);
+        }
+
+        // ✅ Load edges
+        if (latest?.definition?.edges && Array.isArray(latest.definition.edges)) {
+          console.log("🔗 Loading edges:", latest.definition.edges.length);
+          setEdges(latest.definition.edges);
+          console.log("✅ Edges loaded:", latest.definition.edges.length);
+        } else {
+          console.warn("⚠️ No edges in definition");
+          setEdges([]);
+        }
+
+        // ✅ Load triggers (with type assertion for TypeScript)
+        const wfWithTriggers = wf as typeof wf & {
+          triggers?: Array<{
+            id: string;
+            actionType: string;
+            label: string;
+            icon: string;
+            color: string;
+            config: Record<string, any>;
+            isConfigured: boolean;
+          }>;
+        };
+        
+        if (wfWithTriggers.triggers && Array.isArray(wfWithTriggers.triggers)) {
+          console.log("📋 Loading triggers:", wfWithTriggers.triggers.length);
+          
+          const loadedTriggers: TriggerData[] = wfWithTriggers.triggers.map((t: any) => ({
+            id: t.id || crypto.randomUUID(),
+            actionType: t.actionType,
+            label: t.label,
+            icon: getIconComponent(t.icon), // ✅ Convert
+            color: t.color,
+            config: t.config || {},
+            isConfigured: t.isConfigured !== false,
+          }));
+          
+          loadedTriggers.push(createEmptyTrigger());
+          setTriggers(loadedTriggers);
+          console.log("✅ Triggers loaded:", loadedTriggers.length);
+        } else {
+          setTriggers([createEmptyTrigger()]);
+        }
+
+        setIsInitialized(true);
+        setHasUnsavedChanges(false);
+
+        console.log("✅ Workflow loaded successfully");
+        toast.success("Workflow loaded");
+
+      } catch (e: any) {
+        console.error("❌ Failed to load workflow:", e);
+        toast.error("Failed to load workflow", { description: e?.message || String(e) });
+        setIsInitialized(true);
+      }
+    })();
+  }, [workflowIdParam, templateId, isFromTemplate, setNodes, setEdges]);
+
+  // Initialize after first render (only if not loading anything)
+  useEffect(() => {
+    if (templateId && isFromTemplate) return;
+    if (workflowIdParam) return;
     const timer = setTimeout(() => setIsInitialized(true), 100);
     return () => clearTimeout(timer);
-  }, [templateId, isFromTemplate]);
+  }, [templateId, isFromTemplate, workflowIdParam]);
 
-  // Mark changes as unsaved when things change (only after initialization)
   useEffect(() => {
     if (isInitialized) {
       setHasUnsavedChanges(true);
     }
   }, [triggers, nodes, edges, wfSettings, workflowName, isInitialized]);
 
-  // Prevent page scroll
   useEffect(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -283,7 +405,6 @@ export const WorkflowBuilder: React.FC = () => {
         if (trigger?.isConfigured) {
           setTriggers((ts) => {
             const filtered = ts.filter((t) => t.id !== selectedTriggerId);
-            // Ensure at least one empty trigger exists
             if (filtered.length === 0 || filtered.every(t => t.isConfigured)) {
               return [...filtered, createEmptyTrigger()];
             }
@@ -298,7 +419,6 @@ export const WorkflowBuilder: React.FC = () => {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selectedEdgeId, selectedNodeId, selectedTriggerId, triggers, setEdges, setNodes]);
 
-  // Handle trigger click - select it and show triggers list in sidebar
   const handleTriggerClick = useCallback((triggerId: string) => {
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
@@ -312,9 +432,7 @@ export const WorkflowBuilder: React.FC = () => {
     }
   }, [triggers]);
 
-  // Handle add trigger click - show triggers list
   const handleAddTriggerClick = useCallback(() => {
-    // Find or create an empty trigger and select it
     const emptyTrigger = triggers.find(t => !t.isConfigured);
     if (emptyTrigger) {
       setSelectedTriggerId(emptyTrigger.id);
@@ -328,7 +446,6 @@ export const WorkflowBuilder: React.FC = () => {
     setSelectedEdgeId(null);
   }, [triggers]);
 
-  // Handle selecting a trigger type from the library
   const handleSelectTriggerType = useCallback((item: NodeLibraryItem) => {
     if (!selectedTriggerId) return;
     
@@ -341,7 +458,7 @@ export const WorkflowBuilder: React.FC = () => {
           icon: item.icon,
           color: item.color,
           config: { trigger_name: item.label },
-          isConfigured: false, // Still needs to be saved
+          isConfigured: false,
         };
       }
       return t;
@@ -349,7 +466,6 @@ export const WorkflowBuilder: React.FC = () => {
     setSidebarTab("settings");
   }, [selectedTriggerId]);
 
-  // Handle saving trigger configuration
   const handleSaveTriggerConfig = useCallback((triggerId: string, config: Record<string, any>) => {
     setTriggers((ts) => {
       const updated = ts.map((t) => {
@@ -359,7 +475,6 @@ export const WorkflowBuilder: React.FC = () => {
         return t;
       });
       
-      // Add a new empty trigger slot if all are configured
       if (updated.every(t => t.isConfigured)) {
         return [...updated, createEmptyTrigger()];
       }
@@ -368,7 +483,6 @@ export const WorkflowBuilder: React.FC = () => {
     toast.success("Trigger saved");
   }, []);
 
-  // Handle add action click
   const handleAddActionClick = useCallback((sourceNodeId?: string, sourceHandle?: string) => {
     if (sourceNodeId) {
       setConnectFrom({ sourceNodeId, sourceHandle: (sourceHandle as any) || "default" });
@@ -379,10 +493,7 @@ export const WorkflowBuilder: React.FC = () => {
     setSelectedTriggerId(null);
   }, []);
 
-  // Get new node position - center nodes vertically in a column
   const getNewNodePosition = useCallback((sourceId?: string, sourceHandle?: ConnectFrom["sourceHandle"]) => {
-    // Position at center x (0 in ReactFlow coords since we use fitView)
-    // Stack nodes vertically with 120px spacing
     if (!sourceId) {
       if (nodes.length === 0) return { x: 0, y: 0 };
       const last = nodes[nodes.length - 1];
@@ -392,11 +503,9 @@ export const WorkflowBuilder: React.FC = () => {
     if (!src) return { x: 0, y: 0 };
     const base = { x: 0, y: src.position.y + 180 };
     
-    // Handle legacy yes/no handles
     if (sourceHandle === "yes") return { x: base.x - 260, y: base.y };
     if (sourceHandle === "no") return { x: base.x + 260, y: base.y };
     
-    // Handle branch-based handles (branch_0, branch_1, etc. and none)
     if (sourceHandle?.startsWith("branch_") || sourceHandle === "none") {
       const branches = src.data.config?.branches || [];
       const showNoneBranch = src.data.config?.showNoneBranch !== false;
@@ -404,12 +513,11 @@ export const WorkflowBuilder: React.FC = () => {
       
       let branchIndex: number;
       if (sourceHandle === "none") {
-        branchIndex = branches.length; // None is always last
+        branchIndex = branches.length;
       } else {
         branchIndex = parseInt(sourceHandle.replace("branch_", ""), 10);
       }
       
-      // Calculate x offset based on branch position
       const branchWidth = 220;
       const totalWidth = totalBranches * branchWidth;
       const startX = -totalWidth / 2 + branchWidth / 2;
@@ -421,7 +529,6 @@ export const WorkflowBuilder: React.FC = () => {
     return base;
   }, [nodes]);
 
-  // Handle adding an action node
   const handleAddNode = useCallback((item: NodeLibraryItem) => {
     const nodeId = crypto.randomUUID();
     const builderType = normalizeBuilderType(item.kind, item.id);
@@ -443,16 +550,13 @@ export const WorkflowBuilder: React.FC = () => {
       },
     };
 
-    // Check if we're inserting on an existing edge
     if (selectedEdgeId) {
       const edge = edges.find(e => e.id === selectedEdgeId);
       if (edge) {
-        // Find source and target nodes to calculate insert position
         const sourceNode = nodes.find(n => n.id === edge.source);
         const targetNode = nodes.find(n => n.id === edge.target);
         
         if (sourceNode && targetNode) {
-          // Position between source and target
           newNode.position = {
             x: (sourceNode.position.x + targetNode.position.x) / 2,
             y: (sourceNode.position.y + targetNode.position.y) / 2,
@@ -461,7 +565,6 @@ export const WorkflowBuilder: React.FC = () => {
 
         setNodes((nds) => [...nds, newNode]);
 
-        // Remove old edge and create two new edges
         setEdges((eds) => {
           const filtered = eds.filter(e => e.id !== selectedEdgeId);
           return [
@@ -498,21 +601,17 @@ export const WorkflowBuilder: React.FC = () => {
       }
     }
 
-    // Check if we're inserting between two nodes in the main column (no edge exists)
     if (insertBeforeNodeId) {
       const targetNode = nodes.find((n) => n.id === insertBeforeNodeId);
 
-      // Handle special case: inserting before first node (source is __trigger__)
       if (connectFrom?.sourceNodeId === "__trigger__") {
         if (targetNode) {
-          // Position above the first node
           newNode.position = {
             x: targetNode.position.x,
             y: targetNode.position.y - 120,
           };
         }
 
-        // Insert at the beginning of nodes array
         setNodes((nds) => [newNode, ...nds]);
 
         setConnectFrom(null);
@@ -527,14 +626,12 @@ export const WorkflowBuilder: React.FC = () => {
       const sourceNode = nodes.find((n) => n.id === sourceId);
 
       if (sourceNode && targetNode) {
-        // Position between the two nodes
         newNode.position = {
           x: (sourceNode.position.x + targetNode.position.x) / 2,
           y: (sourceNode.position.y + targetNode.position.y) / 2,
         };
       }
 
-      // Insert the new node at the correct position in the nodes array
       setNodes((nds) => {
         const targetIndex = nds.findIndex((n) => n.id === insertBeforeNodeId);
         if (targetIndex === -1) return [...nds, newNode];
@@ -543,7 +640,6 @@ export const WorkflowBuilder: React.FC = () => {
         return newNodes;
       });
 
-      // Rewire the existing edge (source -> target) into (source -> new -> target)
       if (sourceId) {
         setEdges((eds) => {
           const existing = eds.find(
@@ -589,11 +685,9 @@ export const WorkflowBuilder: React.FC = () => {
       return;
     }
 
-    // Regular add - add to end or after source
     setNodes((nds) => [...nds, newNode]);
 
     if (connectFrom) {
-      // Get branch label for edge
       let edgeLabel: string | undefined;
       if (connectFrom.sourceHandle === "yes") edgeLabel = "Yes";
       else if (connectFrom.sourceHandle === "no") edgeLabel = "No";
@@ -635,21 +729,15 @@ export const WorkflowBuilder: React.FC = () => {
     toast.success("Disconnected");
   }, [setEdges]);
 
-  // Handle inserting a node on an edge (clicking plus button on edge)
   const handleInsertOnEdge = useCallback((edgeId: string, sourceId: string, targetId: string) => {
-    // Store the edge info for inserting a node
     setConnectFrom({ sourceNodeId: sourceId, sourceHandle: "default" });
-    // Store edge info in a ref or state for later use when adding node
-    // For now, just open the actions sidebar
     setSidebarTab("actions");
     setSelectedNodeId(null);
     setSelectedEdgeId(edgeId);
     setSelectedTriggerId(null);
   }, []);
 
-  // Handle inserting a node between two existing nodes (clicking plus button between nodes)
   const handleInsertBetween = useCallback((parentNodeId: string, childNodeId: string, sourceHandle: string) => {
-    // Special case: inserting before first node (parentNodeId is "__trigger__")
     if (parentNodeId === "__trigger__") {
       setConnectFrom({ 
         sourceNodeId: "__trigger__", 
@@ -663,18 +751,14 @@ export const WorkflowBuilder: React.FC = () => {
       return;
     }
     
-    // Find the edge between parent and child
     const edge = edges.find(e => e.source === parentNodeId && e.target === childNodeId);
     if (edge) {
-      // Use the existing edge insert logic
       handleInsertOnEdge(edge.id, parentNodeId, childNodeId);
     } else {
-      // No edge exists between these nodes - we need to insert between them in the visual order
-      // Create a special state that tells handleAddNode to insert between these nodes
       setConnectFrom({ 
         sourceNodeId: parentNodeId, 
         sourceHandle: sourceHandle as any,
-        insertBeforeNodeId: childNodeId  // Custom property to track insertion point
+        insertBeforeNodeId: childNodeId
       } as any);
       setSidebarTab("actions");
       setSelectedNodeId(null);
@@ -683,35 +767,77 @@ export const WorkflowBuilder: React.FC = () => {
     }
   }, [edges, handleInsertOnEdge]);
 
-  // Track current workflow ID (from URL or after first save)
-  const [workflowId, setWorkflowId] = useState<string | undefined>(workflowIdParam);
-
-  // Save workflow
+  // ✅ Save with icon conversion
   const handleSave = async () => {
-    setIsSaving(true);
     try {
-      const result = await saveDraft({
+      setIsSaving(true);
+
+      const cleanTriggers = triggers
+        .filter((t) => t.actionType !== "trigger_placeholder")
+        .map((t) => ({
+          id: t.id,
+          actionType: t.actionType,
+          label: t.label,
+          icon: getIconName(t.icon), // ✅ Convert
+          color: t.color,
+          config: t.config,
+          isConfigured: t.isConfigured,
+        }));
+
+      console.log("💾 [SAVE] Preparing to save:");
+      console.log("💾 [SAVE] Total triggers before filter:", triggers.length);
+      console.log("💾 [SAVE] Clean triggers after filter:", cleanTriggers.length);
+      console.log("💾 [SAVE] Triggers data:", JSON.stringify(cleanTriggers, null, 2));
+      console.log("💾 [SAVE] Nodes count:", nodes.length);
+      console.log("💾 [SAVE] Edges count:", edges.length);
+
+      const nodesToSave = nodes.map((n) => ({
+        id: n.id,
+        type: n.type,
+        position: n.position,
+        data: {
+          builderType: n.data.builderType,
+          actionType: n.data.actionType,
+          label: n.data.label,
+          icon: getIconName(n.data.icon), // ✅ Convert
+          color: n.data.color,
+          config: n.data.config,
+          isConfigured: n.data.isConfigured,
+        },
+      }));
+
+      const savePayload = {
         workflowId,
         name: workflowName,
         status: workflowStatus,
-        triggers,
+        category: "general" as const,
+        triggers: cleanTriggers as any,
         settings: wfSettings,
-        nodes,
+        nodes: nodesToSave as any,
         edges,
-      });
-      
-      // Update workflowId if this was a new workflow
-      if (!workflowId && result?.workflow?.id) {
+      };
+
+      console.log("💾 [SAVE] Complete save payload:", JSON.stringify(savePayload, null, 2));
+
+      const result = await saveDraft(savePayload);
+
+      console.log("✅ [SAVE] Save result:", result);
+
+      if (!workflowId) {
         setWorkflowId(result.workflow.id);
-        navigate(`/workflow/${result.workflow.id}`, { replace: true });
+        navigate(`/workflows/builder/${result.workflow.id}`, { replace: true });
       }
-      
+
       setHasUnsavedChanges(false);
       setShowSavedMessage(true);
       setTimeout(() => setShowSavedMessage(false), 4000);
-    } catch (error: any) {
-      console.error("Save failed:", error);
-      toast.error(error?.message || "Failed to save workflow");
+
+      toast.success("Workflow saved", {
+        description: `Saved ${nodes.length} nodes / ${edges.length} edges / ${cleanTriggers.length} triggers`,
+      });
+    } catch (e: any) {
+      console.error("❌ Save failed:", e);
+      toast.error("Save failed", { description: e?.message || String(e) });
     } finally {
       setIsSaving(false);
     }
@@ -721,7 +847,6 @@ export const WorkflowBuilder: React.FC = () => {
     setShowSavedMessage(false);
   };
 
-  // Test workflow
   const handleTestWorkflow = () => {
     toast.info("Test workflow feature coming soon");
   };
@@ -731,7 +856,6 @@ export const WorkflowBuilder: React.FC = () => {
 
   return (
     <div className="h-[calc(100dvh-64px)] overflow-hidden bg-background flex flex-col">
-      {/* Full-width header */}
       <WorkflowHeader
         workflowName={workflowName}
         setWorkflowName={setWorkflowName}
@@ -748,7 +872,6 @@ export const WorkflowBuilder: React.FC = () => {
         onDismissSavedMessage={handleDismissSavedMessage}
       />
 
-      {/* Content area with sidebar */}
       <div className="flex-1 flex min-h-0">
         <div className="flex-1 flex flex-col min-w-0">
           {topTab === "builder" && (
@@ -818,17 +941,17 @@ export const WorkflowBuilder: React.FC = () => {
             />
           )}
 
-        {topTab === "settings" && (
-          <WorkflowSettingsPage settings={wfSettings} setSettings={setWfSettings} />
-        )}
+          {topTab === "settings" && (
+            <WorkflowSettingsPage settings={wfSettings} setSettings={setWfSettings} />
+          )}
 
-        {topTab === "history" && (
-          <div className="flex-1 p-6 overflow-auto">
-            <div className="text-center text-muted-foreground py-20">
-              Enrollment History (connect to Supabase)
+          {topTab === "history" && (
+            <div className="flex-1 p-6 overflow-auto">
+              <div className="text-center text-muted-foreground py-20">
+                Enrollment History (connect to Supabase)
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
           {topTab === "logs" && (
             <div className="flex-1 p-6 overflow-auto">
