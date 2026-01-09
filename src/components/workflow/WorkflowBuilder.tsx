@@ -545,7 +545,7 @@ export const WorkflowBuilder: React.FC = () => {
     const cf = connectFromRef.current;
     const activeSelectedEdgeId = selectedEdgeIdRef.current;
 
-    console.debug("[WF] handleAddNode", {
+    console.log("[WF] handleAddNode", {
       picked: item.id,
       activeSelectedEdgeId,
       connectFrom: cf,
@@ -556,7 +556,7 @@ export const WorkflowBuilder: React.FC = () => {
     const insertBeforeNodeId = (cf as any)?.insertBeforeNodeId;
     const pos = getNewNodePosition(cf?.sourceNodeId, cf?.sourceHandle);
 
-    console.debug("[WF] addNode context", { nodeId, insertBeforeNodeId, pos });
+    console.log("[WF] addNode context", { nodeId, insertBeforeNodeId, pos });
 
     const newNode: RFNode = {
       id: nodeId,
@@ -768,7 +768,7 @@ export const WorkflowBuilder: React.FC = () => {
   }, [setEdges]);
 
   const handleInsertOnEdge = useCallback((edgeId: string, sourceId: string, _targetId: string) => {
-    console.debug("[WF] handleInsertOnEdge", { edgeId, sourceId });
+    console.log("[WF] handleInsertOnEdge", { edgeId, sourceId });
 
     // Update refs immediately to avoid first-click stale state
     const nextConnectFrom = { sourceNodeId: sourceId, sourceHandle: "default" } as any;
@@ -784,7 +784,7 @@ export const WorkflowBuilder: React.FC = () => {
 
   const handleInsertBetween = useCallback(
     (parentNodeId: string, childNodeId: string, sourceHandle: string) => {
-      console.debug("[WF] handleInsertBetween", { parentNodeId, childNodeId, sourceHandle });
+      console.log("[WF] handleInsertBetween", { parentNodeId, childNodeId, sourceHandle });
 
       if (parentNodeId === "__trigger__") {
         const nextConnectFrom = {
@@ -805,7 +805,7 @@ export const WorkflowBuilder: React.FC = () => {
       }
 
       const edge = edges.find((e) => e.source === parentNodeId && e.target === childNodeId);
-      console.debug("[WF] handleInsertBetween edgeLookup", {
+      console.log("[WF] handleInsertBetween edgeLookup", {
         found: Boolean(edge),
         edgeId: edge?.id,
       });
