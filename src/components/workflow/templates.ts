@@ -1319,6 +1319,24 @@ const template_10_appointment_reminder: WorkflowTemplate = {
 };
 
 // =============================================================================
+// Template ID Migration Map (old ID -> new ID)
+// =============================================================================
+const TEMPLATE_ID_MIGRATIONS: Record<string, string> = {
+  // Legacy IDs that were renamed or reorganized
+  "template_07_payment_collection": "template_04_payment_collection",
+  "payment_collection": "template_04_payment_collection",
+  "lead_nurture": "template_01_new_lead_nurture",
+  "email_engagement": "template_02_email_engagement",
+  "referral_request": "template_03_referral_request",
+  "site_visit": "template_05_site_visit",
+  "post_project_review": "template_06_post_project_review",
+  "seasonal_promotion": "template_07_seasonal_promotion",
+  "welcome_onboarding": "template_08_welcome_onboarding",
+  "review_request": "template_09_review_request",
+  "appointment_reminder": "template_10_appointment_reminder",
+};
+
+// =============================================================================
 // Export all templates
 // =============================================================================
 export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
@@ -1334,8 +1352,19 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   template_10_appointment_reminder,
 ];
 
+/**
+ * Resolves a template ID, applying migrations for legacy/renamed IDs
+ */
+function resolveTemplateId(id: string): string {
+  return TEMPLATE_ID_MIGRATIONS[id] || id;
+}
+
 export function getWorkflowTemplateById(id: string): WorkflowTemplate | undefined {
-  return WORKFLOW_TEMPLATES.find((t) => t.id === id);
+  const resolvedId = resolveTemplateId(id);
+  if (resolvedId !== id) {
+    console.log(`📦 [Template Migration] "${id}" -> "${resolvedId}"`);
+  }
+  return WORKFLOW_TEMPLATES.find((t) => t.id === resolvedId);
 }
 
 // Alias for backward compatibility
