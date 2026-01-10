@@ -1353,10 +1353,21 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
 ];
 
 /**
- * Resolves a template ID, applying migrations for legacy/renamed IDs
+ * Resolves a template ID, applying migrations for legacy/renamed IDs.
+ * Normalizes incoming IDs to be resilient to stale URLs/state (trim, case, separators).
  */
 function resolveTemplateId(id: string): string {
-  return TEMPLATE_ID_MIGRATIONS[id] || id;
+  const raw = (id ?? "").trim();
+  if (!raw) return raw;
+
+  const normalized = raw
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/-/g, "_")
+    .replace(/[^a-z0-9_]/g, "")
+    .replace(/_+/g, "_");
+
+  return TEMPLATE_ID_MIGRATIONS[raw] || TEMPLATE_ID_MIGRATIONS[normalized] || raw;
 }
 
 export function getWorkflowTemplateById(id: string): WorkflowTemplate | undefined {
