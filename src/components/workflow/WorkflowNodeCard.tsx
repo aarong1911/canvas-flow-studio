@@ -231,7 +231,7 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
               <div className="w-px h-4 bg-border" />
               
               {/* Branch Card */}
-              <div className="border rounded-lg bg-blue-50 border-blue-200 px-3 py-2 min-w-[140px] max-w-[180px]">
+              <div className="border rounded-lg bg-blue-50 border-blue-200 px-3 py-2 min-w-[140px] max-w-[180px] select-none">
                 <div className="flex items-center gap-2 text-blue-700">
                   <AlertTriangle className="w-3 h-3" />
                   <span className="text-xs font-medium truncate">{branch.name}</span>
@@ -274,7 +274,7 @@ export const WorkflowNodeCard: React.FC<WorkflowNodeCardProps> = ({
             <div className="w-px h-4 bg-border" />
             
             {/* None Branch Card */}
-            <div className="border rounded-lg bg-gray-50 border-gray-200 px-3 py-2 min-w-[100px]">
+            <div className="border rounded-lg bg-gray-50 border-gray-200 px-3 py-2 min-w-[100px] select-none">
               <div className="flex items-center gap-2 text-gray-600">
                 <AlertTriangle className="w-3 h-3" />
                 <span className="text-xs font-medium">None</span>
