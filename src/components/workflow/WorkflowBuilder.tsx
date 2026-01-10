@@ -6,7 +6,8 @@ import { toast } from "sonner";
 import { 
   Zap, Play, UserPlus, Tag, GitBranch, Mail, MessageSquare, Clock, 
   TrendingUp, UserCheck, Filter, Target, Calendar, CheckCircle, 
-  AlertCircle, Plus, Settings as SettingsIcon 
+  AlertCircle, Plus, Settings as SettingsIcon, Bell, Receipt, ClipboardList,
+  Star, Send, Phone, FileText, DollarSign, Users, Briefcase
 } from "lucide-react";
 import { saveDraft } from "./workflowRepository";
 import { fetchWorkflow, fetchLatestWorkflowVersion } from "./workflowRepository";
@@ -23,7 +24,8 @@ import { getTemplateById } from "./templates";
 const ICON_MAP: Record<string, any> = {
   Zap, Play, UserPlus, Tag, GitBranch, Mail, MessageSquare, Clock,
   TrendingUp, UserCheck, Filter, Target, Calendar, CheckCircle,
-  AlertCircle, Plus, SettingsIcon,
+  AlertCircle, Plus, SettingsIcon, Bell, Receipt, ClipboardList,
+  Star, Send, Phone, FileText, DollarSign, Users, Briefcase,
 };
 
 const getIconComponent = (iconName: string): any => {
