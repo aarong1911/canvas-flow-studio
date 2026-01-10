@@ -1079,6 +1079,246 @@ const template_08_welcome_onboarding: WorkflowTemplate = {
 };
 
 // =============================================================================
+// TEMPLATE 09: Review Request Automation
+// =============================================================================
+const template_09_review_request: WorkflowTemplate = {
+  id: "template_09_review_request",
+  name: "Review Request Automation",
+  description: "Request reviews from customers after service completion",
+  category: "communication",
+  triggers: [
+    {
+      id: "trigger_1",
+      actionType: "appointment_completed",
+      label: "Appointment Completed",
+      icon: "CheckCircle",
+      color: "green",
+      config: { trigger_event: "appointment_completed" },
+      isConfigured: true,
+    },
+  ],
+  nodes: [
+    {
+      id: "node_1",
+      type: "workflowNode",
+      position: { x: 0, y: 0 },
+      data: {
+        builderType: "action",
+        actionType: "wait",
+        label: "Wait 1 Day",
+        icon: "Clock",
+        color: "gray",
+        config: { duration: "1", unit: "days" },
+      },
+    },
+    {
+      id: "node_2",
+      type: "workflowNode",
+      position: { x: 0, y: 180 },
+      data: {
+        builderType: "action",
+        actionType: "send_email",
+        label: "Review Request Email",
+        icon: "Mail",
+        color: "blue",
+        config: { subject: "How was your experience? We'd love your feedback!" },
+      },
+    },
+    {
+      id: "node_3",
+      type: "workflowNode",
+      position: { x: 0, y: 360 },
+      data: {
+        builderType: "action",
+        actionType: "add_tag",
+        label: "Tag as Reviewer",
+        icon: "Tag",
+        color: "blue",
+        config: { tag: "reviewer" },
+      },
+    },
+    {
+      id: "node_4",
+      type: "workflowNode",
+      position: { x: 0, y: 540 },
+      data: {
+        builderType: "action",
+        actionType: "wait",
+        label: "Wait 3 Days",
+        icon: "Clock",
+        color: "gray",
+        config: { duration: "3", unit: "days" },
+      },
+    },
+    {
+      id: "node_5",
+      type: "workflowNode",
+      position: { x: 0, y: 720 },
+      data: {
+        builderType: "condition",
+        actionType: "if_else",
+        label: "Review Submitted?",
+        icon: "GitBranch",
+        color: "amber",
+        config: {
+          field: "review_submitted",
+          branches: [
+            { id: "branch_0", name: "Submitted", segments: [{ field: "review_submitted", operator: "equals", value: "true" }] },
+            { id: "branch_1", name: "Not Submitted", segments: [{ field: "review_submitted", operator: "equals", value: "false" }] },
+          ],
+        },
+      },
+    },
+    {
+      id: "node_6",
+      type: "workflowNode",
+      position: { x: -220, y: 900 },
+      data: {
+        builderType: "action",
+        actionType: "send_email",
+        label: "Thank You Email",
+        icon: "Mail",
+        color: "green",
+        config: { subject: "Thank you for your review!" },
+      },
+    },
+    {
+      id: "node_7",
+      type: "workflowNode",
+      position: { x: 220, y: 900 },
+      data: {
+        builderType: "action",
+        actionType: "send_sms",
+        label: "SMS Reminder",
+        icon: "MessageSquare",
+        color: "green",
+        config: { message: "Hi! We'd love to hear your feedback. Mind leaving a quick review?" },
+      },
+    },
+  ],
+  edges: [
+    { id: "edge_1", source: "node_1", target: "node_2" },
+    { id: "edge_2", source: "node_2", target: "node_3" },
+    { id: "edge_3", source: "node_3", target: "node_4" },
+    { id: "edge_4", source: "node_4", target: "node_5" },
+    { id: "edge_5", source: "node_5", target: "node_6", sourceHandle: "branch_0" },
+    { id: "edge_6", source: "node_5", target: "node_7", sourceHandle: "branch_1" },
+  ],
+  settings: { allowReEntry: false },
+  expectedResults: "40-60% review submission rate",
+};
+
+// =============================================================================
+// TEMPLATE 10: Appointment Reminder Sequence
+// =============================================================================
+const template_10_appointment_reminder: WorkflowTemplate = {
+  id: "template_10_appointment_reminder",
+  name: "Appointment Reminder Sequence",
+  description: "Automated reminders leading up to scheduled appointments",
+  category: "communication",
+  triggers: [
+    {
+      id: "trigger_1",
+      actionType: "appointment_scheduled",
+      label: "Appointment Scheduled",
+      icon: "Calendar",
+      color: "blue",
+      config: { trigger_event: "appointment_scheduled" },
+      isConfigured: true,
+    },
+  ],
+  nodes: [
+    {
+      id: "node_1",
+      type: "workflowNode",
+      position: { x: 0, y: 0 },
+      data: {
+        builderType: "action",
+        actionType: "send_email",
+        label: "Confirmation Email",
+        icon: "Mail",
+        color: "green",
+        config: { subject: "Your appointment is confirmed!" },
+      },
+    },
+    {
+      id: "node_2",
+      type: "workflowNode",
+      position: { x: 0, y: 180 },
+      data: {
+        builderType: "action",
+        actionType: "add_tag",
+        label: "Tag as Booked",
+        icon: "Tag",
+        color: "blue",
+        config: { tag: "booked" },
+      },
+    },
+    {
+      id: "node_3",
+      type: "workflowNode",
+      position: { x: 0, y: 360 },
+      data: {
+        builderType: "action",
+        actionType: "wait",
+        label: "Wait Until 1 Day Before",
+        icon: "Clock",
+        color: "gray",
+        config: { duration: "1", unit: "days", wait_type: "before_appointment" },
+      },
+    },
+    {
+      id: "node_4",
+      type: "workflowNode",
+      position: { x: 0, y: 540 },
+      data: {
+        builderType: "action",
+        actionType: "send_sms",
+        label: "Day Before SMS",
+        icon: "MessageSquare",
+        color: "green",
+        config: { message: "Reminder: Your appointment is tomorrow! Reply CONFIRM to confirm or call us to reschedule." },
+      },
+    },
+    {
+      id: "node_5",
+      type: "workflowNode",
+      position: { x: 0, y: 720 },
+      data: {
+        builderType: "action",
+        actionType: "wait",
+        label: "Wait Until 2 Hours Before",
+        icon: "Clock",
+        color: "gray",
+        config: { duration: "2", unit: "hours", wait_type: "before_appointment" },
+      },
+    },
+    {
+      id: "node_6",
+      type: "workflowNode",
+      position: { x: 0, y: 900 },
+      data: {
+        builderType: "action",
+        actionType: "send_sms",
+        label: "Final Reminder SMS",
+        icon: "MessageSquare",
+        color: "amber",
+        config: { message: "Your appointment is in 2 hours! We look forward to seeing you." },
+      },
+    },
+  ],
+  edges: [
+    { id: "edge_1", source: "node_1", target: "node_2" },
+    { id: "edge_2", source: "node_2", target: "node_3" },
+    { id: "edge_3", source: "node_3", target: "node_4" },
+    { id: "edge_4", source: "node_4", target: "node_5" },
+    { id: "edge_5", source: "node_5", target: "node_6" },
+  ],
+  settings: { allowReEntry: false },
+  expectedResults: "90%+ show rate, reduced no-shows",
+};
+
+// =============================================================================
 // Export all templates
 // =============================================================================
 export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
@@ -1090,6 +1330,8 @@ export const WORKFLOW_TEMPLATES: WorkflowTemplate[] = [
   template_06_post_project_review,
   template_07_seasonal_promotion,
   template_08_welcome_onboarding,
+  template_09_review_request,
+  template_10_appointment_reminder,
 ];
 
 export function getWorkflowTemplateById(id: string): WorkflowTemplate | undefined {
